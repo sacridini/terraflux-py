@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "env.hpp"
 #include "cost/rsp.hpp"
 
 #include <algorithm>
@@ -31,10 +32,10 @@ namespace {
 
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
-// Prints the duration of each stage to stderr when LANDSCHAFT_PROFILE is set.
+// Prints the duration of each stage to stderr when TERRAFLUX_PROFILE (or LANDSCHAFT_PROFILE) is set.
 class StageTimer {
 public:
-    StageTimer() : enabled_(std::getenv("LANDSCHAFT_PROFILE") != nullptr), last_(Clock::now()) {}
+    StageTimer() : enabled_(tfenv::is_set("PROFILE")), last_(Clock::now()) {}
     void operator()(const char* stage) {
         if (!enabled_) return;
         const auto now = Clock::now();

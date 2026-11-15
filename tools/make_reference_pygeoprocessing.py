@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of pygeoprocessing's routing for ls.hydro (the InVEST models' routing).
+"""Generate golden outputs of pygeoprocessing's routing for tf.hydro (the InVEST models' routing).
 
-Usage (with a Python that has natcap.invest / pygeoprocessing, not landschaft)::
+Usage (with a Python that has natcap.invest / pygeoprocessing, not terraflux)::
 
     <invest python> tools/make_reference_pygeoprocessing.py
 

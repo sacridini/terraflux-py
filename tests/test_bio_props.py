@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from bio_cases import (
     BASEDATA_CASES,
     DATA,
@@ -24,27 +24,27 @@ from test_bio_spatial import compare
 
 def _basedata(case: dict):
     bdcase = BASEDATA_CASES[case["basedata"]]
-    kw = {k: v for k, v in bdcase["landschaft"].items() if v is not None}
-    bd = ls.bio.BaseData.from_table(DATA / bdcase["file"], **kw)
+    kw = {k: v for k, v in bdcase["terraflux"].items() if v is not None}
+    bd = tf.bio.BaseData.from_table(DATA / bdcase["file"], **kw)
     lb, gp = property_case_uses(case)
     if lb:
-        bd.set_label_properties(ls.bio.read_properties(DATA / LABEL_PROPS["file"], LABEL_PROPS["element_columns"],
+        bd.set_label_properties(tf.bio.read_properties(DATA / LABEL_PROPS["file"], LABEL_PROPS["element_columns"],
                                                        LABEL_PROPS["properties"]))
     if gp:
-        bd.set_group_properties(ls.bio.read_properties(DATA / GROUP_PROPS["file"], GROUP_PROPS["element_columns"],
+        bd.set_group_properties(tf.bio.read_properties(DATA / GROUP_PROPS["file"], GROUP_PROPS["element_columns"],
                                                        GROUP_PROPS["properties"]))
     return bd
 
 
 def _matrix(name: str):
     mc = MATRIX_CASES[name]
-    return ls.bio.read_matrix(DATA / mc["file"], **mc["landschaft"])
+    return tf.bio.read_matrix(DATA / mc["file"], **mc["terraflux"])
 
 
 def _run(name: str, **kw):
     case = PROPERTY_CASES[name]
     matrix = _matrix(case["matrix"]) if "matrix" in case else None
-    return ls.bio.spatial_analysis(_basedata(case), case["conditions"], case["calcs"], matrix=matrix, **kw)
+    return tf.bio.spatial_analysis(_basedata(case), case["conditions"], case["calcs"], matrix=matrix, **kw)
 
 
 @pytest.fixture(scope="module")
@@ -75,7 +75,7 @@ def test_props_threads_agree(name):
 def test_matrix_needed():
     case = PROPERTY_CASES["matrix_circle"]
     with pytest.raises(ValueError, match="need a matrix"):
-        ls.bio.spatial_analysis(_basedata(case), case["conditions"], ["mx_rao_qe"])
+        tf.bio.spatial_analysis(_basedata(case), case["conditions"], ["mx_rao_qe"])
 
 
 def test_properties_as_dataframe_values():
@@ -83,7 +83,7 @@ def test_properties_as_dataframe_values():
 
     case = PROPERTY_CASES["props_circle"]
     bd = _basedata(case)
-    raw = ls.bio.read_properties(DATA / LABEL_PROPS["file"], LABEL_PROPS["element_columns"], LABEL_PROPS["properties"])
+    raw = tf.bio.read_properties(DATA / LABEL_PROPS["file"], LABEL_PROPS["element_columns"], LABEL_PROPS["properties"])
     # numbers given as floats print as Perl does, so "20.700" becomes "20.7"
     num = raw.apply(pd.to_numeric)
     bd2 = _basedata(case)

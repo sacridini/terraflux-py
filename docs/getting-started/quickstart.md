@@ -1,24 +1,24 @@
 # Quickstart
 
-This walkthrough analyses the example map that ships with Landschaft. It needs
+This walkthrough analyses the example map that ships with Terraflux. It needs
 nothing but a working [installation](installation.md). Run the code in a Jupyter notebook, or save it in a `.py` file
 and run it with `python`.
 
 ## 1. Load a map
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))
+forest = tf.load_raster(tf.example_data("input"))
 print(forest.shape, forest.dtype)   # (1000, 1000) uint8
 print(forest.rio.crs)               # its coordinate reference system
 ```
 
-`ls.example_data("input")` is the path of a GeoTIFF inside the package;
+`tf.example_data("input")` is the path of a GeoTIFF inside the package;
 `load_raster` reads any raster file the same way, e.g.
-`ls.load_raster("my_forest.tif")`. The result is an `xarray.DataArray`: the
+`tf.load_raster("my_forest.tif")`. The result is an `xarray.DataArray`: the
 pixel values plus the georeferencing (coordinates, CRS, NoData), which every
-Landschaft function keeps.
+Terraflux function keeps.
 
 The map is coded the way habitat analyses expect it:
 
@@ -32,15 +32,15 @@ The map is coded the way habitat analyses expect it:
 
 Your own maps rarely come coded this way; [core concepts](concepts.md#habitat-maps)
 shows how to build such a map from a land-cover or tree-cover raster with
-`ls.reclassify`.
+`tf.reclassify`.
 
 ## 2. Look at it
 
 ```python
-ls.plot(forest)
+tf.plot(forest)
 ```
 
-`ls.plot` draws the map on an interactive map over satellite imagery: inline
+`tf.plot` draws the map on an interactive map over satellite imagery: inline
 in a notebook, in a window of its own from a script. The
 [plotting page](plotting.md) shows how it draws every kind of data and how to
 choose the colours.
@@ -54,8 +54,8 @@ role: **core** (interior habitat), **edge** (the outer boundary),
 (a dead end) and **islet** (too small to have a core).
 
 ```python
-morph = ls.mspa(forest, edge_width=2)
-ls.plot(morph)                       # GuidosToolbox's colours and class names
+morph = tf.mspa(forest, edge_width=2)
+tf.plot(morph)                       # GuidosToolbox's colours and class names
 ```
 
 `edge_width=2` makes edges two pixels wide; everything further inside a patch
@@ -66,18 +66,18 @@ is core. On a 1,000 × 1,000 map this takes a fraction of a second.
 ## 4. Summarise
 
 ```python
-stats = ls.mspa_stats(morph)
+stats = tf.mspa_stats(morph)
 print(stats)
 ```
 
 Each row is a class, with its number of pixels, its share of the data area
 and its share of the habitat. The table is a pandas `DataFrame`: save it with
-`ls.save(stats, "mspa_classes.csv")` (or `.xlsx`) or keep working with it in pandas.
+`tf.save(stats, "mspa_classes.csv")` (or `.xlsx`) or keep working with it in pandas.
 
 ## 5. Save the map
 
 ```python
-ls.write_raster(morph, "forest_mspa.tif")
+tf.write_raster(morph, "forest_mspa.tif")
 ```
 
 The GeoTIFF keeps the georeferencing and embeds the MSPA colour table, so it

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cases of ls.move against R's move2 (tools/make_reference_move.py, tools/move_reference.R).
+"""Cases of tf.move against R's move2 (tools/make_reference_move.py, tools/move_reference.R).
 
 Each track set is drawn here once and stored with the references
 (tests/data/reference/move/inputs.npz), so the tests read the same inputs R

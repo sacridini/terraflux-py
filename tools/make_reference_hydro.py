@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of WhiteboxTools for ls.hydro.
+"""Generate golden outputs of WhiteboxTools for tf.hydro.
 
 Usage::
 
@@ -75,9 +75,9 @@ def read(path: Path) -> np.ndarray:
 
 
 def cases() -> dict:
-    import landschaft as ls
+    import terraflux as tf
 
-    oregon = ls.load_raster(ls.surface.example_data("orelevation")).values.squeeze().astype(np.float64)[100:280, 60:280]
+    oregon = tf.load_raster(tf.surface.example_data("orelevation")).values.squeeze().astype(np.float64)[100:280, 60:280]
     holes = oregon.copy()
     holes[60:90, 40:55] = np.nan            # a lake of missing cells
     holes[150:160, 170:220] = np.nan        # touching the edge

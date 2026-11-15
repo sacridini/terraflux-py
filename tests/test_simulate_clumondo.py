@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""CLUMondo (ls.simulate phase 4): land systems, goods and services, against CLUMondo itself."""
+"""CLUMondo (tf.simulate phase 4): land systems, goods and services, against CLUMondo itself."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 CASES = simulate_reference.case_ids("clumondo")
 
 
@@ -189,8 +189,8 @@ def test_errors():
 
 def test_random_ages_as_clumondo():
     # CLUMondo's agemode 1: rand() % max + 1 per cell from the runtime's generator with seed 1
-    ages = ls._core.sim_clumondo_random_age(5, 8, 1)
-    crt = ls._core.sim_crt_rand(1, 5)
+    ages = tf._core.sim_clumondo_random_age(5, 8, 1)
+    crt = tf._core.sim_crt_rand(1, 5)
     np.testing.assert_array_equal(ages, crt % 8 + 1)
     model, land = _toy()
     model.rules.history = 6

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the statistics of maps (landschaft._core.stats_*).
+// Python bindings of the statistics of maps (terraflux._core.stats_*).
 
 #include "stats/python.hpp"
 

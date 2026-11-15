@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of InVEST's pollination model (natcap.invest) for ls.services.
+"""Generate golden outputs of InVEST's pollination model (natcap.invest) for tf.services.
 
 Usage::
 
@@ -10,7 +10,7 @@ for some cases, farm polygons), runs ``natcap.invest.pollination.execute(args)``
 them, and stores per case the inputs and the outputs in
 ``tests/data/reference/invest/<case>.npz`` and the tables, settings and versions in
 ``<case>.json`` (as ``make_reference_invest.py`` does for the other models, whose
-helpers it uses). It does not import landschaft.
+helpers it uses). It does not import terraflux.
 
 Cases marked ``patched`` run InVEST with the round-off clean-up of
 pygeoprocessing's ``convolve_2d`` corrected: it sets to 0 the values within 1e-8 of

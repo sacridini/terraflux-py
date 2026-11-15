@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.plot: the plot every kind of data calls for, its colours and legends, showing and saving."""
+"""tf.plot: the plot every kind of data calls for, its colours and legends, showing and saving."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ import pytest
 import xarray as xr
 from rasterio.transform import from_origin
 
-import landschaft as ls
-from landschaft._plotting import _env, _raster
+import terraflux as tf
+from terraflux._plotting import _env, _raster
 
 pytest.importorskip("folium")
 pytest.importorskip("plotly")
@@ -55,14 +55,14 @@ def images(html: str) -> list:
 
 @pytest.fixture
 def forest():
-    return ls.load_raster(ls.example_data("input"))[:300, :300]
+    return tf.load_raster(tf.example_data("input"))[:300, :300]
 
 
 # --- rasters ------------------------------------------------------------------------------------------
 
 
 def test_products_take_their_colours_and_class_names(forest):
-    p = ls.plot(ls.mspa(forest))
+    p = tf.plot(tf.mspa(forest))
     assert repr(p) == "Plot(map)"
     html = page(p)
     for name in ("Core", "Edge", "Background"):
@@ -75,10 +75,10 @@ def test_products_take_their_colours_and_class_names(forest):
     assert img.mode == "P"  # 8-bit with a palette
     palette = np.array(img.getpalette()[:768]).reshape(-1, 3)
     assert [0, 200, 0] in palette.tolist()  # MSPA's core green
-    img = _raster.render(ls.mspa(forest), mercator=False)
+    img = _raster.render(tf.mspa(forest), mercator=False)
     labels = [label for _, label in img.legend.classes]
     assert labels[:4] == ["Core", "Islet", "Perforation", "Edge"] and "Missing" not in labels  # GTB's order
-    assert (img.pixels[np.asarray(ls.mspa(forest)) == 129] == 0).all()  # missing: the imagery shows through
+    assert (img.pixels[np.asarray(tf.mspa(forest)) == 129] == 0).all()  # missing: the imagery shows through
 
 
 def test_integers_are_classes_and_floats_a_ramp():
@@ -129,8 +129,8 @@ def test_large_and_lazy_rasters_are_reduced(tmp_path):
     v = np.random.default_rng(0).random((3001, 2503)).astype("float32")
     v[::11, ::7] = -9
     da = grid(v, nodata=-9)
-    path = ls.write_raster(da, tmp_path / "a.tif")
-    a, ta = _raster.reduce(ls.load_raster(path, chunks="auto", masked=False), 1000, False)
+    path = tf.write_raster(da, tmp_path / "a.tif")
+    a, ta = _raster.reduce(tf.load_raster(path, chunks="auto", masked=False), 1000, False)
     b, tb = _raster.reduce(da, 1000, False)
     assert a.shape == b.shape == (750, 625) and ta == tb  # blocks of 4 x 4 (ceil(3001 / 1000))
     np.testing.assert_allclose(a, b, equal_nan=True)
@@ -143,22 +143,22 @@ def test_large_and_lazy_rasters_are_reduced(tmp_path):
 
 def test_stacks_and_true_colour():
     stack = grid(np.random.default_rng(1).random((41, 40, 50)).astype("float32"))
-    p = ls.plot(stack)
+    p = tf.plot(stack)
     assert repr(p) == "Plot(map)" and len(images(page(p))) == 41  # every band, a map alone filling the window
     html = p.to_html()
     assert "leaflet-control-layers-list { max-height" in html  # the long list of layers scrolls
     assert "resize:vertical" in p._repr_html_()  # a notebook's map is made taller by its corner
-    p = ls.plot(grid(np.zeros((130, 4, 5), "float32")))
+    p = tf.plot(grid(np.zeros((130, 4, 5), "float32")))
     assert "the first 128 of 130 bands" in page(p)
     rgb = grid(np.random.default_rng(1).random((3, 40, 50)).astype("float32"))
     rgb = rgb.assign_coords(band=["red", "green", "blue"])
-    img = images(page(ls.plot(rgb)))[0]
+    img = images(page(tf.plot(rgb)))[0]
     assert img.mode == "RGBA"
 
 
 def test_rasters_without_georeferencing_are_charts():
-    assert repr(ls.plot(np.random.default_rng(0).random((20, 30)))) == "Plot(chart)"
-    assert repr(ls.plot(xr.DataArray(np.arange(10.0)))) == "Plot(chart)"
+    assert repr(tf.plot(np.random.default_rng(0).random((20, 30)))) == "Plot(chart)"
+    assert repr(tf.plot(xr.DataArray(np.arange(10.0)))) == "Plot(chart)"
 
 
 # --- vectors ------------------------------------------------------------------------------------------
@@ -167,15 +167,15 @@ def test_rasters_without_georeferencing_are_charts():
 def test_vectors_as_geojson_webgl_or_image(monkeypatch):
     polys = gpd.GeoDataFrame({"name": ["a", "b"], "area": [1.0, 2.0]}, crs=32633,
                              geometry=[box(500000, 4498000, 501000, 4499000), box(501500, 4498500, 502000, 4499500)])
-    html = page(ls.plot(polys, column="name"))
+    html = page(tf.plot(polys, column="name"))
     assert '{"type":"FeatureCollection"' in html and '"__c"' in html and ">a<" in html
     rng = np.random.default_rng(0)
     pts = gpd.GeoDataFrame({"v": rng.random(30000)}, crs=32633,
                            geometry=gpd.points_from_xy(rng.uniform(5e5, 6e5, 30000), rng.uniform(4.4e6, 4.5e6, 30000)))
-    html = page(ls.plot(pts, column="v"))
+    html = page(tf.plot(pts, column="v"))
     assert '{"type":"FeatureCollection"' not in html and "new L.LsGL({" in html  # many: WebGL
     monkeypatch.setattr(_gl_module(), "MAX_FEATURES", 20_000)
-    html = page(ls.plot(pts, column="v"))
+    html = page(tf.plot(pts, column="v"))
     assert "new L.LsGL({" not in html and images(html)  # too many: an image
 
 
@@ -204,7 +204,7 @@ def _gl_arrays(layer):
 
 @pytest.mark.parametrize("crs", [32633, 4326])
 def test_many_vectors_are_drawn_with_webgl(monkeypatch, crs):
-    from landschaft._plotting import _vectors
+    from terraflux._plotting import _vectors
 
     monkeypatch.setattr(_vectors, "MAX_FEATURES", 2)
     donut = box(500000, 4490000, 510000, 4500000).difference(box(503000, 4493000, 507000, 4497000))
@@ -238,7 +238,7 @@ def test_many_vectors_are_drawn_with_webgl(monkeypatch, crs):
         assert area == pytest.approx(merc[f].area, rel=1e-3)
     assert list(np.cumsum(a["lfeat"])) == [2] and list(np.cumsum(a["tfeat"])) == [3]
     assert list(a["fcol"]) == [0, 1, 2, 3] and a["props"] == {"k": ["a", "b", "c", "d"], "n": [1.5, None, 3.0, 4.0]}
-    html = page(ls.plot(g, column="k"))
+    html = page(tf.plot(g, column="k"))
     assert html.count("L.LsGL = L.Renderer.extend") == 1 and "new L.LsGL({" in html and "LSPAYLOAD" not in html
     assert '{"type":"FeatureCollection"' not in html
     monkeypatch.setattr(_gl_module(), "MAX_FEATURES", 3)  # too many even for WebGL: an image
@@ -247,7 +247,7 @@ def test_many_vectors_are_drawn_with_webgl(monkeypatch, crs):
 
 
 def test_many_points_with_webgl_read_their_values_back_from_the_colours(monkeypatch):
-    from landschaft._plotting import _vectors
+    from terraflux._plotting import _vectors
 
     monkeypatch.setattr(_vectors, "MAX_FEATURES", 2)
     monkeypatch.setattr(_vectors, "MAX_VALUES", 4)  # too many values to hold: none, the colour read
@@ -258,7 +258,7 @@ def test_many_points_with_webgl_read_their_values_back_from_the_colours(monkeypa
     a = _gl_arrays(layer)
     q, (x0, y0) = layer.spec["q"], layer.spec["origin"]
     x, y = a["txy"][:3] * q + x0, a["txy"][3:] * q + y0
-    from landschaft._vector import transform_xy
+    from terraflux._vector import transform_xy
 
     mx, my = transform_xy(np.array([500000.0, 501000, 502500]), np.array([4490000.0, 4491000, 4490500]), "EPSG:32633",
                           "EPSG:3857")
@@ -289,7 +289,7 @@ def test_polygons_simplified_into_several_parts():
     (Brazil's municipalities had 14 such parts): the layers take its parts."""
     import shapely
 
-    from landschaft._plotting import _gl, _vectors
+    from terraflux._plotting import _gl, _vectors
 
     split = shapely.Polygon([(468, 290), (197, 1), (183, 0), (173, 3), (199, 10), (65, 406)])
     assert shapely.simplify(split, 10.0, preserve_topology=False).geom_type == "MultiPolygon"
@@ -298,15 +298,15 @@ def test_polygons_simplified_into_several_parts():
     g = gpd.GeoDataFrame({"v": [1.0]}, geometry=[split], crs=32633)
     arrays = _gl.prepare(g, None, None, "#ffd60a", 5)[0].arrays  # 406 / (5 x 8): a tolerance of 10.15
     assert arrays["prings"][1] == 2  # two polygons of feature 0
-    fig = ls.plot(g, static=True, basemap=None, max_size=20).figure  # a tolerance of 406 / 40
+    fig = tf.plot(g, static=True, basemap=None, max_size=20).figure  # a tolerance of 406 / 40
     assert fig.axes[0].collections
 
 def test_live_raster_detail_has_the_colours_of_the_overview():
-    from landschaft._plotting import _live
+    from terraflux._plotting import _live
 
     yy, xx = np.mgrid[0:3000, 0:3000]
     values = (np.sin(xx / 3.0) + np.cos(yy / 3.0)).astype("float32")
-    p = ls.plot(grid(values), basemap=None, max_size=512)
+    p = tf.plot(grid(values), basemap=None, max_size=512)
     ids = p._live_maps()
     assert len(ids) == 1 and "LS_LIVE.add(" in page(p)
     assert _live.handle({"op": "hello", "map": ids[0]}) == {"ok": True}
@@ -319,7 +319,7 @@ def test_live_raster_detail_has_the_colours_of_the_overview():
     a = _live.handle({"op": "detail", "map": ids[0], "key": key, "bbox": box, "w": 800, "h": 800})
     img = _live_png(a)
     assert max(img.size) >= 700  # at the screen's resolution, finer than the cells
-    from landschaft._plotting import _raster
+    from terraflux._plotting import _raster
 
     assert a["lookup"]["vmin"] == pytest.approx(_raster.render(grid(values), max_size=512).lookup["vmin"])
     assert a["ext"][0] <= box[0] + 60 and a["ext"][2] >= box[2] - 60
@@ -330,8 +330,8 @@ def test_live_raster_detail_has_the_colours_of_the_overview():
 
 def test_a_window_of_a_lazy_raster_is_read_reduced_from_its_file(tmp_path):
     values = np.random.default_rng(9).random((900, 1100)).astype("float32")
-    path = ls.write_raster(grid(values), tmp_path / "r.tif")
-    lazy, mem = ls.load_raster(path, chunks="auto"), grid(values)
+    path = tf.write_raster(grid(values), tmp_path / "r.tif")
+    lazy, mem = tf.load_raster(path, chunks="auto"), grid(values)
     for categorical in (False, True):
         a, ta = _raster.reduce(lazy.isel(x=slice(101, 1001), y=slice(53, 803)), 200, categorical)
         b, tb = _raster.reduce(mem.isel(x=slice(101, 1001), y=slice(53, 803)), 200, categorical)
@@ -400,7 +400,7 @@ def test_a_view_is_reprojected_pixel_by_pixel_as_proj_does(crs, t):
 
 
 def test_the_lookup_of_pixels_through_an_index():
-    from landschaft import _core
+    from terraflux import _core
 
     src = np.arange(12, dtype=np.uint8).reshape(3, 4)
     idx = np.array([[0, 11, -1], [5, -1, 3]], np.int32)
@@ -412,10 +412,10 @@ def test_the_lookup_of_pixels_through_an_index():
 
 
 def test_live_series_answers_several_bands_at_once():
-    from landschaft._plotting import _live
+    from terraflux._plotting import _live
 
     stack = grid(np.random.default_rng(3).integers(0, 4, (3, 1500, 1500)).astype("uint8"), name="lc")
-    p = ls.plot(stack, basemap=None, max_size=256)
+    p = tf.plot(stack, basemap=None, max_size=256)
     entries = p.maps[0].__dict__["_ls_live_layers"]
     assert [e["band"] for e in entries] == [0, 1, 2] and len({e["series"] for e in entries}) == 1
     ext = entries[0]["ext"]
@@ -429,7 +429,7 @@ def test_live_series_answers_several_bands_at_once():
     assert one["ext"] == box  # the view itself, aligned with the screen's pixels
 
 def test_live_class_detail_keeps_the_class_colours():
-    from landschaft._plotting import _raster
+    from terraflux._plotting import _raster
 
     v = (np.arange(600)[None, :] // 7 + np.arange(600)[:, None] // 7) % 5
     v[300, 300] = 9  # a class of one cell, left out of the overview
@@ -446,7 +446,7 @@ def test_live_class_detail_keeps_the_class_colours():
 
 
 def test_live_vectors_answer_with_the_features_in_view(monkeypatch):
-    from landschaft._plotting import _gl, _vectors
+    from terraflux._plotting import _gl, _vectors
 
     monkeypatch.setattr(_vectors, "MAX_FEATURES", 10)
     rng = np.random.default_rng(4)
@@ -468,9 +468,9 @@ def test_live_vectors_answer_with_the_features_in_view(monkeypatch):
 
 def test_live_bridges(monkeypatch):
     pytest.importorskip("anywidget")
-    from landschaft._plotting import _live
+    from terraflux._plotting import _live
 
-    p = ls.plot(grid(np.random.default_rng(2).random((3000, 3000)).astype("float32")), basemap=None, max_size=256)
+    p = tf.plot(grid(np.random.default_rng(2).random((3000, 3000)).astype("float32")), basemap=None, max_size=256)
     shown = []
     monkeypatch.setattr("IPython.display.display", lambda x: shown.append(x))
     p._ipython_display_()
@@ -482,26 +482,26 @@ def test_live_bridges(monkeypatch):
     assert replies == [{"req": "a:1", "map": p._live_maps()[0], "data": {"ok": True}}]
     assert _live.WindowApi().ls_live({"op": "hello", "map": p._live_maps()[0]}) == {"ok": True}
     monkeypatch.setenv("LANDSCHAFT_PLOT_LIVE", "0")
-    q = ls.plot(grid(np.random.default_rng(2).random((3000, 3000)).astype("float32")), basemap=None, max_size=256)
+    q = tf.plot(grid(np.random.default_rng(2).random((3000, 3000)).astype("float32")), basemap=None, max_size=256)
     assert not q._live_maps() and "LS_LIVE.add(" not in page(q)
 
 
 def _gl_module():
-    from landschaft._plotting import _gl
+    from terraflux._plotting import _gl
 
     return _gl
 
 
 def test_lists_of_anything():
     table = pd.Series([3, 1, 2], index=["a", "b", "c"], name="n")
-    p = ls.plot([table, np.arange(5.0)])  # not maps: each part as it calls for
+    p = tf.plot([table, np.arange(5.0)])  # not maps: each part as it calls for
     assert p.panels and all(x.kind == "chart" for x in p.panels)
 
 
 def test_rasters_and_vectors_share_a_map(forest):
     poly = gpd.GeoDataFrame(geometry=[Point(float(forest.x[150]), float(forest.y[150])).buffer(0.01)],
                             crs=forest.rio.crs)
-    p = ls.plot([forest, poly], title="Forest and site")
+    p = tf.plot([forest, poly], title="Forest and site")
     html = page(p)
     assert repr(p) == "Plot('Forest and site': map)" and "Forest and site" in html and images(html)
 
@@ -510,32 +510,32 @@ def test_rasters_and_vectors_share_a_map(forest):
 
 
 def test_tables_are_charts():
-    m = ls.landscape_metrics(ls.load_raster(ls.example_data("clc"))[:200, :200], level="class", metric=["ca", "pland"])
-    p = ls.plot(m)
+    m = tf.landscape_metrics(tf.load_raster(tf.example_data("clc"))[:200, :200], level="class", metric=["ca", "pland"])
+    p = tf.plot(m)
     assert repr(p) == "Plot(chart)" and len(p.charts[0].data) == 2  # one panel per metric
     s = pd.Series([3, 1, 2], index=["a", "b", "c"], name="n")
-    assert ls.plot(s).charts[0].data[0].type == "bar"
+    assert tf.plot(s).charts[0].data[0].type == "bar"
     curve = pd.DataFrame({"x": np.arange(50.0), "a": np.arange(50.0) ** 2, "b": np.arange(50.0)})
-    assert ls.plot(curve).charts[0].data[0].type == "scattergl"
+    assert tf.plot(curve).charts[0].data[0].type == "scattergl"
 
 
 def test_results_show_their_maps_tables_and_numbers(forest):
-    p = ls.plot(ls.fos(forest))
+    p = tf.plot(tf.fos(forest))
     assert [x.kind for x in p.panels][:1] == ["map"] and "html" in [x.kind for x in p.panels]
-    res = ls.prioritize.zonation(grid(np.random.default_rng(2).random((2, 40, 50)).astype("float32")))
-    z = ls.plot(res)
+    res = tf.prioritize.zonation(grid(np.random.default_rng(2).random((2, 40, 50)).astype("float32")))
+    z = tf.plot(res)
     assert [x.kind for x in z.panels] == ["map", "chart", "html"]
     assert "Performance curves" in page(z) and "AUC" in page(z)
     ds = xr.Dataset({"cum_currmap": grid(np.random.default_rng(3).random((40, 50)).astype("float32"))},
                     attrs={"radius": 10})
-    assert [x.kind for x in ls.plot(ds).panels] == ["map", "html"]
+    assert [x.kind for x in tf.plot(ds).panels] == ["map", "html"]
 
 
 # --- showing and saving -------------------------------------------------------------------------------
 
 
 def test_save_html_and_static_images(tmp_path, forest):
-    p = ls.plot(ls.mspa(forest))
+    p = tf.plot(tf.mspa(forest))
     out = p.save(tmp_path / "sub" / "mspa.html")
     text = out.read_text(encoding="utf-8")
     assert "LSIMAGE" not in text and "leaflet" in text.lower()
@@ -544,7 +544,7 @@ def test_save_html_and_static_images(tmp_path, forest):
     from PIL import Image
 
     assert Image.open(png).size[0] > 100
-    s = ls.plot(forest, static=True, basemap=None)
+    s = tf.plot(forest, static=True, basemap=None)
     assert repr(s) == "Plot(figure)" and s.figure is not None
     folium_map = p.maps[0]
     folium_map.save(str(tmp_path / "raw.html"))  # folium's own save puts the image in too
@@ -557,15 +557,15 @@ def test_windows_only_outside_notebooks(monkeypatch, forest):
     monkeypatch.delenv("LANDSCHAFT_PLOT_SHOW", raising=False)
     monkeypatch.setattr(_env, "in_notebook", lambda: False)
     monkeypatch.setattr(_env, "headless", lambda: None)  # a desktop (a CI runner has no display)
-    ls.plot(forest, title="here")
+    tf.plot(forest, title="here")
     assert opened == ["here"]
     monkeypatch.setattr(_env, "in_notebook", lambda: True)
-    ls.plot(forest)  # the Plot shows itself in a notebook
+    tf.plot(forest)  # the Plot shows itself in a notebook
     assert opened == ["here"]
     monkeypatch.setenv("LANDSCHAFT_PLOT_SHOW", "0")
     monkeypatch.setattr(_env, "in_notebook", lambda: False)
-    ls.plot(forest)
-    ls.plot(forest, show=False)
+    tf.plot(forest)
+    tf.plot(forest, show=False)
     assert opened == ["here"]
 
 
@@ -573,12 +573,12 @@ def test_windows_only_outside_notebooks(monkeypatch, forest):
 
 
 def test_pages_open_offline(forest):
-    html = page(ls.plot(forest))
+    html = page(tf.plot(forest))
     assert "L.map(" in html and "Leaflet 1.9.3" in html  # Leaflet in the page
     assert not re.findall(r"<(?:script|link)[^>]+(?:src|href)=[\"']https?://", html)  # nothing from a CDN
     assert "jquery" not in html.lower() and "bootstrap" not in html.lower()
     s = pd.Series([3, 1, 2], index=["a", "b", "c"], name="n")
-    charts = page(ls.plot([s, s * 2]))
+    charts = page(tf.plot([s, s * 2]))
     assert not re.findall(r"<script[^>]+src=[\"']https?://", charts)  # plotly's script in the page...
     assert charts.count("plotly.js v") == 1  # ...once
     assert _env.plotly_url() is True or _env.plotly_url().startswith("file:")  # a window loads it from disk
@@ -586,7 +586,7 @@ def test_pages_open_offline(forest):
 
 def test_maps_hidden_at_load_fit_when_shown(forest):
     # a notebook's output can load hidden, at no size: the view is fitted again once it has one
-    html = page(ls.plot(forest))
+    html = page(tf.plot(forest))
     assert "new ResizeObserver" in html
     assert html.index("map.fitBounds = function") < html.rindex(".fitBounds(")  # in place before the fit
     # the tiles' fade-in waits on animation frames a notebook's frame may not get (VS Code)
@@ -608,7 +608,7 @@ def test_true_colour_leaves_nodata_out():
 
 
 def test_bands_by_label_then_position():
-    from landschaft._plotting._core import _band_index
+    from terraflux._plotting._core import _band_index
 
     stack = grid(np.zeros((3, 4, 5), "float32")).assign_coords(band=[1, 2, 3])
     assert _band_index(stack, "band", [1]) == [0]  # the band numbered 1 (a file's first band)
@@ -616,20 +616,20 @@ def test_bands_by_label_then_position():
     assert _band_index(named, "band", ["b2", 0]) == [2, 0]
     with pytest.raises(ValueError, match="the bands are"):
         _band_index(named, "band", ["nir"])
-    p = ls.plot(stack, bands=[3])
+    p = tf.plot(stack, bands=[3])
     assert len(images(page(p))) == 1
 
 
 def test_vector_ramps_take_their_range():
     pts = gpd.GeoDataFrame({"v": np.geomspace(1, 1e4, 50), "s": ["<b>&"] * 50}, crs=32633,
                            geometry=gpd.points_from_xy(np.linspace(5e5, 5.1e5, 50), np.full(50, 4.45e6)))
-    from landschaft._plotting import _vectors
+    from terraflux._plotting import _vectors
 
     _, _, lg = _vectors.layer(pts, column="v", vmin=10, vmax=100)
     assert (lg.vmin, lg.vmax, lg.under, lg.over) == (10, 100, True, True)
     _, _, lg = _vectors.layer(pts, column="v", log=True)
     assert lg.log and lg.vmin > 1 and lg.vmax < 1e4
-    html = page(ls.plot(pts, column="v", vmin=10, vmax=100))
+    html = page(tf.plot(pts, column="v", vmin=10, vmax=100))
     assert "≤ 10" in html and "≥ 100" in html and "esc(f.properties[k])" in html
 
 
@@ -637,21 +637,21 @@ def test_vector_ramps_take_their_range():
 
 
 def test_a_pixel_colour_gives_back_its_value(forest):
-    from landschaft._plotting._raster import distinct_palette
+    from terraflux._plotting._raster import distinct_palette
 
     pal = np.array([[0, 0, 0, 0], [9, 9, 9, 255], [9, 9, 9, 255], [9, 9, 255, 255], [9, 9, 255, 255]], np.uint8)
     out = distinct_palette(pal)
     assert len({tuple(c) for c in out[1:, :3].tolist()}) == 4 and (out[:2] == pal[:2]).all()
     assert np.abs(out.astype(int) - pal.astype(int)).max() <= 1  # nudged by a unit, invisible
-    img = _raster.render(ls.mspa(forest), mercator=False)
+    img = _raster.render(tf.mspa(forest), mercator=False)
     rgb = img.rgba  # what the browser reads: colours back to their indices, one to one
     keys = {tuple(c): i for i, c in enumerate(img.palette[:, :3].tolist()) if i}
     drawn = img.pixels > 0
     back = np.array([keys[tuple(c)] for c in rgb[drawn][:, :3].tolist()])
     assert (back == img.pixels[drawn]).all() and (img.palette[1:, 3] == 255).all()
     labels = img.lookup["labels"]
-    m = np.asarray(ls.mspa(forest))
-    from landschaft.mspa import MSPA_CLASSES
+    m = np.asarray(tf.mspa(forest))
+    from terraflux.mspa import MSPA_CLASSES
 
     i, j = np.argwhere(drawn)[100]
     assert labels[img.pixels[i, j]] == MSPA_CLASSES[int(m[i, j])]
@@ -667,13 +667,13 @@ def test_maps_read_values_and_have_a_card_per_layer(forest, monkeypatch):
     monkeypatch.setattr(_gl_module(), "MAX_FEATURES", 0)  # many features as an image
     stack = grid(np.random.default_rng(5).random((3, 40, 50)).astype("float32"), name="stack")
     poly = gpd.GeoDataFrame(geometry=[box(500300, 4498900, 500900, 4499500)], crs=32633)
-    html = page(ls.plot([stack, poly]))
+    html = page(tf.plot([stack, poly]))
     assert html.count("class='ls-legend'") == 2  # the stack's bands share a card; the polygons have theirs
     assert html.count("title='Opacity'") == 2 and html.count("class='bands'") == 1  # opacity; the band shown
     assert "getImageData" in html and '"n": "stack: b0"' in html and '"vmin"' in html  # values under the cursor
     pts = gpd.GeoDataFrame({"kind": np.resize(["oak", "pine"], 30000)}, crs=32633,
                            geometry=gpd.points_from_xy(np.linspace(5e5, 6e5, 30000), np.linspace(4.4e6, 4.5e6, 30000)))
-    html = page(ls.plot(pts, column="kind"))
+    html = page(tf.plot(pts, column="kind"))
     assert '"labels": [null, "oak", "pine", "no value"]' in html  # features drawn as an image read too
 
 
@@ -681,44 +681,44 @@ def test_maps_read_values_and_have_a_card_per_layer(forest, monkeypatch):
 
 
 def test_density_and_change_maps_name_their_classes(forest):
-    fad = ls.fad(forest)
+    fad = tf.fad(forest)
     labels = [label for _, label in _raster.render(fad.density, mercator=False).legend.classes]
     assert labels[:3] == ["Rare (0-9%)", "Patchy (10-39%)", "Transitional (40-59%)"] and "Background" in labels
     cls = _raster.render(fad.classes, mercator=False).legend.classes
     assert cls[0] == ("#d73228", "Rare (<10%)") and cls[5][0] == "#007800"  # the density map's colours
     after = forest.where(forest.x < forest.x[150], 1)
-    change = ls.simple_change(forest, after)
+    change = tf.simple_change(forest, after)
     names = [label for _, label in _raster.render(change.change_map, mercator=False).legend.classes]
     assert names == ["Stable foreground", "Loss", "Stable background"]
-    fos = ls.fos_change(forest, after)
+    fos = tf.fos_change(forest, after)
     legend = _raster.render(fos.change_map, mercator=False).legend.classes
     assert len(legend) <= 30 and any(lab == "no change" for _, lab in legend)
 
 
 def test_compare_two_dates_with_a_swipe(forest):
     after = forest.where(forest.x < forest.x[150], 1)
-    html = page(ls.plot([forest, after], compare=True))
+    html = page(tf.plot([forest, after], compare=True))
     assert len(re.findall(r'createPane\(\s*"ls(?:left|right)"', html)) == 2
     assert '"pane": "lsleft"' in html and '"pane": "lsright"' in html
     assert "ls-swipe-knob" in html and '"input (1)", "input (2)"' in html  # one side each, named
     assert html.count("class='ls-legend'") == 1 and "input (1) · input (2)" in html  # the same colours: one card
     pts = gpd.GeoDataFrame(geometry=[Point(float(forest.x[10]), float(forest.y[10]))], crs=forest.rio.crs)
-    assert 'pane: "lsright"' in page(ls.plot([forest, pts], compare=True))
+    assert 'pane: "lsright"' in page(tf.plot([forest, pts], compare=True))
     with pytest.raises(ValueError, match="two rasters"):
-        ls.plot([forest], compare=True)
+        tf.plot([forest], compare=True)
 
 
 def test_change_results_show_their_flows(forest):
     after = forest.where(forest.x < forest.x[150], 1)
-    p = ls.plot(ls.simple_change(forest, after))
+    p = tf.plot(tf.simple_change(forest, after))
     assert [x.kind for x in p.panels] == ["map", "chart", "html"] and p.charts[0].data[0].type == "sankey"
     flows = p.charts[0].data[0]
-    assert sum(flows.link.value) == ls.simple_change(forest, after).total_valid
-    p = ls.plot(ls.fos_change(forest, after))
+    assert sum(flows.link.value) == tf.simple_change(forest, after).total_valid
+    p = tf.plot(tf.fos_change(forest, after))
     assert p.charts[0].data[0].type == "sankey" and "Rare" in p.charts[0].data[0].node.label[0]
-    p = ls.plot(ls.morphological_change(forest, after))
+    p = tf.plot(tf.morphological_change(forest, after))
     assert [x.kind for x in p.panels] == ["map", "chart", "html"]
-    p = ls.plot(ls.fad_multiscale_change(forest, after))
+    p = tf.plot(tf.fad_multiscale_change(forest, after))
     assert p.charts[0].data[0].type == "sankey" and len(p.charts[0].data[0].node.label) == 14
 
 
@@ -734,37 +734,37 @@ def test_static_maps_have_a_scale_bar_a_north_arrow_and_coordinates(forest):
     from matplotlib.offsetbox import AnchoredOffsetbox
 
     utm = grid(np.arange(60 * 80).reshape(60, 80) % 3)
-    fig = ls.plot(utm, static=True, basemap=None).figure
+    fig = tf.plot(utm, static=True, basemap=None).figure
     ax = _maps_of(fig)[0]
     bars = [a for a in ax.artists if isinstance(a, AnchoredOffsetbox)]
     assert len(bars) == 1 and any(t.get_text() == "N" for t in ax.texts)
     assert not ax.get_xticks().size  # a projected CRS: no degrees to show
-    from landschaft._plotting._static import _metres_per_unit
+    from terraflux._plotting._static import _metres_per_unit
 
     assert _metres_per_unit(ax, utm.rio.crs) == 1.0
     assert forest.rio.crs.is_geographic
-    fig = ls.plot(forest, static=True, basemap=None).figure
+    fig = tf.plot(forest, static=True, basemap=None).figure
     fig.canvas.draw()
     labels = [t.get_text() for t in _maps_of(fig)[0].get_xticklabels()]
     assert labels and all(lab.endswith("°E") for lab in labels if lab) and len(set(labels)) == len(labels)
-    fig = ls.plot(forest, static=True, basemap=None, scalebar=False, north_arrow=False).figure
+    fig = tf.plot(forest, static=True, basemap=None, scalebar=False, north_arrow=False).figure
     assert not _maps_of(fig)[0].artists and not _maps_of(fig)[0].texts
 
 
 def test_static_small_multiples(forest):
     pytest.importorskip("matplotlib")
     stack = grid(np.random.default_rng(6).random((4, 40, 50)).astype("float32"), name="ndvi")
-    fig = ls.plot(stack, static=True, basemap=None).figure
+    fig = tf.plot(stack, static=True, basemap=None).figure
     maps = _maps_of(fig)
     assert len(maps) == 4 and len(fig.axes) == 5  # the bands, and one colour bar
     assert fig.axes[-1].get_ylabel() == "ndvi"
-    assert len(_maps_of(ls.plot(stack, static=True, basemap=None, bands=["b1", "b3"]).figure)) == 2
+    assert len(_maps_of(tf.plot(stack, static=True, basemap=None, bands=["b1", "b3"]).figure)) == 2
     after = forest.where(forest.x < forest.x[150], 1)
-    fig = ls.plot([ls.mspa(forest), ls.mspa(after)], compare=True, static=True, basemap=None).figure
+    fig = tf.plot([tf.mspa(forest), tf.mspa(after)], compare=True, static=True, basemap=None).figure
     maps = _maps_of(fig)
     assert [ax.get_title() for ax in maps] == ["mspa (1)", "mspa (2)"]
     assert maps[0].get_legend() is None and maps[1].get_legend().get_title().get_text() == "mspa"  # once
-    fig = ls.plot(ls.fad(forest), static=True, basemap=None).figure
+    fig = tf.plot(tf.fad(forest), static=True, basemap=None).figure
     assert [ax.get_title() for ax in _maps_of(fig)] == ["density", "raw_density", "classes"]
 
 
@@ -772,7 +772,7 @@ def test_static_vectors_take_the_map_colours():
     pytest.importorskip("matplotlib")
     polys = gpd.GeoDataFrame({"kind": ["oak", "pine"]}, crs=32633,
                              geometry=[box(500000, 4498000, 501000, 4499000), box(501500, 4498500, 502000, 4499500)])
-    fig = ls.plot(polys, column="kind", cmap={"oak": "#ff0000", "pine": "#0000ff"}, static=True, basemap=None).figure
+    fig = tf.plot(polys, column="kind", cmap={"oak": "#ff0000", "pine": "#0000ff"}, static=True, basemap=None).figure
     ax = fig.axes[0]
     colours = ax.collections[0].get_facecolors()[:, :3].round(2).tolist()
     assert colours == [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
@@ -804,7 +804,7 @@ def test_static_vectors_holes_parts_lines_and_points():
         donut, parts, LineString([(500000, 4502000), (518000, 4504000)]), Point(519000, 4491000),
         shapely.affinity.translate(turned, 0, -12000)])
     cmap = {"a": "#ff0000", "b": "#0000ff", "c": "#00ff00", "d": "#ff00ff", "e": "#00ffff"}
-    fig = ls.plot(g, column="k", cmap=cmap, opacity=1, static=True, basemap=None, scalebar=False,
+    fig = tf.plot(g, column="k", cmap=cmap, opacity=1, static=True, basemap=None, scalebar=False,
                   north_arrow=False).figure
     ax = fig.axes[0]
     assert _at(fig, ax, 501500, 4495000) == [255, 0, 0]  # the ring
@@ -817,16 +817,16 @@ def test_static_vectors_holes_parts_lines_and_points():
 
 def test_static_vectors_very_many_are_an_image(monkeypatch):
     pytest.importorskip("matplotlib")
-    from landschaft._plotting import _static
+    from terraflux._plotting import _static
 
     rng = np.random.default_rng(3)
     polys = gpd.GeoDataFrame({"v": rng.random(300)}, crs=32633,
                              geometry=[box(x, y, x + 500, y + 500) for x, y in
                                        zip(rng.uniform(5e5, 6e5, 300), rng.uniform(4.4e6, 4.5e6, 300))])
-    fig = ls.plot(polys, column="v", static=True, basemap=None).figure
+    fig = tf.plot(polys, column="v", static=True, basemap=None).figure
     assert not fig.axes[0].images and fig.axes[0].collections
     monkeypatch.setattr(_static, "MAX_FEATURES", 100)
-    fig = ls.plot(polys, column="v", static=True, basemap=None).figure
+    fig = tf.plot(polys, column="v", static=True, basemap=None).figure
     ax = fig.axes[0]
     assert len(ax.images) == 1 and not ax.collections
     x0, _, _, y1 = ax.images[0].get_extent()
@@ -836,7 +836,7 @@ def test_static_vectors_very_many_are_an_image(monkeypatch):
 def test_vectors_simplified_keep_their_small_features():
     import shapely
 
-    from landschaft._plotting._vectors import simplify
+    from terraflux._plotting._vectors import simplify
 
     geoms = np.array([shapely.Point(0, 0).buffer(100, quad_segs=32), shapely.Point(5000, 0).buffer(1)])
     out = simplify(geoms, 10.0)
@@ -849,14 +849,14 @@ def test_vectors_simplified_keep_their_small_features():
 
 def test_a_stack_is_one_layer_with_a_band_slider():
     stack = grid(np.random.default_rng(7).random((5, 40, 50)).astype("float32"), name="ndvi")
-    html = page(ls.plot(stack))
+    html = page(tf.plot(stack))
     assert html.count("class='bands'") == 1 and "max='4'" in html and ">b0</span>" in html
     assert "LC.addOverlay(grp, g.t)" in html and '"b": ["b0", "b1", "b2", "b3", "b4"]' in html
 
 
 
 def test_the_bands_of_a_stack_share_a_budget_of_pixels(monkeypatch):
-    from landschaft._plotting import _core
+    from terraflux._plotting import _core
 
     stack = grid(np.random.default_rng(8).random((3, 1200, 1200)).astype("float32"))
     side = lambda: max(_core._map_layers([("s", stack)], {"max_size": 2048})[0][0].items[0].pixels.shape)
@@ -870,36 +870,36 @@ def test_species_distribution_results():
     pytest.importorskip("sklearn")
     from sklearn.linear_model import LogisticRegression
 
-    occ = ls.load_table(ls.sdm.example_data("bradypus"))
-    env = ls.load_raster(ls.sdm.example_data("bioclim"))
-    data = ls.sdm.prepare(occ, env, clean=False, background=500)
-    res = ls.sdm.fit(data, {"glm": LogisticRegression(max_iter=5000)})
-    p = ls.plot(res)
+    occ = tf.load_table(tf.sdm.example_data("bradypus"))
+    env = tf.load_raster(tf.sdm.example_data("bioclim"))
+    data = tf.sdm.prepare(occ, env, clean=False, background=500)
+    res = tf.sdm.fit(data, {"glm": LogisticRegression(max_iter=5000)})
+    p = tf.plot(res)
     assert [x.kind for x in p.panels] == ["chart", "chart", "html"]
     assert len(p.charts[0].data) == len(res.predictors)  # a response curve per predictor
     assert p.charts[1].data[0].error_y.array is not None  # scores with their spread
-    p = ls.plot(res, env=env)
+    p = tf.plot(res, env=env)
     assert p.panels[0].kind == "map"
     html = unescape(page(p))  # the map in a frame of the page
     assert '"n": "suitability: glm"' in html and "<b>presences</b>" in html
 
 
 def test_clustergram_least_cost_path_and_graph_links(forest):
-    signatures = ls.SpatialSignatureAnalysis(ls.example_data("clc"), grid=5000, landscape_metrics=["shdi", "ed"])
-    p = ls.plot(signatures.clustergram(range(1, 5)))
+    signatures = tf.SpatialSignatureAnalysis(tf.example_data("clc"), grid=5000, landscape_metrics=["shdi", "ed"])
+    p = tf.plot(signatures.clustergram(range(1, 5)))
     assert p.charts[0].data[-1].mode == "markers" and p.charts[0].layout.xaxis.title.text.startswith("number")
-    resistance = ls.distance_to_resistance(forest)
-    objects = ls.accounting(forest)
+    resistance = tf.distance_to_resistance(forest)
+    objects = tf.accounting(forest)
     ids = objects.ids.values
     marker = np.zeros(forest.shape, dtype="uint8")
     marker[ids == objects.largest[0][0]] = 1
     marker[ids == objects.largest[1][0]] = 2
-    path = ls.least_cost_path(resistance, marker == 1, marker == 2)
-    html = unescape(page(ls.plot(path)))
+    path = tf.least_cost_path(resistance, marker == 1, marker == 2)
+    html = unescape(page(tf.plot(path)))
     assert "least-cost path" in html and '{"type":"FeatureCollection"' in html  # the path drawn as polygons
     patches = gpd.GeoDataFrame({"name": ["a", "b", "c"]}, crs="EPSG:3035", geometry=[
         box(0, 0, 500, 500), box(900, 0, 1400, 400), box(3000, 0, 3300, 300)])
-    graph = ls.HabitatGraph.from_vector(patches, id="name", area_unit="ha", distance="edge")
-    html = unescape(page(ls.plot(graph, distance=5000)))
+    graph = tf.HabitatGraph.from_vector(patches, id="name", area_unit="ha", distance="edge")
+    html = unescape(page(tf.plot(graph, distance=5000)))
     assert html.count("class='ls-legend'") == 2  # nodes and links
     assert re.search(r"<b>links</b>.*?class='ramp'", html)  # the links on a ramp of their distance

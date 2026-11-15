@@ -16,15 +16,15 @@ areas and scores a landscape's restoration potential.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))   # 0 missing, 1 background, 2 forest
+forest = tf.load_raster(tf.example_data("input"))   # 0 missing, 1 background, 2 forest
 ```
 
 ## Distance to the habitat edge
 
 ```python
-distance = ls.euclidean_distance(forest, pixel_size=25)
+distance = tf.euclidean_distance(forest, pixel_size=25)
 distance.stats
 ```
 
@@ -42,7 +42,7 @@ How connected is the habitat, and how much could it gain from reconnecting its
 pieces?
 
 ```python
-status = ls.restoration_status(forest)
+status = tf.restoration_status(forest)
 status.nr_comp, round(status.doc, 1), round(status.rest_pot, 1)
 ```
 
@@ -64,7 +64,7 @@ Movement through non-habitat is often harder the further it is from habitat.
 map: 2 on the forest, from 3 next to it up to 100 far away, 0 on missing data.
 
 ```python
-resistance = ls.distance_to_resistance(forest)
+resistance = tf.distance_to_resistance(forest)
 int(resistance.min()), int(resistance.max())
 ```
 
@@ -78,7 +78,7 @@ Mark the two areas to connect. Here we take the two largest forest objects
 found by [accounting](patterns.md#objects-by-size-accounting):
 
 ```python
-objects = ls.accounting(forest)
+objects = tf.accounting(forest)
 ids = objects.ids.values
 first, second = objects.largest[0][0], objects.largest[1][0]
 
@@ -92,9 +92,9 @@ The **isochrone map** accumulates the cost of travelling from A to B through
 every pixel and draws the cheapest route:
 
 ```python
-route = ls.isochrone_map_ab(resistance, marker)
-ls.plot(route)        # the cost map, the corridor and the path
-ls.save(route, "route_ab")
+route = tf.isochrone_map_ab(resistance, marker)
+tf.plot(route)        # the cost map, the corridor and the path
+tf.save(route, "route_ab")
 route.min_cost, int(np.asarray(route.lcp).sum())
 ```
 
@@ -102,7 +102,7 @@ route.min_cost, int(np.asarray(route.lcp).sum())
 
 `route.cost` is the accumulated cost through each pixel (lowest along the
 route), `route.lcp` the path itself and `route.map` the same in 0–100 display
-codes. `ls.isochrone_map(resistance, marker)` gives the cost outward from A
+codes. `tf.isochrone_map(resistance, marker)` gives the cost outward from A
 alone (travel-time rings).
 
 ## Cost distance and least-cost paths
@@ -110,14 +110,14 @@ alone (travel-time rings).
 The same building blocks, separately:
 
 ```python
-cost = ls.cost_distance(resistance, marker == 1)                 # accumulated cost from A
-path = ls.least_cost_path(resistance, marker == 1, marker == 2)
+cost = tf.cost_distance(resistance, marker == 1)                 # accumulated cost from A
+path = tf.least_cost_path(resistance, marker == 1, marker == 2)
 path.path_length, path.rest_pixels, path.expense
 ```
 
 `path.lcp_mask` is the path, `path.rest_pixels` the number of non-habitat
 pixels on it (what would have to be restored) and `path.expense` its total
-cost. `ls.restoration_corridor(forest, resistance, marker == 1, marker == 2)`
+cost. `tf.restoration_corridor(forest, resistance, marker == 1, marker == 2)`
 also reports how much the connectivity of the whole landscape would gain if
 that corridor were restored, and how efficient the investment is.
 
@@ -126,13 +126,13 @@ that corridor were restored, and how efficient the investment is.
 Which large habitat object is the nearest to every point of the matrix?
 
 ```python
-zones = ls.influence_zones(forest, min_area=5000)
+zones = tf.influence_zones(forest, min_area=5000)
 len(zones.object_area)
 ```
 
 Objects of at least `min_area` pixels each get a zone of the background
 closest to them; `zones.zones` maps them and the lines between zones show
-where two objects are equally far. `ls.proximity` measures how close
+where two objects are equally far. `tf.proximity` measures how close
 neighbouring objects are along those lines.
 
 !!! warning "Experimental"

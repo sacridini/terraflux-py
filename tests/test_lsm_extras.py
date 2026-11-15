@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import lsm_scenes
 from conftest import DATA
 
@@ -43,7 +43,7 @@ class TestSummaryStatistics:
     @pytest.mark.parametrize("stat", ["am", "md", "ra"])
     def test_class_and_landscape_match_numpy(self, case, stat):
         data, res = MAPS[case]
-        lm = ls.Landscape(data, res=res)
+        lm = tf.Landscape(data, res=res)
         patches = lm.patch_metrics(["area", "ncore"] + [f for f in FAMILIES if f != "dcore"])
         patches["dcore"] = patches["ncore"]  # landscapemetrics' dcore: core areas per patch
         names = [f"{f}_{stat}" for f in FAMILIES]
@@ -59,7 +59,7 @@ class TestSummaryStatistics:
 
     def test_perim_statistics(self):
         data, res = MAPS["clustered"]
-        lm = ls.Landscape(data, res=res)
+        lm = tf.Landscape(data, res=res)
         perim = lm.patch_metrics("perim")
         cls = lm.class_metrics(["perim_mn", "perim_sd", "perim_cv"])
         for _, row in cls.iterrows():
@@ -71,7 +71,7 @@ class TestSummaryStatistics:
     def test_na_propagates(self):
         # class 2 has a single patch: its enn is NA, and so are its statistics
         data = np.array([[1, 1, 2, 2], [1, 3, 2, 2], [3, 3, 1, 3]])
-        lm = ls.Landscape(data)
+        lm = tf.Landscape(data)
         cls = lm.class_metrics(["enn_am", "enn_md", "enn_ra"]).set_index("class")
         assert cls.loc[2].isna().all()
         assert np.isfinite(cls.loc[1]).all()
@@ -79,18 +79,18 @@ class TestSummaryStatistics:
 
     def test_hand_computed(self):
         # 1 1 2 / 1 2 2 / 3 3 2: patches of 3, 4 and 2 cells
-        lm = ls.Landscape(np.array([[1, 1, 2], [1, 2, 2], [3, 3, 2]]), res=100)
+        lm = tf.Landscape(np.array([[1, 1, 2], [1, 2, 2], [3, 3, 2]]), res=100)
         land = lm.landscape_metrics(["area_am", "area_md", "area_ra"])
         a = np.array([3, 4, 2.0])
         assert land["area_am"][0] == pytest.approx((a * a).sum() / a.sum())
         assert land["area_md"][0] == pytest.approx(3)
         assert land["area_ra"][0] == pytest.approx(2)
         # median of an even number of patches: mean of the two middle ones
-        lm2 = ls.Landscape(np.array([[1, 2, 2, 3, 3, 3, 4, 4, 4, 4]]))
+        lm2 = tf.Landscape(np.array([[1, 2, 2, 3, 3, 3, 4, 4, 4, 4]]))
         assert lm2.landscape_metrics("area_md")["area_md"][0] == pytest.approx((2 + 3) / 2 / 10000)
 
     def test_gyrate_am_is_correlation_length(self):
-        lm = ls.Landscape(MAPS["clustered"][0], res=30)
+        lm = tf.Landscape(MAPS["clustered"][0], res=30)
         p = lm.patch_metrics(["gyrate", "area"])
         expected = (p["gyrate"] * p["area"]).sum() / p["area"].sum()
         assert lm.landscape_metrics("gyrate_am")["gyrate_am"][0] == pytest.approx(expected, rel=1e-13)
@@ -119,7 +119,7 @@ class TestAgainstPylandstats:
         data, res = MAPS[case]
         res = (res[0], res[0])  # non-square cells: perimeter conventions differ
         values = np.where(np.ma.getmaskarray(data), 0, np.ma.getdata(data))  # pylandstats: 0 = nodata
-        lm = ls.Landscape(values, res=res, nodata=0)
+        lm = tf.Landscape(values, res=res, nodata=0)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             pl = pylandstats.Landscape(values, res=res, nodata=0, neighborhood_rule="8")
@@ -153,9 +153,9 @@ class TestAgainstPylandstats:
 
 class TestSelection:
     def test_extras_not_selected_by_default(self):
-        default = ls.list_metrics()
+        default = tf.list_metrics()
         assert len(default) == 133 and not default["extra"].any()
-        full = ls.list_metrics(extras=True)
+        full = tf.list_metrics(extras=True)
         extra = full[full["extra"]]
         stats = extra[extra["metric"].str.contains("_")]
         assert set(stats["metric"].str.split("_").str[1]) == {"am", "md", "ra", "mn", "sd", "cv"}
@@ -163,16 +163,16 @@ class TestSelection:
         assert set(extra.loc[~extra["metric"].str.contains("_"), "metric"]) == {
             "prox", "simi", "econ", "connect", "cwed", "teci",
         }
-        assert ls.list_metrics(metric="area", level="class", extras=True)["metric"].tolist() == [
+        assert tf.list_metrics(metric="area", level="class", extras=True)["metric"].tolist() == [
             "area_am", "area_cv", "area_md", "area_mn", "area_ra", "area_sd",
         ]
 
     def test_extras_in_what(self):
-        out = ls.list_metrics(what=["lsm_c_area_am", "lsm_l_perim_mn", "lsm_l_ta"])
+        out = tf.list_metrics(what=["lsm_c_area_am", "lsm_l_perim_mn", "lsm_l_ta"])
         assert out["function_name"].tolist() == ["lsm_c_area_am", "lsm_l_perim_mn", "lsm_l_ta"]
 
     def test_long_table_with_extras(self):
-        lm = ls.Landscape(MAPS["clustered"][0])
+        lm = tf.Landscape(MAPS["clustered"][0])
         df = lm.metrics(level="landscape", metric="shape", extras=True)
         assert df["metric"].tolist() == ["shape_am", "shape_cv", "shape_md", "shape_mn", "shape_ra", "shape_sd"]
         wide = lm.landscape_metrics(list(df["metric"]))
@@ -181,17 +181,17 @@ class TestSelection:
 
     def test_batch_sample_window_accept_extras(self):
         data = MAPS["salt_pepper"][0]
-        one = ls.landscape_metrics(data, what=["lsm_l_area_am", "lsm_c_frac_md"])
-        two = ls.landscape_metrics([data, data], what=["lsm_l_area_am", "lsm_c_frac_md"])
+        one = tf.landscape_metrics(data, what=["lsm_l_area_am", "lsm_c_frac_md"])
+        two = tf.landscape_metrics([data, data], what=["lsm_l_area_am", "lsm_c_frac_md"])
         np.testing.assert_array_equal(two.loc[two["layer"] == 2, "value"].to_numpy(), one["value"].to_numpy())
-        maps = ls.window_metrics(data, 5, what=["lsm_l_area_ra"])
-        lm = ls.Landscape(np.ma.MaskedArray(data.data[8:13, 8:13], data.mask[8:13, 8:13]))
+        maps = tf.window_metrics(data, 5, what=["lsm_l_area_ra"])
+        lm = tf.Landscape(np.ma.MaskedArray(data.data[8:13, 8:13], data.mask[8:13, 8:13]))
         assert maps["area_ra"][10, 10] == lm.landscape_metrics("area_ra")["area_ra"][0]
 
 
 class TestAliases:
     def test_fragstats_abbreviations(self):
-        lm = ls.Landscape(MAPS["clustered"][0], res=30)
+        lm = tf.Landscape(MAPS["clustered"][0], res=30)
         cls = lm.class_metrics(["CA", "PLAND", "AREA_MN", "ENN_AM"])
         ref = lm.class_metrics(["ca", "pland", "area_mn", "enn_am"])
         assert cls.columns.tolist() == ["class", "CA", "PLAND", "AREA_MN", "ENN_AM"]
@@ -200,7 +200,7 @@ class TestAliases:
         np.testing.assert_array_equal(land.to_numpy(), lm.landscape_metrics(["ta", "shdi", "contag"]).to_numpy())
 
     def test_full_names(self):
-        lm = ls.Landscape(MAPS["clustered"][0], res=30)
+        lm = tf.Landscape(MAPS["clustered"][0], res=30)
         pairs = {
             "patch": {"perimeter": "perim", "shape_index": "shape", "euclidean_nearest_neighbor": "enn"},
             "class": {"total_area": "ca", "number_of_patches": "np", "shape_index_am": "shape_am",
@@ -215,14 +215,14 @@ class TestAliases:
             np.testing.assert_array_equal(a[list(names)].to_numpy(), b[list(names.values())].to_numpy())
 
     def test_family_alias_in_filters(self):
-        assert set(ls.list_metrics(metric="shape_index")["metric"]) == {"shape", "shape_mn", "shape_sd", "shape_cv"}
+        assert set(tf.list_metrics(metric="shape_index")["metric"]) == {"shape", "shape_mn", "shape_sd", "shape_cv"}
 
     def test_to_raster_alias(self):
-        lm = ls.Landscape(MAPS["clustered"][0])
+        lm = tf.Landscape(MAPS["clustered"][0])
         np.testing.assert_array_equal(lm.to_raster("AREA"), lm.to_raster("area"))
 
     def test_unknown_names(self):
-        lm = ls.Landscape(MAPS["clustered"][0])
+        lm = tf.Landscape(MAPS["clustered"][0])
         with pytest.raises(ValueError, match="landscape level"):
             lm.class_metrics("shannon_diversity_index")
         with pytest.raises(ValueError, match="not class-level"):
@@ -232,15 +232,15 @@ class TestAliases:
 class TestThreads:
     def test_same_values_with_any_number_of_threads(self):
         data = lsm_scenes.clustered((300, 280), [1, 2, 3, 4], seed=9, na_fraction=0.05)
-        full = ls.Landscape(data).metrics()
-        one = ls.Landscape(data, n_threads=1).metrics()
+        full = tf.Landscape(data).metrics()
+        one = tf.Landscape(data, n_threads=1).metrics()
         pd.testing.assert_frame_equal(full, one)
-        two = ls.landscape_metrics([data, data], n_threads=2, level="landscape")
+        two = tf.landscape_metrics([data, data], n_threads=2, level="landscape")
         np.testing.assert_array_equal(two.loc[two["layer"] == 1, "value"], full.loc[full["level"] == "landscape", "value"])
 
     def test_invalid(self):
         with pytest.raises(ValueError, match="n_threads"):
-            ls.Landscape(np.ones((3, 3)), n_threads=-1)
+            tf.Landscape(np.ones((3, 3)), n_threads=-1)
 
 
 def test_out_of_core_extras(tmp_path):
@@ -250,16 +250,16 @@ def test_out_of_core_extras(tmp_path):
     tif = tmp_path / "m.tif"
     lsm_reference.write_landscape(tif, data, res)
     names = ["area_am", "gyrate_am", "enn_md", "core_ra", "perim_cv"]
-    tiled = ls.Landscape(tif, block_rows=64, n_threads=2).landscape_metrics(names)
-    mem = ls.Landscape(tif).landscape_metrics(names)
+    tiled = tf.Landscape(tif, block_rows=64, n_threads=2).landscape_metrics(names)
+    mem = tf.Landscape(tif).landscape_metrics(names)
     pd.testing.assert_frame_equal(tiled, mem)
 
 
 def test_reference_maps_extras_are_finite():
     # every extra is computed on the landscapemetrics reference maps
-    lm = ls.Landscape(DATA / "lsm" / "augusta.tif")
+    lm = tf.Landscape(DATA / "lsm" / "augusta.tif")
     df = lm.metrics(extras=True)
-    extra = set(ls.list_metrics(extras=True).query("extra")["metric"])
+    extra = set(tf.list_metrics(extras=True).query("extra")["metric"])
     sub = df[df["metric"].isin(extra)]
     assert set(sub["metric"]) == extra
     # NA only where landscapemetrics' statistics are NA too (enn of single patches, sd of one value)

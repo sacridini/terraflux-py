@@ -18,9 +18,9 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import landschaft as ls
+import terraflux as tf
 from gtb_reference import find_gdl, find_ggeo, run_gtb_isochrone
-from landschaft import _core
+from terraflux import _core
 
 REFERENCE = Path(__file__).parent / "data" / "reference" / "idl_reference.json"
 
@@ -69,7 +69,7 @@ def simple_case():
 
 def test_isochrone_a():
     r, m = simple_case()
-    res = ls.isochrone_map(r, m)
+    res = tf.isochrone_map(r, m)
     out = np.asarray(res.map)
     assert (out[m == 1] == 101).all()
     assert out.max() <= 101 and res.lcp is None
@@ -87,7 +87,7 @@ def test_isochrone_ab_path():
     m = np.zeros(r.shape, np.uint8)
     m[3:5, 3:5] = 1
     m[26, 5] = 2
-    res = ls.isochrone_map_ab(r, m)
+    res = tf.isochrone_map_ab(r, m)
     out, lcp = np.asarray(res.map), np.asarray(res.lcp)
     assert lcp.dtype == bool and lcp[m == 1].any() and lcp[m == 2].any()
     assert (out[lcp & (m == 0)] == 103).all() and (out[m > 0] == 101).all()
@@ -103,40 +103,40 @@ def test_isochrone_missing_and_unreachable():
     m[10, 0] = 0  # a gap on the left
     m[20:23, 0:3] = 3
     m[21, 1] = 0  # an enclosed pixel: unreachable
-    res = ls.isochrone_map(r, m)
+    res = tf.isochrone_map(r, m)
     out = np.asarray(res.map)
     assert (out[10, 1:] == 102).all() and out[21, 1] == 104
-    ab = ls.isochrone_map_ab(r, m)
+    ab = tf.isochrone_map_ab(r, m)
     assert np.asarray(ab.map)[21, 1] == 104
 
 
 def test_isochrone_checks():
     r, m = simple_case()
     with pytest.raises(ValueError, match="object A"):
-        ls.isochrone_map(r, np.where(m == 1, 0, m).astype(np.uint8))
+        tf.isochrone_map(r, np.where(m == 1, 0, m).astype(np.uint8))
     two = m.copy()
     two[10, 10] = 1
     with pytest.raises(ValueError, match="only one object"):
-        ls.isochrone_map(r, two)
+        tf.isochrone_map(r, two)
     touch = m.copy()
     touch[5, 5] = 2
     touch[25, 35] = 0
     with pytest.raises(ValueError, match="touch"):
-        ls.isochrone_map_ab(r, touch)
+        tf.isochrone_map_ab(r, touch)
     walled = m.copy()
     walled[15, :] = 3
     with pytest.raises(ValueError, match="can not be connected"):
-        ls.isochrone_map_ab(r, walled)
+        tf.isochrone_map_ab(r, walled)
     with pytest.raises(ValueError, match="differ in size"):
-        ls.isochrone_map(r[:-1], m)
+        tf.isochrone_map(r[:-1], m)
 
 
 def test_isochrone_xarray(tmp_path):
     r, m = simple_case()
     da = xr.DataArray(r, dims=("y", "x"), coords={"y": np.arange(30), "x": np.arange(40)})
-    res = ls.isochrone_map_ab(da, m)
+    res = tf.isochrone_map_ab(da, m)
     assert isinstance(res.map, xr.DataArray) and res.map.attrs["landschaft_product"] == "ISOCHRONE_AB"
-    ls.write_raster(res.map, tmp_path / "iso.tif")
+    tf.write_raster(res.map, tmp_path / "iso.tif")
 
 
 # --- Distance -> Resistance --------------------------------------------------------
@@ -146,15 +146,15 @@ def test_distance_to_resistance():
     a = np.ones((20, 30), np.uint8)
     a[5:10, 5:10] = 2
     a[0, 29] = 0
-    res = ls.distance_to_resistance(a)
+    res = tf.distance_to_resistance(a)
     assert res.dtype == np.uint8
     assert (res[5:10, 5:10] == 2).all() and res[0, 29] == 0
     assert res[7, 10] == 3 and res[7, 11] == 4  # round(distance + 2)
     big = np.ones((10, 300), np.uint8)
     big[:, 0] = 2
-    assert ls.distance_to_resistance(big)[:, 150:].max() == 100  # capped at 100
+    assert tf.distance_to_resistance(big)[:, 150:].max() == 100  # capped at 100
     with pytest.raises(ValueError, match="no foreground"):
-        ls.distance_to_resistance(np.ones((5, 5), np.uint8))
+        tf.distance_to_resistance(np.ones((5, 5), np.uint8))
 
 
 # --- agreement with GTB ------------------------------------------------------------
@@ -179,7 +179,7 @@ def reference_inputs():
 def test_isochrone_matches_stored_gtb_outputs(reference_inputs, case):
     resist, marker = reference_inputs[case["input"]]
     assert digest(resist) == case["resist_sha256"] and digest(marker) == case["marker_sha256"]
-    fn = ls.isochrone_map if case["mode"] == "cost_map_aa" else ls.isochrone_map_ab
+    fn = tf.isochrone_map if case["mode"] == "cost_map_aa" else tf.isochrone_map_ab
     assert digest(fn(resist, marker).map) == case["sha256"], "isochrone map differs from GTB"
 
 
@@ -206,6 +206,6 @@ def test_isochrone_live_against_gtb(gtb_tools, seed):
     m[ny - 3, nx - 2] = 2
     if seed % 2:
         m[ny // 2, 3:nx] = 3
-    for mode, fn in (("cost_map_aa", ls.isochrone_map), ("cost_map_ab", ls.isochrone_map_ab)):
+    for mode, fn in (("cost_map_aa", tf.isochrone_map), ("cost_map_ab", tf.isochrone_map_ab)):
         np.testing.assert_array_equal(np.asarray(fn(r, m).map), run_gtb_isochrone(gdl, ggeo, r, m, mode),
                                       err_msg=mode)

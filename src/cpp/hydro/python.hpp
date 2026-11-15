@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The terrain hydrology's Python functions (hydro_*), registered into
-// landschaft._core.
+// terraflux._core.
 #pragma once
 
 #include <pybind11/pybind11.h>

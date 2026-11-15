@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Presets and the one-call projection (ls.simulate phase 7b)."""
+"""Presets and the one-call projection (tf.simulate phase 7b)."""
 
 from __future__ import annotations
 
@@ -8,15 +8,15 @@ import pytest
 import simulate_cases
 import xarray as xr
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 @pytest.fixture(scope="module")
 def sibuyan():
-    lu = ls.load_raster(S.example_data("sibuyan_landuse"))
-    dr = ls.load_raster(S.example_data("sibuyan_drivers"))
+    lu = tf.load_raster(S.example_data("sibuyan_landuse"))
+    dr = tf.load_raster(S.example_data("sibuyan_drivers"))
     return lu, dr.sel(band=["dist_sea", "dist_roads"])
 
 

@@ -70,18 +70,18 @@ probability of presence cannot be recovered from presence-only data (Ward et
 al. 2009; Guillera-Arroita et al. 2015).
 
 The brown-throated sloth (*Bradypus variegatus*), the classic example data of
-Maxent, has 116 records in Central and South America. `ls.sdm.prepare` does
+Maxent, has 116 records in Central and South America. `tf.sdm.prepare` does
 the whole preparation in one call (the [tutorial](../tutorials/species-distributions.md)
 goes through every step):
 
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-occ = ls.load_table(ls.sdm.example_data("bradypus"))
-env = ls.load_raster(ls.sdm.example_data("bioclim"))     # 9 climate variables, 0.5 degree
-data = ls.sdm.prepare(occ, env, background=2000)
+occ = tf.load_table(tf.sdm.example_data("bradypus"))
+env = tf.load_raster(tf.sdm.example_data("bioclim"))     # 9 climate variables, 0.5 degree
+data = tf.sdm.prepare(occ, env, background=2000)
 print(data)
 print(data.report[["step", "presences", "removed", "detail"]])
 ```
@@ -99,7 +99,7 @@ have.
 or a province put records at its centroid or capital; specimens without a
 locality get the address of the museum that holds them; swapped or zeroed
 coordinates put land animals in the sea or at 0° 0′. The tests of
-CoordinateCleaner (Zizka et al. 2019), `ls.sdm.clean_occurrences`, flag
+CoordinateCleaner (Zizka et al. 2019), `tf.sdm.clean_occurrences`, flag
 such records against reference data of centroids, capitals, institutions and
 coastlines, and flag geographic outliers far from the other records of the
 species.
@@ -113,15 +113,15 @@ predictor grid is the minimum.
 stations. A model fitted to them learns the bias as if it were the species'
 preference: if the accessible places are warmer, "warm" looks suitable.
 Two cures are common. **Spatial thinning** removes records until none is
-closer than a given distance to another (`ls.sdm.thin`, the algorithm of
+closer than a given distance to another (`tf.sdm.thin`, the algorithm of
 spThin; Aiello-Lammens et al. 2015), which evens out the density of records
 and often improves models (Boria et al. 2014). The **target-group
 background** draws the background with the same bias as the presences: from
 the records of all species of the same group collected by the same methods,
 so that the bias cancels between presences and background (Phillips et al.
 2009). The effort is estimated as a kernel density of those records
-(`ls.sdm.bias_surface`, the bias grid of Fourcade et al. 2014) and the
-background drawn in proportion to it (`ls.sdm.background(..., bias=...)`).
+(`tf.sdm.bias_surface`, the bias grid of Fourcade et al. 2014) and the
+background drawn in proportion to it (`tf.sdm.background(..., bias=...)`).
 
 **The accessible area.** Background points describe the conditions the
 species could have chosen from. Drawing them from places it could never have
@@ -131,7 +131,7 @@ easy to tell apart. The background, the selection of predictors and the
 evaluation belong in **M**, the accessible area of the BAM diagram (Barve et
 al. 2011; VanDerWal et al. 2009), approximated in practice by a buffer
 around the records, the ecoregions they fall in, or a dispersal-informed
-polygon (`ls.sdm.accessible_area`).
+polygon (`tf.sdm.accessible_area`).
 
 ## Predictors and collinearity
 
@@ -157,7 +157,7 @@ collinear.
 
 ```python
 allvars = data.redo(predictors=False)          # the same preparation, all nine predictors
-print(ls.sdm.vif(allvars.X).round(1))
+print(tf.sdm.vif(allvars.X).round(1))
 ```
 
 Five of the temperature variables have VIFs in the thousands or infinite.
@@ -178,7 +178,7 @@ def vif_by_hand(table):
     return pd.Series(out)
 
 pd.DataFrame({"by hand": vif_by_hand(data.X),
-              "ls.sdm.vif": ls.sdm.vif(data.X).set_index("variable")["vif"]}).round(3)
+              "tf.sdm.vif": tf.sdm.vif(data.X).set_index("variable")["vif"]}).round(3)
 ```
 
 Both give VIFs between 1.4 (bio17) and 3.8 (bio8). A VIF filter is a
@@ -238,15 +238,15 @@ itself, and the scores measure how well the model *interpolates* between
 known points rather than how well it predicts elsewhere (Roberts et al.
 2017). **Spatial blocks**, larger than the range of autocorrelation and
 assigned to folds whole, keep test records away from training ones (Valavi
-et al. 2019, `ls.sdm.spatial_blocks`; `prepare` uses five folds of
+et al. 2019, `tf.sdm.spatial_blocks`; `prepare` uses five folds of
 hexagonal blocks by default).
 
 ```python
 from sklearn.ensemble import RandomForestClassifier
 
 rf = RandomForestClassifier(n_estimators=300, min_samples_leaf=3, random_state=1)
-for name, d in (("random folds", ls.sdm.random_folds(data, 5, seed=1)), ("spatial blocks", data)):
-    s = ls.sdm.fit(d, {"rf": rf}).summary.loc["rf"]
+for name, d in (("random folds", tf.sdm.random_folds(data, 5, seed=1)), ("spatial blocks", data)):
+    s = tf.sdm.fit(d, {"rf": rf}).summary.loc["rf"]
     print(f"{name:15s} AUC {s['auc_test', 'mean']:.2f}  TSS {s['tss', 'mean']:.2f}  "
           f"Boyce {s['boyce', 'mean']:.2f}")
 ```
@@ -280,8 +280,8 @@ pres, bg = score[data.y == 1], score[data.y == 0]
 ranks = pd.Series(np.concatenate([pres, bg])).rank().to_numpy()
 n1, n0 = len(pres), len(bg)
 auc = (ranks[:n1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0)
-e = ls.sdm.evaluate(pres, bg)
-print(f"AUC by hand {auc:.4f}, ls.sdm.evaluate {e.stats['auc']:.4f}")
+e = tf.sdm.evaluate(pres, bg)
+print(f"AUC by hand {auc:.4f}, tf.sdm.evaluate {e.stats['auc']:.4f}")
 ```
 
 One variable, no fitting, and an AUC of 0.86, higher than the random
@@ -305,7 +305,7 @@ reported.
 ```python
 t = e.thresholds["max_spec_sens"]               # the threshold of maximum TSS
 sens, spec = (pres >= t).mean(), (bg < t).mean()
-print(f"TSS by hand {sens + spec - 1:.4f}, ls.sdm.evaluate {e.stats['max_tss']:.4f}")
+print(f"TSS by hand {sens + spec - 1:.4f}, tf.sdm.evaluate {e.stats['max_tss']:.4f}")
 ```
 
 With background points, "specificity" is the share of the available area
@@ -327,7 +327,7 @@ the lowest prediction at any of them (*minimum training presence*) or the
 one 10 % of them fall below; then count the test presences below it. A model
 that generalises omits about 0 % and 10 % of them; much more means it has
 memorised the training records. So does a large gap between the training and
-the test AUC. `ls.sdm.fit` reports all of these per fold: `auc_train`,
+the test AUC. `tf.sdm.fit` reports all of these per fold: `auc_train`,
 `auc_test`, `auc_diff`, `tss`, `boyce`, `or_mtp` and `or_10p`.
 
 ## Thresholds
@@ -353,7 +353,7 @@ quadratic keeps falling, a tree stays flat at its last value. Two
 precautions are standard.
 
 **Clamping** holds every predictor at the edge of its training range before
-predicting, so that responses stay flat outside it (`ls.sdm.predict` clamps
+predicting, so that responses stay flat outside it (`tf.sdm.predict` clamps
 by default, as Maxent does).
 
 **Mapping novelty** shows where the projection should not be trusted. The
@@ -386,9 +386,9 @@ def similarity(p, v):
 new = warmer.sel(band=data.predictors)
 cell = new.sel(x=-60.25, y=-3.25).to_pandas()                # near Manaus
 by_hand = min(similarity(cell[p], data.X[p].to_numpy()) for p in data.predictors)
-m = ls.sdm.mess(data, new)
+m = tf.sdm.mess(data, new)
 print(round(by_hand, 3), round(float(m.sel(band="mess", x=-60.25, y=-3.25)), 3))
-present = ls.sdm.mess(data, env.sel(band=data.predictors)).sel(band="mess")
+present = tf.sdm.mess(data, env.sel(band=data.predictors)).sel(band="mess")
 print(int((present < 0).sum()), "cells novel today,", int((m.sel(band="mess") < 0).sum()), "if 2 degrees warmer")
 ```
 
@@ -402,12 +402,12 @@ projection is a guess, whatever the model says.
 
 MESS looks at one predictor at a time. A cell can be inside every range and
 still hold a *combination* never seen, warm and dry where the warm places of
-the reference were wet. **ExDet** (Mesgaran et al. 2014; `ls.sdm.exdet`)
+the reference were wet. **ExDet** (Mesgaran et al. 2014; `tf.sdm.exdet`)
 separates the two kinds of novelty: NT1 below 0 for values outside the
 ranges, NT2 above 1 for new combinations, measured by the Mahalanobis
 distance to the reference (here it finds the same 119 cells, and no new
 combination). The **mobility-oriented parity** (MOP; Owens et al. 2013;
-`ls.sdm.mop`) measures the distance from each cell to its nearest reference
+`tf.sdm.mop`) measures the distance from each cell to its nearest reference
 conditions, and flags the cells outside the ranges.
 
 ## Common mistakes

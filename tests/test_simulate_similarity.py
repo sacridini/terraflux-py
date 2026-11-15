@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Fuzzy similarity (Dinamica EGO) and validation in one call (ls.simulate phase 8b)."""
+"""Fuzzy similarity (Dinamica EGO) and validation in one call (tf.simulate phase 8b)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def test_same_as_dinamica():
@@ -71,8 +71,8 @@ def test_validate_and_projection():
     assert s["similarity_5"] >= s["similarity_1"]
     assert set(v.metrics.columns) >= {"metric", "class", "observed", "simulated", "difference"}
     assert "Validation(" in repr(v)
-    lu = ls.load_raster(S.example_data("sibuyan_landuse"))
-    dr = ls.load_raster(S.example_data("sibuyan_drivers")).sel(band=["dist_sea", "dist_roads"])
+    lu = tf.load_raster(S.example_data("sibuyan_landuse"))
+    dr = tf.load_raster(S.example_data("sibuyan_drivers")).sel(band=["dist_sea", "dist_roads"])
     proj = S.run(lu[0], lu[1], dr, seed=1, woe=250)
     pv = proj.validate(factors=[1, 2], windows=[1, 3])
     assert pv.summary()["figure_of_merit"] == pytest.approx(proj.validation["figure_of_merit"], rel=1e-12)
@@ -99,4 +99,4 @@ def test_futures_grid_validation():
 def test_validation_plot():
     w = simulate_cases.sim_world()
     v = S.validate(*(w.sel(band=k) for k in ("t0", "observed", "simulated")), factors=[1, 2], windows=[1, 3])
-    assert [p.title for p in ls.plot(v).panels] == ["budget", "figure of merit", "similarity", None]
+    assert [p.title for p in tf.plot(v).panels] == ["budget", "figure of merit", "similarity", None]

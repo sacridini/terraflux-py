@@ -19,25 +19,25 @@ graph.
 - measure how much routes from a common origin overlap, and relate that to
   genetic distances between populations.
 
-Everything lives in `ls.cost`. The results match the R package gdistance,
+Everything lives in `tf.cost`. The results match the R package gdistance,
 value for value where the arithmetic allows (transitions, cost distances and
 paths) and to about 1e-12 where sparse linear systems are solved.
 
 ## A transition: the raster as a graph
 
-`ls.cost.transition` connects every pair of neighbouring cells (4, 8 or 16
+`tf.cost.transition` connects every pair of neighbouring cells (4, 8 or 16
 directions) that both have a value, with a function of the two values. The
 connection's value is a conductance: large means easy.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 resistance = np.array([[1.0, 1.0, 4.0],
                        [1.0, 9.0, 4.0],
                        [1.0, 1.0, 1.0]])
-tr = 1 / ls.cost.transition(resistance, "mean", 8)     # conductance = 1 / mean resistance
-tr = ls.cost.geo_correction(tr)                        # / distance between cell centres
+tr = 1 / tf.cost.transition(resistance, "mean", 8)     # conductance = 1 / mean resistance
+tr = tf.cost.geo_correction(tr)                        # / distance between cell centres
 print(tr)
 ```
 
@@ -58,11 +58,11 @@ cells). Tobler's hiking function gives the walking speed from the slope:
 about 6 km/h on a gentle descent, slower uphill and on steep descents.
 
 ```python
-dem = ls.load_raster(ls.cost.example_data("maungawhau"))
-rise = ls.cost.transition(dem, "diff", 8, symmetric=False)    # elevation to - elevation from
-slope = ls.cost.geo_correction(rise)                          # rise / distance
+dem = tf.load_raster(tf.cost.example_data("maungawhau"))
+rise = tf.cost.transition(dem, "diff", 8, symmetric=False)    # elevation to - elevation from
+slope = tf.cost.geo_correction(rise)                          # rise / distance
 speed = slope.map(lambda s: 6 * np.exp(-3.5 * np.abs(s + 0.05)) / 3.6, pairs="all")   # m/s
-conductance = ls.cost.geo_correction(speed)                   # 1 / seconds per step
+conductance = tf.cost.geo_correction(speed)                   # 1 / seconds per step
 ```
 
 `map(..., pairs="all")` applies the function to every pair of neighbours,
@@ -72,7 +72,7 @@ at the foot of the volcano to B on the other side, and back:
 
 ```python
 A, B = (2667670, 6479000), (2667800, 6479400)
-minutes = ls.cost.cost_distance(conductance, [A, B]) / 60
+minutes = tf.cost.cost_distance(conductance, [A, B]) / 60
 print(minutes.round(1))
 ```
 
@@ -86,11 +86,11 @@ The two directions differ: the way back climbs where the way out descended.
 the routes:
 
 ```python
-time_from_a = ls.cost.acc_cost(conductance, A)
-there = ls.cost.shortest_path(conductance, A, B, output="lines")
-back = ls.cost.shortest_path(conductance, B, A, output="lines")
-ls.plot([(time_from_a / 60).rename("minutes from A"), there, back])   # one map, three layers
-ls.write_vector(there, "path_a_to_b.gpkg")
+time_from_a = tf.cost.acc_cost(conductance, A)
+there = tf.cost.shortest_path(conductance, A, B, output="lines")
+back = tf.cost.shortest_path(conductance, B, A, output="lines")
+tf.plot([(time_from_a / 60).rename("minutes from A"), there, back])   # one map, three layers
+tf.write_vector(there, "path_a_to_b.gpkg")
 print(round(float(time_from_a.max()) / 60, 1), round(there.length.iloc[0]), round(back.length.iloc[0]))
 ```
 
@@ -115,7 +115,7 @@ routes, from the random walk (0) to the least-cost path (large values).
 `passage` maps how often the walk from A to B crosses each cell:
 
 ```python
-routes = {theta: ls.cost.passage(conductance, A, B, theta=theta) for theta in (0, 0.001, 0.01, 1)}
+routes = {theta: tf.cost.passage(conductance, A, B, theta=theta) for theta in (0, 0.001, 0.01, 1)}
 print({theta: round(float((p > 0.01).mean()), 3) for theta, p in routes.items()})
 ```
 
@@ -135,9 +135,9 @@ walks give distances: `rsp_distance` is the expected cost of the walk, and
 view, times the sum of all conductances).
 
 ```python
-print(ls.cost.rsp_distance(conductance, [A], [B], theta=0.1).round(0))
-symmetric = ls.cost.geo_correction(1 / ls.cost.transition(dem, "mean", 8))
-print(ls.cost.commute_distance(symmetric, [A, B]).round(0))
+print(tf.cost.rsp_distance(conductance, [A], [B], theta=0.1).round(0))
+symmetric = tf.cost.geo_correction(1 / tf.cost.transition(dem, "mean", 8))
+print(tf.cost.commute_distance(symmetric, [A, B]).round(0))
 ```
 
 ```text
@@ -158,13 +158,13 @@ European populations of the Y-chromosome haplogroup R1b1b2 and their
 locations, and a map of Europe (land = 1, 1/3 degree cells).
 
 ```python
-europe = ls.load_raster(ls.cost.example_data("europe"))
-pops = ls.load_table(ls.cost.example_data("pop_coord"))
-genetic = ls.load_table(ls.cost.example_data("gen_dist")).set_index("population")
-walk = ls.cost.geo_correction(ls.cost.transition(europe, "mean", 16), "r", scale=True)
+europe = tf.load_raster(tf.cost.example_data("europe"))
+pops = tf.load_table(tf.cost.example_data("pop_coord"))
+genetic = tf.load_table(tf.cost.example_data("gen_dist")).set_index("population")
+walk = tf.cost.geo_correction(tf.cost.transition(europe, "mean", 16), "r", scale=True)
 
 xy = pops[["x", "y"]].to_numpy()
-routes = ls.cost.path_inc(walk, (37.0, 39.0), xy)    # from Anatolia
+routes = tf.cost.path_inc(walk, (37.0, 39.0), xy)    # from Anatolia
 pairs = np.triu_indices(len(pops), 1)
 g = genetic.loc[pops["population"], pops["population"]].to_numpy()[pairs]
 print({name: round(float(np.corrcoef(m[pairs], g)[0, 1]), 2) for name, m in routes.items()})
@@ -182,9 +182,9 @@ overlap, the smaller the genetic distance (a correlation of -0.73). For
 comparison:
 
 ```python
-coast = ls.cost.geo_correction(ls.cost.transition(europe, "mean", 16), "c")
-least_cost = ls.cost.cost_distance(coast, xy)
-commute = ls.cost.commute_distance(walk, xy)
+coast = tf.cost.geo_correction(tf.cost.transition(europe, "mean", 16), "c")
+least_cost = tf.cost.cost_distance(coast, xy)
+commute = tf.cost.commute_distance(walk, xy)
 print(round(float(np.corrcoef(least_cost[pairs], g)[0, 1]), 2),
       round(float(np.corrcoef(commute[pairs], g)[0, 1]), 2))
 ```
@@ -213,9 +213,9 @@ test (permuting the populations) before drawing conclusions.
   numbers combine transitions; `normalize` gives the random walk's
   probabilities; `sum_reciprocal` adds resistances in series.
 - **Weights for route overlap**: `path_inc(..., weight=...)` takes another
-  transition or a list of them; `ls.cost.barriers(r, breaks=[...])` marks the
+  transition or a list of them; `tf.cost.barriers(r, breaks=[...])` marks the
   connections that cross given values (or, without breaks, the boundaries
-  between categories) and `ls.cost.areas(r)` those inside each category, to
+  between categories) and `tf.cost.areas(r)` those inside each category, to
   ask how much of the routes' overlap happens across a barrier or in an area.
 - **Randomised shortest paths**: `method=2` in `rsp_distance` weights the
   steps by `P ** theta` instead of `exp(-theta * cost) * P`; `total_net` counts

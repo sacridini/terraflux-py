@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the grid distances (landschaft._core.cost_*).
+// Python bindings of the grid distances (terraflux._core.cost_*).
 
 #include "cost/python.hpp"
 

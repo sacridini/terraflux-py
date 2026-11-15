@@ -1,12 +1,12 @@
-site_name: Landschaft
+site_name: terraflux
 site_description: >-
   Fast, exact landscape pattern, fragmentation, landscape-metric and connectivity
   analysis for Python.
 site_author: Eduardo Lacerda
 copyright: Copyright &copy; 2026 Eduardo Lacerda &middot; GPL-3.0-or-later
 site_url: https://sacridini.github.io/landschaft/
-repo_url: https://github.com/sacridini/landschaft
-repo_name: sacridini/landschaft
+repo_url: https://github.com/sacridini/terraflux-py
+repo_name: sacridini/terraflux-py
 edit_uri: ""
 
 # Plain .html links: the built site opens straight from disk (file://) as well
@@ -121,7 +121,7 @@ extra:
   generator: false
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/sacridini/landschaft
+      link: https://github.com/sacridini/terraflux-py
 
 exclude_docs: |
   /overrides/

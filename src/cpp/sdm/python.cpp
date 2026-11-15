@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of ls.sdm (landschaft._core.sdm_*) and of R's generator.
+// Python bindings of ls.sdm (terraflux._core.sdm_*) and of R's generator.
 
 #include "sdm/python.hpp"
 

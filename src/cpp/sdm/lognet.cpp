@@ -35,6 +35,7 @@
 // Every value is still computed by one thread in a fixed order, so the
 // result does not depend on the number of threads.
 
+#include "env.hpp"
 #include "sdm/lognet.hpp"
 
 #include <algorithm>
@@ -289,7 +290,7 @@ bool cpu_has_avx2() {
 #endif
 }
 
-const bool kAvx2 = cpu_has_avx2() && std::getenv("LANDSCHAFT_NO_AVX2") == nullptr;
+const bool kAvx2 = cpu_has_avx2() && !tfenv::is_set("NO_AVX2");
 
 // The residual at i..i+3 after the pending update (stored back), into `dst`.
 #define SDM_LOGNET_R4(i, dst)                                                                                      \
@@ -457,11 +458,11 @@ void apply(i64 n, double* r, const double* v, Update& u) {
 struct MaxitReached {};
 
 // Time and count of the solver's stages, printed to stderr when
-// LANDSCHAFT_PROFILE is set.
+// TERRAFLUX_PROFILE (or LANDSCHAFT_PROFILE) is set.
 struct Profile {
     using Clock = std::chrono::steady_clock;
     enum Stage { kSetup, kScreen, kXv, kPass, kIrls, kKktNorms, kCount };
-    bool on = std::getenv("LANDSCHAFT_PROFILE") != nullptr;
+    bool on = tfenv::is_set("PROFILE");
     double seconds[kCount] = {};
     i64 dots_approx = 0, dots_exact = 0, dots_pass = 0, residual_updates = 0, irls = 0;
     Clock::time_point t0 = Clock::now();

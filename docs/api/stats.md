@@ -8,73 +8,73 @@ rounding), with pseudo p values of random permutations; and the interpolation of
 points onto a map as R's gstat: sample variograms and their fit, inverse
 distance weighting and ordinary kriging; statistics of a stack at every cell
 (with the layer of the peak) and the correlation of two maps in a moving
-window. C++ with OpenMP; the same with any number of threads. The `ls.stats`
+window. C++ with OpenMP; the same with any number of threads. The `tf.stats`
 module.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-ndvi = ls.load_raster("ndvi_2000_2024.tif")       # a band per year
-t = ls.stats.trend(ndvi)
+ndvi = tf.load_raster("ndvi_2000_2024.tif")       # a band per year
+t = tf.stats.trend(ndvi)
 t.slope, t.p, t.trend                              # Sen's slope, the test's p, 1 up / -1 down / 0 none
 
-ls.stats.moran(t.slope)                            # global Moran's I and its p values
-ls.stats.lisa(t.slope).clusters                    # high-high, low-low... cells
-ls.stats.getis_ord(ls.load_raster("density.tif")).spots   # hot and cold spots
+tf.stats.moran(t.slope)                            # global Moran's I and its p values
+tf.stats.lisa(t.slope).clusters                    # high-high, low-low... cells
+tf.stats.getis_ord(tf.load_raster("density.tif")).spots   # hot and cold spots
 
-pts = ls.load_vector("soil_samples.gpkg")          # points with a value
-v = ls.stats.variogram(pts, "carbon", model="exponential")
-k = ls.stats.kriging(pts, ndvi[0], v, "carbon")    # onto the cells of a map
+pts = tf.load_vector("soil_samples.gpkg")          # points with a value
+v = tf.stats.variogram(pts, "carbon", model="exponential")
+k = tf.stats.kriging(pts, ndvi[0], v, "carbon")    # onto the cells of a map
 k.prediction, k.variance
-ls.stats.idw(pts, ndvi[0], "carbon", nmax=12)
+tf.stats.idw(pts, ndvi[0], "carbon", nmax=12)
 
-ls.stats.cell_stats(ndvi, "argmax")                # the year of the peak
-ls.stats.local_correlation(ndvi[0], rain, radius=5).slope
+tf.stats.cell_stats(ndvi, "argmax")                # the year of the peak
+tf.stats.local_correlation(ndvi[0], rain, radius=5).slope
 ```
 
 ## Trends
 
-::: landschaft.stats.trend
+::: terraflux.stats.trend
 
-::: landschaft.stats.Trend
+::: terraflux.stats.Trend
 
-::: landschaft.stats.mann_kendall
+::: terraflux.stats.mann_kendall
 
 ## Statistics of a stack
 
-::: landschaft.stats.cell_stats
+::: terraflux.stats.cell_stats
 
 ## Local correlation
 
-::: landschaft.stats.local_correlation
+::: terraflux.stats.local_correlation
 
-::: landschaft.stats.LocalCorrelation
+::: terraflux.stats.LocalCorrelation
 
 ## Spatial autocorrelation
 
-::: landschaft.stats.moran
+::: terraflux.stats.moran
 
-::: landschaft.stats.Moran
+::: terraflux.stats.Moran
 
-::: landschaft.stats.lisa
+::: terraflux.stats.lisa
 
-::: landschaft.stats.LISA
+::: terraflux.stats.LISA
 
-::: landschaft.stats.getis_ord
+::: terraflux.stats.getis_ord
 
-::: landschaft.stats.GetisOrd
+::: terraflux.stats.GetisOrd
 
 ## Interpolation
 
-::: landschaft.stats.variogram
+::: terraflux.stats.variogram
 
-::: landschaft.stats.Variogram
+::: terraflux.stats.Variogram
 
-::: landschaft.stats.VariogramModel
+::: terraflux.stats.VariogramModel
 
-::: landschaft.stats.idw
+::: terraflux.stats.idw
 
-::: landschaft.stats.kriging
+::: terraflux.stats.kriging
 
-::: landschaft.stats.Kriging
+::: terraflux.stats.Kriging

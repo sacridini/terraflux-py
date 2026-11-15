@@ -1,29 +1,29 @@
 # From prioritizr, prioriactions and prioripy
 
-`ls.prioritize` builds the same optimization models as the R packages
+`tf.prioritize` builds the same optimization models as the R packages
 [prioritizr](https://prioritizr.net) (8.0.6) and
 [prioriactions](https://prioriactions.github.io/prioriactions/) (0.5.0), row by row, and keeps their
 vocabulary, so most scripts translate line by line. This page is the dictionary: what changes in the
 syntax, the equivalent of every function, what to expect when you compare the results, and the
-replacements for [prioripy](https://github.com/sacridini/prioripy), the Python package `ls.prioritize`
+replacements for [prioripy](https://github.com/sacridini/prioripy), the Python package `tf.prioritize`
 grew out of. The ideas behind each function are in the course part
 [Conservation priorities](../learn/prioritization.md); the full reference is the
 [Spatial prioritization](prioritization.md) API page.
 
 ## What changes, what stays
 
-| | prioritizr / prioriactions (R) | `ls.prioritize` |
+| | prioritizr / prioriactions (R) | `tf.prioritize` |
 |---|---|---|
 | Building a problem | pipes: `problem(...) %>% add_...()` | method chains: `P.problem(...).add_...()` |
 | Order of the calls | targets are resolved when the problem is built | any order: everything is resolved by `compile()` and `solve()` |
 | A call changes the problem? | returns a new problem | returns a new problem (a `Problem` is immutable) |
-| Rasters, polygons, tables | `terra` `SpatRaster`, `sf`, `data.frame` | `xarray.DataArray` ([`ls.load_raster`](data.md)), `GeoDataFrame`, `pandas.DataFrame` |
+| Rasters, polygons, tables | `terra` `SpatRaster`, `sf`, `data.frame` | `xarray.DataArray` ([`tf.load_raster`](data.md)), `GeoDataFrame`, `pandas.DataFrame` |
 | Features | layers or columns | bands of a stack, a list of rasters, or columns; always by name |
-| Default solver | the best one installed (Gurobi, CPLEX, CBC, HiGHS...) | HiGHS, built into Landschaft (nothing to install) |
+| Default solver | the best one installed (Gurobi, CPLEX, CBC, HiGHS...) | HiGHS, built into Terraflux (nothing to install) |
 | Threads | `threads = 1` | `n_threads`: all cores but one by default |
-| Result of `solve` | the input's class with a `solution_1` layer or column | a [`Solution`](prioritization.md#landschaft.prioritize.Solution): `selection` (raster or table), `values`, `coverage`, `cost`, `objective`, `gap`, `bound`, `status`, `seconds` |
+| Result of `solve` | the input's class with a `solution_1` layer or column | a [`Solution`](prioritization.md#terraflux.prioritize.Solution): `selection` (raster or table), `values`, `coverage`, `cost`, `objective`, `gap`, `bound`, `status`, `seconds` |
 | Evaluations | `tibble` | `pandas.DataFrame`, the same columns |
-| Plots | `plot(s)` | `ls.plot(s)` |
+| Plots | `plot(s)` | `tf.plot(s)` |
 
 ## A script, side by side
 
@@ -52,15 +52,15 @@ grew out of. The ideas behind each function are in the course part
     writeRaster(s, "solution.tif")
     ```
 
-=== "Python (ls.prioritize)"
+=== "Python (tf.prioritize)"
 
     ```python
-    import landschaft as ls
+    import terraflux as tf
 
-    P = ls.prioritize
-    cost = ls.load_raster(P.example_data("cost"))
-    features = ls.load_raster(P.example_data("features"))
-    protected = ls.load_raster(P.example_data("protected"))
+    P = tf.prioritize
+    cost = tf.load_raster(P.example_data("cost"))
+    features = tf.load_raster(P.example_data("features"))
+    protected = tf.load_raster(P.example_data("protected"))
 
     p = (P.problem(cost, features)
            .add_min_set_objective()
@@ -74,21 +74,21 @@ grew out of. The ideas behind each function are in the course part
     s.status, s.objective
     P.eval_target_coverage_summary(p, s)
     P.eval_cost_summary(p, s)
-    ls.write_raster(s.selection, "solution.tif")
+    tf.write_raster(s.selection, "solution.tif")
     ```
 
 The importance of the selected units works the same way:
 
 ```python
 ranks, steps = P.eval_rank_importance(p, s, n=4)     # prioritizr: eval_rank_importance(p, s, n = 4)
-ls.plot(ranks)
+tf.plot(ranks)
 ```
 
 ## prioritizr, function by function
 
 ### Problems and data
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `problem(cost_raster, features)` | `P.problem(cost_raster, features)` |
 | `problem(sf, features, cost_column = "cost")` | `P.problem(gdf, features, cost_column="cost")` (features: rasters summed over the polygons as exactextractr does, or column names) |
@@ -101,7 +101,7 @@ ls.plot(ranks)
 
 ### Objectives
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `add_min_set_objective()` | `.add_min_set_objective()` |
 | `add_min_shortfall_objective(budget)` | `.add_min_shortfall_objective(budget)` |
@@ -109,14 +109,14 @@ ls.plot(ranks)
 | `add_max_utility_objective(budget)` (9: `add_max_wtd_sum_objective`) | `.add_max_utility_objective(budget)`, or `.add_max_wtd_sum_objective(budget)` |
 | `add_max_features_objective(budget)` (9: `add_max_n_targets_met_objective`) | `.add_max_features_objective(budget)`, or `.add_max_n_targets_met_objective(budget)` |
 | `add_max_cover_objective(budget)` | `.add_max_cover_objective(budget)` |
-| `add_max_phylo_div_objective(budget, tree)` | `.add_max_phylo_div_objective(budget, tree)` (an `ls.bio` tree or a Newick string) |
+| `add_max_phylo_div_objective(budget, tree)` | `.add_max_phylo_div_objective(budget, tree)` (an `tf.bio` tree or a Newick string) |
 | `add_max_phylo_end_objective(budget, tree)` | `.add_max_phylo_end_objective(budget, tree)` |
 | `add_min_penalties_objective(budget)` | `.add_min_penalties_objective(budget)` |
 | — | `.add_min_extinction_risk_objective(budget, z=0.25)` (species-area extinction risk) |
 
 ### Targets and weights
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `add_relative_targets(0.3)` | `.add_relative_targets(0.3)` (one value or one per feature) |
 | `add_absolute_targets(x)` | `.add_absolute_targets(x)` |
@@ -128,7 +128,7 @@ ls.plot(ranks)
 
 ### Constraints
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `add_locked_in_constraints(x)` | `.add_locked_in_constraints(x)` (a raster with 1, a column name, booleans or indices) |
 | `add_locked_out_constraints(x)` | `.add_locked_out_constraints(x)` |
@@ -143,7 +143,7 @@ ls.plot(ranks)
 
 ### Penalties
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `add_boundary_penalties(penalty, edge_factor, data)` | `.add_boundary_penalties(penalty, edge_factor, data=None)` |
 | `add_connectivity_penalties(penalty, data = m)` | `.add_connectivity_penalties(penalty, m)` |
@@ -154,7 +154,7 @@ ls.plot(ranks)
 
 ### Decisions, solvers and portfolios
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `add_binary_decisions()` | `.add_binary_decisions()` |
 | `add_proportion_decisions()` | `.add_proportion_decisions()` |
@@ -172,7 +172,7 @@ ls.plot(ranks)
 | `attr(s, "objective")`, `"status"`, `"gap"`, `"runtime"` | `s.objective`, `s.status`, `s.gap`, `s.seconds` |
 | `eval_objective_summary(p, s)` (9) | `s.objective` |
 
-A portfolio solves to a [`Portfolio`](prioritization.md#landschaft.prioritize.Portfolio): `selection` (a
+A portfolio solves to a [`Portfolio`](prioritization.md#terraflux.prioritize.Portfolio): `selection` (a
 band or a column per solution, named `solution_1`, `solution_2`... as in prioritizr), `summary` and
 `frequency` (the share of the solutions that select every unit).
 
@@ -189,11 +189,11 @@ Every `eval_*` function has the same name and arguments: `P.eval_n_summary(p, s)
 
 Beyond prioritizr: `P.eval_extinction_risk`, `P.eval_landscape_metrics` and `P.eval_mspa` (the
 solution's pattern), `P.compare_zonation` (a Zonation ranking cut at the solution's cost) and
-`P.report(p, s)`, everything in one object that `ls.plot` draws and `.save("report.html")` writes.
+`P.report(p, s)`, everything in one object that `tf.plot` draws and `.save("report.html")` writes.
 
 ### Spatial data and calibration
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `boundary_matrix(x)` | `P.boundary_matrix(x)` |
 | `adjacency_matrix(x, directions)` | `P.adjacency_matrix(x, directions)` |
@@ -208,7 +208,7 @@ solution's pattern), `P.compare_zonation` (a Zonation ranking cut at the solutio
 
 ### Management zones
 
-| prioritizr | `ls.prioritize` |
+| prioritizr | `tf.prioritize` |
 |---|---|
 | `problem(costs, zones(f_a, f_b, zone_names = c("a", "b")))` | `P.problem({"a": cost_a, "b": cost_b}, features={"a": f_a, "b": f_b})` |
 | `zones(f, f * 0.5, ...)` (the same features scaled per zone) | `P.problem({"a": cost_a, "b": cost_b}, f, contribution={"b": 0.5})` (a number, one per feature, or a raster) |
@@ -228,7 +228,7 @@ solution's pattern), `P.compare_zonation` (a Zonation ranking cut at the solutio
 | `eval_*_summary(p, s)` with zones | the same functions: a row `overall` and one per zone |
 
 Not with zones: arrays of connectivity or neighbours by pairs of zones (4-D), feature contiguity and the
-corridors (an extension of Landschaft), Ferrier and rarity-weighted importance (as in prioritizr).
+corridors (an extension of Terraflux), Ferrier and rarity-weighted importance (as in prioritizr).
 
 ### Not available
 
@@ -245,7 +245,7 @@ methods of 8.1 (`spec_*_targets()`). Open an issue if you need one of them.
   tree whose edges always run from a unit to one of a lower index. That misses every patch in which a
   unit has no selected neighbour of a higher index: three units in a line with the middle one first
   have no feasible patch at all, and on larger problems the "optimal" patch can cost more than the best
-  one. Landschaft uses an exact model (a spanning arborescence with a flow), so its patches are as cheap
+  one. Terraflux uses an exact model (a spanning arborescence with a flow), so its patches are as cheap
   or cheaper, and a problem prioritizr calls infeasible may have a solution here. The restricted model
   is still used, as a quick first patch.
 - **Zones: targets summed over the zones are shares of the features' totals.** With the easy form
@@ -268,10 +268,10 @@ methods of 8.1 (`spec_*_targets()`). Open an issue if you need one of them.
   the same objective. Compare the objective (and the gap and bound), not the cells.
 - **The gap means the same.** `gap=0.1` stops within 10 % of the optimum, as in prioritizr; for a final
   plan use a small gap.
-- **Faster, not different.** Landschaft's own engines (covering, cuts, closure) reach the solutions faster
+- **Faster, not different.** Terraflux's own engines (covering, cuts, closure) reach the solutions faster
   than the solver alone and prove the same bounds; the [benchmarks](../benchmarks.md) list the times.
 - **Top fractions count cells by position.** prioripy's landscape identification and comparison take
-  every unit at or above a quantile of the surface, so ties can add units. Landschaft follows Zonation:
+  every unit at or above a quantile of the surface, so ties can add units. Terraflux follows Zonation:
   the cells are ranked by position (ties: the earlier cell in row order ranks lower) and the top
   fraction is the cells ranked at or above 1 − fraction, which on a Zonation ranking gives Zonation's
   own areas. The areas are 8-connected by default (prioripy: 4) and keep Zonation's numbers.
@@ -290,7 +290,7 @@ np.allclose(m.obj, r_obj), m.A.shape                  # R: dim(o$A())
 
 ## prioriactions
 
-| prioriactions | `ls.prioritize` |
+| prioriactions | `tf.prioritize` |
 |---|---|
 | `inputData(pu, features, dist_features, threats, dist_threats, sensitivity, boundary)` | `P.actions_data(pu, features, dist_features, threats, dist_threats, sensitivity, boundary)` (the same tables and columns) |
 | — | `P.actions_raster_data(monitoring_cost, features, threats, action_cost, ...)`: the same from rasters |
@@ -320,7 +320,7 @@ The example of prioriactions's documentation, in both:
     getActions(s)
     ```
 
-=== "Python (ls.prioritize)"
+=== "Python (tf.prioritize)"
 
     ```python
     import pandas as pd
@@ -340,12 +340,12 @@ The example of prioriactions's documentation, in both:
 
 ## prioripy
 
-prioripy 0.11 was the starting point of `ls.prioritize`'s design. The core was rewritten to build
+prioripy 0.11 was the starting point of `tf.prioritize`'s design. The core was rewritten to build
 prioritizr's models exactly, so some results change (see the next section).
 
-| prioripy | `ls.prioritize` |
+| prioripy | `tf.prioritize` |
 |---|---|
-| `problem("pu.tif", ["sp1.tif", ...], feature_names)` | `P.problem(ls.load_raster("pu.tif"), ls.load_raster(["sp1.tif", ...]))` (names from the files or the bands) |
+| `problem("pu.tif", ["sp1.tif", ...], feature_names)` | `P.problem(tf.load_raster("pu.tif"), tf.load_raster(["sp1.tif", ...]))` (names from the files or the bands) |
 | `add_min_set_objective()`, `add_min_shortfall_objective(budget)`, `add_min_largest_shortfall_objective(budget)` | the same |
 | `add_max_utility_objective(budget)`, `add_max_wtd_sum_objective(budget)` | `.add_max_utility_objective(budget)` |
 | `add_max_cover_objective(budget)` (the most targets met) | `.add_max_features_objective(budget)`; `add_max_cover_objective` is prioritizr's (the most features held at all) |
@@ -379,9 +379,9 @@ prioritizr's models exactly, so some results change (see the next section).
 | `eval_roi_vulnerability(...)` | the features' sum over the cost, in numpy (below) |
 | `eval_proxirr(...)` | `P.eval_proxirr(p, triage)`, or `P.eval_proxirr_marxan(pu, spec, puvspr)` for Marxan's tables (the CRAN package proxirr's results, bit for bit) |
 | `calc_extinction_risk_features(...)` | `.add_min_extinction_risk_objective(budget, z)` and `P.eval_extinction_risk(p, s, z)` |
-| `prob.write_raster(path)` | `ls.write_raster(s.selection, path)` or `s.save(folder)` |
-| `prob.plot()`, `prob.explore()` | `ls.plot(s)` |
-| `prob.generate_report(path)`, `generate_calibration_report(...)` | `P.report(p, s).save("report.html")`, `ls.plot(tradeoffs)` |
+| `prob.write_raster(path)` | `tf.write_raster(s.selection, path)` or `s.save(folder)` |
+| `prob.plot()`, `prob.explore()` | `tf.plot(s)` |
+| `prob.generate_report(path)`, `generate_calibration_report(...)` | `P.report(p, s).save("report.html")`, `tf.plot(tradeoffs)` |
 
 Two of the prioripy measures in a few lines:
 

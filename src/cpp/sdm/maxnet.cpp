@@ -9,6 +9,7 @@
 // predict.maxnet() reads back from the column names (as.character(): 15
 // significant digits).
 
+#include "env.hpp"
 #include "sdm/maxnet.hpp"
 
 #include <algorithm>
@@ -561,7 +562,7 @@ Model fit(const Table& d, const double* p, const Settings& s) {
         for (int k = 0; k < 200; ++k)
             m.lambda[static_cast<std::size_t>(k)] = kPow10[k] * S / static_cast<double>(ni) * P / W;
     }
-    const bool profile = std::getenv("LANDSCHAFT_PROFILE") != nullptr;
+    const bool profile = tfenv::is_set("PROFILE");
     const auto t_features = std::chrono::steady_clock::now();
     if (profile)
         std::fprintf(stderr, "maxnet: %lld rows x %lld features, model matrix and regularisation %.3f s\n",

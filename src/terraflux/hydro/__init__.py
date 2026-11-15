@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Terrain hydrology (``tf.hydro``): depression filling, flow directions, flow
+accumulation, stream networks and the height above the nearest drainage (HAND).
+
+Typical use::
+
+    import terraflux as tf
+
+    dem = tf.load_raster("srtm.tif")
+    filled = tf.hydro.fill(dem)
+    acc = tf.hydro.flow_accumulation(filled, method="fd8", units="sca")
+    rivers = tf.hydro.streams(tf.hydro.flow_accumulation(filled), 1000)
+    height = tf.hydro.hand(filled, rivers)
+    links, reaches = tf.hydro.stream_links(filled, rivers)
+    basins = tf.hydro.watersheds(filled, links)
+    wetness = tf.hydro.twi(filled)
+    forest_upstream = tf.hydro.upstream(filled, links=links, classes=landcover).table
+"""
+
+from ._flow import (D8_CODES, breach, distance_to_channel, fill, flow_accumulation, flow_direction, hand,
+                    streams)
+from ._basins import snap_outlets, stream_links, watersheds
+from ._indices import spi, sti, twi
+from ._rivers import (DCI, Catchments, NetworkReach, Upstream, along_network, centrality, dci, network_distance,
+                      snap_points, upstream, upstream_catchment)
+from ..services._sdr import connectivity_index
+from . import swat
+
+__all__ = ["D8_CODES", "DCI", "Catchments", "NetworkReach", "Upstream", "along_network", "breach", "centrality",
+           "connectivity_index", "dci", "distance_to_channel", "fill", "flow_accumulation", "flow_direction", "hand",
+           "network_distance", "snap_outlets", "snap_points", "spi", "sti", "stream_links", "streams", "swat", "twi",
+           "upstream", "upstream_catchment", "watersheds"]

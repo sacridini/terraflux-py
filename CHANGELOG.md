@@ -6,6 +6,9 @@ in a new major version.
 
 ## [Unreleased]
 
+### Changed
+- The package is now `terraflux` (`import terraflux as tf`, the command `terraflux-py`), after landschaft.
+
 ## [1.58.1] - 2026-10-31
 
 ### Changed

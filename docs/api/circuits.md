@@ -5,8 +5,8 @@ moving windows (Omniscape), current and effective resistance between focal
 points, sources and grounds, on rasters and on networks (Circuitscape).
 Tutorial: [circuit connectivity](../tutorials/circuit-connectivity.md).
 
-`ls.omniscape` is at the top level; the other functions are in the
-`ls.circuit` module (`from landschaft import circuit`).
+`tf.omniscape` is at the top level; the other functions are in the
+`tf.circuit` module (`from terraflux import circuit`).
 
 !!! tip "Resistance, conductance and current"
     A resistance map says how hard each cell is to cross (1 = easy, larger =
@@ -17,56 +17,56 @@ Tutorial: [circuit connectivity](../tutorials/circuit-connectivity.md).
 
 ## Omnidirectional current
 
-::: landschaft.circuit.omniscape.omniscape
+::: terraflux.circuit.omniscape.omniscape
     options:
       show_root_full_path: false
 
-::: landschaft.circuit.omniscape_ini
+::: terraflux.circuit.omniscape_ini
 
-::: landschaft.circuit.source_from_resistance
+::: terraflux.circuit.source_from_resistance
 
-::: landschaft.circuit.read_reclass_table
+::: terraflux.circuit.read_reclass_table
 
-::: landschaft.circuit.reclassify
+::: terraflux.circuit.reclassify
 
-::: landschaft.circuit.parse_ini
+::: terraflux.circuit.parse_ini
 
 ## Focal points on rasters
 
-::: landschaft.circuit.circuitscape_pairwise
+::: terraflux.circuit.circuitscape_pairwise
 
-::: landschaft.circuit.circuitscape_one_to_all
+::: terraflux.circuit.circuitscape_one_to_all
 
-::: landschaft.circuit.circuitscape_ini
+::: terraflux.circuit.circuitscape_ini
 
-::: landschaft.circuit.CircuitscapeResult
+::: terraflux.circuit.CircuitscapeResult
     options:
       members: false
 
-::: landschaft.circuit.FocalPoints
+::: terraflux.circuit.FocalPoints
 
-::: landschaft.circuit.IncludedPairs
+::: terraflux.circuit.IncludedPairs
 
 ## Sources and grounds
 
-::: landschaft.circuit.circuitscape_advanced
+::: terraflux.circuit.circuitscape_advanced
 
-::: landschaft.circuit.advanced.advanced
+::: terraflux.circuit.advanced.advanced
     options:
       show_root_full_path: false
 
-::: landschaft.circuit.AdvancedResult
+::: terraflux.circuit.AdvancedResult
     options:
       members: false
 
 ## Networks
 
-::: landschaft.circuit.circuitscape_network_pairwise
+::: terraflux.circuit.circuitscape_network_pairwise
 
-::: landschaft.circuit.circuitscape_network_advanced
+::: terraflux.circuit.circuitscape_network_advanced
 
-::: landschaft.circuit.NetworkResult
+::: terraflux.circuit.NetworkResult
     options:
       members: false
 
-::: landschaft.circuit.read_graph
+::: terraflux.circuit.read_graph

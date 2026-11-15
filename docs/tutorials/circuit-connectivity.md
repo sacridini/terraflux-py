@@ -24,12 +24,12 @@ crossed. A common way to build one is to give each land-cover class a value:
 
 ```python
 import numpy as np
-import landschaft as ls
-from landschaft import circuit
+import terraflux as tf
+from terraflux import circuit
 
-landcover = ls.load_raster(ls.example_data("clc"))[:600, :600]   # 15 x 15 km
+landcover = tf.load_raster(tf.example_data("clc"))[:600, :600]   # 15 x 15 km
 
-resistance = ls.reclassify(landcover, [
+resistance = tf.reclassify(landcover, [
     (1, 12, 100.0),    # urban, industry, roads: hard to cross
     (12, 23, 20.0),    # agriculture: moderate
     (23, 35, 1.0),     # forest and natural vegetation: easy
@@ -48,7 +48,7 @@ centre. The sum over all windows, the **cumulative current**, shows how much
 movement every cell carries between all places within the window's reach.
 
 ```python
-flow = ls.omniscape(
+flow = tf.omniscape(
     resistance,
     radius=30,                 # window radius in cells (750 m)
     block_size=5,              # one window per 5 x 5 block of cells: faster, corrected for artifacts
@@ -59,8 +59,8 @@ flow
 ```
 
 ```python
-ls.plot(flow)                  # every map on a log scale, over satellite imagery
-ls.save(flow, "omniscape_out")  # one GeoTIFF per map, the settings as a table
+tf.plot(flow)                  # every map on a log scale, over satellite imagery
+tf.save(flow, "omniscape_out")  # one GeoTIFF per map, the settings as a table
 ```
 
 ![Resistance, cumulative current and normalised current](../assets/figures/circ_omniscape.png)
@@ -80,7 +80,7 @@ distance of the species, in cells.
 !!! tip "Speed"
     The time grows with the number of windows and their size: `block_size`
     of 3–9 cuts the windows by 9–81× with little effect on the result.
-    Landschaft solves every window exactly and uses all cores but one.
+    Terraflux solves every window exactly and uses all cores but one.
 
 ## Between focal points (pairwise)
 

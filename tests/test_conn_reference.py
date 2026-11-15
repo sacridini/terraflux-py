@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
 REF = Path(__file__).parent / "data" / "reference" / "conn"
 
@@ -49,7 +49,7 @@ CF_CASES = sorted(CONEFOR.groupby(CF_KEYS).groups)
 def _makurhini_run(case):
     scene, metric, d, p, pij, la = case
     ids, attr, D = SCENES[scene]
-    g = ls.HabitatGraph(attr, D, ids=ids, landscape_area=float(la) if la else None)
+    g = tf.HabitatGraph(attr, D, ids=ids, landscape_area=float(la) if la else None)
     # "" is NULL in R: no probability cut.
     kw = {"distance": float(d), "probability": float(p) if p else None, "pij_min": float(pij) if pij else 0.0}
     ov = g.overall([metric], **kw).iloc[0]
@@ -100,7 +100,7 @@ def test_conefor(case):
     ids, attr, D = SCENES[scene]
     restoration = np.ones(len(ids), int)
     restoration[-5:] = 0  # Conefor's "adding nodes": the last five
-    g = ls.HabitatGraph(attr, D, ids=ids, landscape_area=float(la) if la else None, convention="conefor",
+    g = tf.HabitatGraph(attr, D, ids=ids, landscape_area=float(la) if la else None, convention="conefor",
                         restoration=restoration)
     ov = g.overall(distance=float(d), probability=float(p)).iloc[0]
     imp = g.node_importance(distance=float(d), probability=float(p))
@@ -139,7 +139,7 @@ def test_makurhini_links_and_restoration(key):
     kw = {"distance": float(first["distance"]), "probability": float(first["probability"]) if first["probability"]
           else None, "pij_min": float(first["pij_min"]) if first["pij_min"] else 0.0}
     ids, attr, D = SCENES[scene]
-    g = ls.HabitatGraph(attr, D, ids=ids)
+    g = tf.HabitatGraph(attr, D, ids=ids)
 
     def pairs(level):
         t = sub[sub["level"] == level]
@@ -163,5 +163,5 @@ def test_makurhini_links_and_restoration(key):
     f, v = rows["source"].astype(int).to_numpy(), rows["value"].astype(float).to_numpy()
     restoration = np.ones(len(ids), int)
     restoration[-5:] = 0
-    res = ls.HabitatGraph(attr, D, ids=ids, restoration=restoration).node_importance(metric, **kw).set_index("id")
+    res = tf.HabitatGraph(attr, D, ids=ids, restoration=restoration).node_importance(metric, **kw).set_index("id")
     np.testing.assert_allclose(res.loc[f, f"d{metric}res"], v, rtol=1e-11, atol=1e-12)

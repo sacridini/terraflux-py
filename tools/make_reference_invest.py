@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of InVEST (natcap.invest) for ls.services.
+"""Generate golden outputs of InVEST (natcap.invest) for tf.services.
 
 Usage::
 
@@ -10,7 +10,7 @@ access layer), runs ``execute(args)`` of InVEST's ``carbon`` and ``habitat_quali
 models on them, and stores per case the inputs and the outputs in
 ``tests/data/reference/invest/<case>.npz`` and the settings, tables and versions in
 ``<case>.json``. The test-suite reads the stored files, so it runs anywhere without
-InVEST. It does not import landschaft: run it with the python of an env that has
+InVEST. It does not import terraflux: run it with the python of an env that has
 natcap.invest (``conda create -n invest-ref -c conda-forge python=3.12 natcap.invest``).
 
 ``hq_*`` cases marked ``patched`` run InVEST with its distance transform corrected: a

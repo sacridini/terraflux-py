@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.redd (VT0007) against Clark Labs' UDef-ARP (tests/data/reference/redd, tools/make_reference_redd.py, which runs
+"""tf.redd (VT0007) against Clark Labs' UDef-ARP (tests/data/reference/redd, tools/make_reference_redd.py, which runs
 UDef-ARP's own functions): the negligible risk threshold, the benchmark and alternative vulnerability classes, the
 relative frequency table and the fitted density, the allocation to a period's deforestation and to an expected area
 (a region the fit lacks filled from its class), to the bit (the adjustment ratio to 1e-14: UDef-ARP reads its table
@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import landschaft as ls
+import terraflux as tf
 
 REF = Path(__file__).parent / "data" / "reference" / "redd"
 
@@ -37,14 +37,14 @@ def near(got, want, tol):
 
 def test_vt0007_is_udef_arps(ref):
     z, meta, m = ref
-    nrt = ls.redd.nrt(m("in/distance"), m("in/cal"), mask=m("in/mask"))
+    nrt = tf.redd.nrt(m("in/distance"), m("in/cal"), mask=m("in/mask"))
     assert nrt == meta["nrt"]
-    classes = ls.redd.benchmark(m("in/distance"), nrt, mask=m("in/mask"))
+    classes = tf.redd.benchmark(m("in/distance"), nrt, mask=m("in/mask"))
     np.testing.assert_array_equal(classes.values, z["benchmark"])
-    alt = ls.redd.alternative(m("in/vulnerability"), m("in/forest"), mask=m("in/mask"))
+    alt = tf.redd.alternative(m("in/vulnerability"), m("in/forest"), mask=m("in/mask"))
     np.testing.assert_array_equal(alt.values, z["alternative"])
 
-    f = ls.redd.fit(classes, m("in/cal"), subdivisions=m("in/regions"))
+    f = tf.redd.fit(classes, m("in/cal"), subdivisions=m("in/regions"))
     t = f.table
     np.testing.assert_array_equal(t[["id", "deforested", "cells", "frequency"]].to_numpy(float), z["fit/table"])
     np.testing.assert_array_equal(f.density.values, z["fit/density"])
@@ -52,14 +52,14 @@ def test_vt0007_is_udef_arps(ref):
     # the prediction's table lacks a region (class 3 of subdivision 4): it is filled from the class's others
     lacking = t[t["id"] != meta["dropped"][0]]
     for name, kw in [("cnf", {"deforestation": m("in/cnf")}), ("vp", {"expected": meta["expected"]})]:
-        a = ls.redd.allocate(classes, lacking, subdivisions=m("in/regions"), max_iterations=meta["max_iterations"],
+        a = tf.redd.allocate(classes, lacking, subdivisions=m("in/regions"), max_iterations=meta["max_iterations"],
                              **kw)
         np.testing.assert_array_equal(a.density.values, z[f"{name}/density"], err_msg=name)
         near(a.adjustment_ratio, meta["ar"][name], 1e-14)
         assert a.iterations == meta["iterations"][name] and a.filled == 1
 
     a = meta["assess"]
-    s = ls.redd.assess(m("cnf/density"), m("in/cnf"), grid_area=a["grid_area"], mask=m("in/mask"))
+    s = tf.redd.assess(m("cnf/density"), m("in/cnf"), grid_area=a["grid_area"], mask=m("in/mask"))
     cells = z["assess/cells"]
     assert len(s.table) == len(cells)
     np.testing.assert_array_equal(s.table[["x", "y", "actual_ha"]].to_numpy(), cells[:, :3])
@@ -81,14 +81,14 @@ def test_redd_errors(ref):
     z, meta, m = ref
     d = m("in/distance")
     with pytest.raises(ValueError, match="above the cell size"):
-        ls.redd.benchmark(d, 20)
-    classes = ls.redd.benchmark(d, meta["nrt"], mask=m("in/mask"))
-    f = ls.redd.fit(classes, m("in/cal"))
+        tf.redd.benchmark(d, 20)
+    classes = tf.redd.benchmark(d, meta["nrt"], mask=m("in/mask"))
+    f = tf.redd.fit(classes, m("in/cal"))
     with pytest.raises(ValueError, match="one of them"):
-        ls.redd.allocate(classes, f)
+        tf.redd.allocate(classes, f)
     with pytest.raises(ValueError, match="cannot take"):
-        ls.redd.allocate(classes, f, expected=1e9, max_iterations=3)
+        tf.redd.allocate(classes, f, expected=1e9, max_iterations=3)
     with pytest.raises(ValueError, match="grid"):
-        ls.redd.nrt(z["in/distance"], z["in/cal"])
-    a = ls.redd.allocate(classes, f, expected=100.0)
+        tf.redd.nrt(z["in/distance"], z["in/cal"])
+    a = tf.redd.allocate(classes, f, expected=100.0)
     assert abs(a.allocated_ha - 100.0) < 1e-2 and a.filled == 0

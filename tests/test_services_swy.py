@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Seasonal water yield (ls.services.seasonal_water_yield) against InVEST (tools/make_reference_invest_swy.py).
+"""Seasonal water yield (tf.services.seasonal_water_yield) against InVEST (tools/make_reference_invest_swy.py).
 
 The ``*_patched`` references are InVEST with its bugs corrected (the tool's doc): the
 maps there are compared bit for bit; ``swy_mfd`` is InVEST as released, for the parts
@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 from test_services import CRS, _case, _gt, _on_invest_grid, _raster
 
-import landschaft as ls
+import terraflux as tf
 
 PATCHED = ["swy_mfd_patched", "swy_d8_patched", "swy_float64_patched", "swy_grids_patched"]
 USER = ["swy_user_recharge_patched", "swy_user_recharge_d8_patched", "swy_grids_recharge_patched"]
@@ -56,7 +56,7 @@ def _run(name, **kw):
         args["alpha"] = (pd.DataFrame({"month": range(1, 13), "alpha": inputs["alpha"]}) if "alpha" in inputs
                          else p["alpha"])
     args.update(kw)
-    s = ls.services.seasonal_water_yield(_raster(inputs["dem"], nd, _gt(meta, "dem")),
+    s = tf.services.seasonal_water_yield(_raster(inputs["dem"], nd, _gt(meta, "dem")),
                                          _raster(inputs["lulc"], 0, _gt(meta, "lulc")), bio,
                                          _polygons(meta["watersheds"]), **args)
     return s, ref, meta

@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import landschaft as ls
-from landschaft.grayspatcon import gray_spatial_convolution
+import terraflux as tf
+from terraflux.grayspatcon import gray_spatial_convolution
 
 
 def test_grayspatcon_constant_raster():

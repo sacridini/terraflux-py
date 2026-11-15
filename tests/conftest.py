@@ -11,11 +11,11 @@ import pytest
 from gtb_reference import find_executable
 from rasterio.errors import NotGeoreferencedWarning
 
-from landschaft import _core
+from terraflux import _core
 
 DATA = Path(__file__).parent / "data"
 
-# ls.plot must not open windows while the tests run (nor matplotlib's: static figures)
+# tf.plot must not open windows while the tests run (nor matplotlib's: static figures)
 os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")
 os.environ.setdefault("MPLBACKEND", "Agg")
 
@@ -27,7 +27,7 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 BITWISE = bool(_core.x87_math)
 
 # The functions of the C library that the references take from the UCRT of Windows
-# (atan, atanh...) and that landschaft calls as they are: other C libraries (glibc)
+# (atan, atanh...) and that terraflux calls as they are: other C libraries (glibc)
 # give some of them other last bits, and the UCRT's code is not public, so off
 # Windows the comparisons that go through them allow one unit in the last place.
 UCRT_LIBM = sys.platform == "win32"

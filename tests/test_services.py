@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Ecosystem services (ls.services) against InVEST's outputs (tools/make_reference_invest.py)."""
+"""Ecosystem services (tf.services) against InVEST's outputs (tools/make_reference_invest.py)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ import pytest
 import xarray as xr
 from affine import Affine
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 
 REF = Path(__file__).parent / "data" / "reference" / "invest"
 PIXEL, ORIGIN, CRS = 30.0, (500000.0, 8000000.0), "EPSG:31983"
@@ -86,7 +86,7 @@ def test_carbon_matches_invest(name):
     if v:
         kw.update(price=v["price"], discount_rate=v["discount"], rate_change=v["change"], year=v["years"][0],
                   future_year=v["years"][1])
-    c = ls.services.carbon(_raster(inputs["bas"], meta["nodata"]), _pools(inputs), **kw)
+    c = tf.services.carbon(_raster(inputs["bas"], meta["nodata"]), _pools(inputs), **kw)
     _same(c.storage, ref["c_storage_bas"])
     for pool in ("c_above", "c_below", "c_soil", "c_dead"):
         _same(c.pools[pool], ref[f"{pool}_bas"])
@@ -106,16 +106,16 @@ def test_carbon_matches_invest(name):
 
 
 def test_carbon_valuation_constant_and_errors():
-    assert ls.services.valuation_constant(10.0, 0.0, 0.0, 2000, 2010) == 10.0
+    assert tf.services.valuation_constant(10.0, 0.0, 0.0, 2000, 2010) == 10.0
     with pytest.raises(ValueError, match="after"):
-        ls.services.valuation_constant(10.0, 5.0, 0.0, 2010, 2010)
+        tf.services.valuation_constant(10.0, 5.0, 0.0, 2010, 2010)
     lulc = _raster(np.array([[1, 2], [2, 9]]))
     pools = {1: {"c_above": 1, "c_below": 1, "c_soil": 1, "c_dead": 1},
              2: {"c_above": 2, "c_below": 2, "c_soil": 2, "c_dead": 2}}
     with pytest.raises(ValueError, match=r"\[9\]"):
-        ls.services.carbon(lulc, pools)
+        tf.services.carbon(lulc, pools)
     with pytest.raises(ValueError, match="future"):
-        ls.services.carbon(_raster(np.array([[1, 2], [2, 1]])), pools, price=10.0)
+        tf.services.carbon(_raster(np.array([[1, 2], [2, 1]])), pools, price=10.0)
 
 
 def test_carbon_threads_give_the_same_bits():
@@ -123,8 +123,8 @@ def test_carbon_threads_give_the_same_bits():
     args = (_raster(inputs["bas"], meta["nodata"]), _pools(inputs))
     kw = dict(future=_raster(inputs["alt"], meta["nodata"]), price=43.0, discount_rate=7.0, rate_change=2.5,
               year=2000, future_year=2030)
-    a = ls.services.carbon(*args, **kw, n_threads=1)
-    b = ls.services.carbon(*args, **kw, n_threads=3)
+    a = tf.services.carbon(*args, **kw, n_threads=1)
+    b = tf.services.carbon(*args, **kw, n_threads=3)
     np.testing.assert_array_equal(a.npv.values, b.npv.values)
     pd.testing.assert_frame_equal(a.totals, b.totals)
 
@@ -168,7 +168,7 @@ def _run_hq(name, **extra):
 
         kw["access"] = gpd.GeoDataFrame({"ACCESS": [p["access"] for p in meta["polygons"]]},
                                         geometry=[Polygon(p["ring"]) for p in meta["polygons"]], crs=CRS)
-    hq = ls.services.habitat_quality(_raster(inputs["cur"], meta["nodata"]), threats, _sensitivity(inputs, meta),
+    hq = tf.services.habitat_quality(_raster(inputs["cur"], meta["nodata"]), threats, _sensitivity(inputs, meta),
                                      _hq_inputs(inputs, meta, "cur"), half_saturation=meta["k"], **kw, **extra)
     return hq, ref, meta
 
@@ -228,10 +228,10 @@ def test_base_degradation_is_the_current_model_on_the_base_map():
     threats = pd.DataFrame(meta["threats"])
     sens = _sensitivity(inputs, meta)
     maps = _hq_inputs(inputs, meta, "cur")
-    both = ls.services.habitat_quality(_raster(inputs["cur"], meta["nodata"]), threats, sens, maps,
+    both = tf.services.habitat_quality(_raster(inputs["cur"], meta["nodata"]), threats, sens, maps,
                                        half_saturation=0.3, base=_raster(inputs["bas"], meta["nodata"]),
                                        base_threat_maps=maps)
-    alone = ls.services.habitat_quality(_raster(inputs["bas"], meta["nodata"]), threats, sens, maps,
+    alone = tf.services.habitat_quality(_raster(inputs["bas"], meta["nodata"]), threats, sens, maps,
                                         half_saturation=0.3)
     np.testing.assert_array_equal(both.quality["base"].values, alone.quality["current"].values)
 
@@ -242,20 +242,20 @@ def test_habitat_quality_checks_its_inputs():
     sens = pd.DataFrame({"lucode": [1, 2], "habitat": [1.0, 0.5], "r": [1.0, 0.0]})
     road = _raster(np.array([[0.0, 1.0], [0.0, 0.0]]))
     with pytest.raises(ValueError, match="from 0 to 1"):
-        ls.services.habitat_quality(lulc, threats, sens, {"r": _raster(np.array([[0.0, 2.0], [0, 0]]))},
+        tf.services.habitat_quality(lulc, threats, sens, {"r": _raster(np.array([[0.0, 2.0], [0, 0]]))},
                                     half_saturation=0.1)
     with pytest.raises(ValueError, match="no current map"):
-        ls.services.habitat_quality(lulc, threats, sens, {}, half_saturation=0.1)
+        tf.services.habitat_quality(lulc, threats, sens, {}, half_saturation=0.1)
     with pytest.raises(ValueError, match="decay"):
-        ls.services.habitat_quality(lulc, threats.assign(decay="gaussian"), sens, {"r": road}, half_saturation=0.1)
+        tf.services.habitat_quality(lulc, threats.assign(decay="gaussian"), sens, {"r": road}, half_saturation=0.1)
     with pytest.raises(ValueError, match="lacks the column"):
-        ls.services.habitat_quality(lulc, threats, sens.drop(columns="r"), {"r": road}, half_saturation=0.1)
-    hq = ls.services.habitat_quality(lulc, threats, sens, {"r": road}, half_saturation=0.1, n_threads=1)
+        tf.services.habitat_quality(lulc, threats, sens.drop(columns="r"), {"r": road}, half_saturation=0.1)
+    hq = tf.services.habitat_quality(lulc, threats, sens, {"r": road}, half_saturation=0.1, n_threads=1)
     assert hq.quality["current"].rio.crs is not None
 
 
 def test_align_inputs_keeps_the_grid_and_marks_cells_outside():
-    from landschaft.services._common import align_inputs
+    from terraflux.services._common import align_inputs
 
     inputs, ref, meta = _case("wy_grids")
     lulc = _raster(inputs["lulc"], meta["nodata"])
@@ -275,6 +275,6 @@ def test_align_inputs_keeps_the_grid_and_marks_cells_outside():
 
 def test_results_save_and_load(tmp_path):
     hq, ref, meta = _run_hq("hq_scenarios")
-    parts = ls.load_result(hq.save(tmp_path / "hq"))
+    parts = tf.load_result(hq.save(tmp_path / "hq"))
     np.testing.assert_array_equal(parts["quality_current"].values, hq.quality["current"].values)
     assert set(parts["rarity"]["scenario"]) == {"current", "future"}

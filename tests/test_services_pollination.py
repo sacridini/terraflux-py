@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Crop pollination (ls.services.pollination) against InVEST's outputs
+"""Crop pollination (tf.services.pollination) against InVEST's outputs
 (tools/make_reference_invest_pollination.py)."""
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ import pytest
 import xarray as xr
 from affine import Affine
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 
 REF = Path(__file__).parent / "data" / "reference" / "invest"
 PIXEL, ORIGIN, CRS = 30.0, (500000.0, 8000000.0), "EPSG:31983"
@@ -60,7 +60,7 @@ def _run(name, **kw):
     guilds = pd.DataFrame(meta["guild"])
     bio = pd.DataFrame(meta["bio"])
     farms = _farms_gdf(meta) if "farms" in meta else None
-    res = ls.services.pollination(lulc, guilds, bio, farms=farms, intermediates=True, **kw)
+    res = tf.services.pollination(lulc, guilds, bio, farms=farms, intermediates=True, **kw)
     return res, ref, meta
 
 
@@ -155,8 +155,8 @@ def test_pollination_threads_and_without_intermediates():
     inputs, _, meta = _case("pollination_farms")
     lulc = _raster(inputs["lulc"], meta["nodata"])
     args = (lulc, pd.DataFrame(meta["guild"]), pd.DataFrame(meta["bio"]))
-    one = ls.services.pollination(*args, farms=_farms_gdf(meta), n_threads=1)
-    many = ls.services.pollination(*args, farms=_farms_gdf(meta), n_threads=4, intermediates=True)
+    one = tf.services.pollination(*args, farms=_farms_gdf(meta), n_threads=1)
+    many = tf.services.pollination(*args, farms=_farms_gdf(meta), n_threads=4, intermediates=True)
     assert not one.floral_resources and many.floral_resources
     for se in one.total_abundance:
         np.testing.assert_array_equal(one.total_abundance[se].values, many.total_abundance[se].values)
@@ -182,11 +182,11 @@ def test_pollination_validation():
     lulc = _raster(inputs["lulc"], meta["nodata"])
     guilds, bio = pd.DataFrame(meta["guild"]), pd.DataFrame(meta["bio"])
     with pytest.raises(ValueError, match="seasons"):
-        ls.services.pollination(lulc, guilds, bio.drop(columns="floral_resources_fall_index"))
+        tf.services.pollination(lulc, guilds, bio.drop(columns="floral_resources_fall_index"))
     with pytest.raises(ValueError, match="alpha"):
-        ls.services.pollination(lulc, guilds.drop(columns="alpha"), bio)
+        tf.services.pollination(lulc, guilds.drop(columns="alpha"), bio)
     with pytest.raises(ValueError, match="lacks"):
-        ls.services.pollination(lulc, guilds, bio[bio.lucode != 4])
+        tf.services.pollination(lulc, guilds, bio[bio.lucode != 4])
     import geopandas as gpd
     from shapely.geometry import box
 
@@ -195,7 +195,7 @@ def test_pollination_validation():
                               "n_ground": [1.0], "n_stem": [1.0]},
                              geometry=[box(500000, 7999000, 501000, 8000000)], crs=CRS)
     with pytest.raises(ValueError, match="winter"):
-        ls.services.pollination(lulc, guilds, bio, farms=farms)
+        tf.services.pollination(lulc, guilds, bio, farms=farms)
 
 
 def test_pollination_save(tmp_path):

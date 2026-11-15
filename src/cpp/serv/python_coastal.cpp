@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the coastal vulnerability kernels (landschaft._core.serv_coastal_*).
+// Python bindings of the coastal vulnerability kernels (terraflux._core.serv_coastal_*).
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

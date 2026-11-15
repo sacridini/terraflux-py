@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cases shared by tools/make_reference_cost.py and the ls.cost tests.
+"""Cases shared by tools/make_reference_cost.py and the tf.cost tests.
 
 Every raster is a float64 array (NaN = NA) with an extent and a CRS; R rebuilds
 it with ``raster(nrows, ncols, xmn, xmx, ymn, ymx, crs)``. Every case runs R
@@ -94,7 +94,7 @@ def _rasters() -> dict[str, RasterSpec]:
     return r
 
 
-DATA = Path(__file__).resolve().parents[1] / "src" / "landschaft" / "cost" / "data"
+DATA = Path(__file__).resolve().parents[1] / "src" / "terraflux" / "cost" / "data"
 
 
 def _dataset(name: str, crs: str) -> RasterSpec:
@@ -122,15 +122,15 @@ class Case:
 
 
 def ls_cost():
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.cost
+    return tf.cost
 
 
 def _tr(spec: RasterSpec, *args, **kwargs):
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.cost.transition(spec.values, *args, extent=spec.extent, crs=spec.crs, **kwargs)
+    return tf.cost.transition(spec.values, *args, extent=spec.extent, crs=spec.crs, **kwargs)
 
 
 def _transition_cases() -> dict[str, Case]:
@@ -173,22 +173,22 @@ def _transition_cases() -> dict[str, Case]:
 
 
 def _geo(spec: RasterSpec, d: int) -> dict:
-    import landschaft as ls
+    import terraflux as tf
 
     tr = 1 / _tr(spec, "mean", d)
     ta = _tr(spec, lambda x: x[1] - x[0], d, symmetric=False)
     res = tr.copy()
     res.matrix_values = "resistance"
     out = {
-        "c": ls.cost.geo_correction(tr, "c"),
-        "c_scl": ls.cost.geo_correction(tr, "c", scale=True),
-        "c_fac": ls.cost.geo_correction(tr, "c", factors=True),
-        "asym": ls.cost.geo_correction(ta, "c"),
-        "res": ls.cost.geo_correction(res, "c"),
+        "c": tf.cost.geo_correction(tr, "c"),
+        "c_scl": tf.cost.geo_correction(tr, "c", scale=True),
+        "c_fac": tf.cost.geo_correction(tr, "c", factors=True),
+        "asym": tf.cost.geo_correction(ta, "c"),
+        "res": tf.cost.geo_correction(res, "c"),
     }
     if tr.lonlat:
-        out["r"] = ls.cost.geo_correction(tr, "r", scale=True)
-        out["r_res"] = ls.cost.geo_correction(res, "r")
+        out["r"] = tf.cost.geo_correction(tr, "r", scale=True)
+        out["r_res"] = tf.cost.geo_correction(res, "r")
     return out
 
 
@@ -263,23 +263,23 @@ def _operation_cases() -> dict[str, Case]:
 
 
 def _geo_plain(spec: RasterSpec, type: str):
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.cost.geo_correction(_tr(spec, "mean", 8), type)
+    return tf.cost.geo_correction(_tr(spec, "mean", 8), type)
 
 
 def _tobler(R) -> dict:
-    import landschaft as ls
+    import terraflux as tf
 
     hd = _tr(R["maungawhau"], lambda x: x[1] - x[0], 8, symmetric=False)
-    slope = ls.cost.geo_correction(hd)
+    slope = tf.cost.geo_correction(hd)
     # R's exp is mingw's x87 exp (np.exp may differ in the last bit)
-    speed = slope.map(lambda s: 6 * ls._core.cost_rmath("exp", -3.5 * np.abs(s + 0.05)), pairs="all")
-    return {"slope": slope, "speed": speed, "conductance": ls.cost.geo_correction(speed)}
+    speed = slope.map(lambda s: 6 * tf._core.cost_rmath("exp", -3.5 * np.abs(s + 0.05)), pairs="all")
+    return {"slope": slope, "speed": speed, "conductance": tf.cost.geo_correction(speed)}
 
 
 def _ops(spec: RasterSpec) -> dict:
-    import landschaft as ls
+    import terraflux as tf
 
     t1 = _tr(spec, "mean", 8)
     t2 = _tr(spec, lambda x: x[0] + 2 * x[1], 8, symmetric=False)
@@ -288,8 +288,8 @@ def _ops(spec: RasterSpec) -> dict:
     return {
         "prod": t1 * t2, "sum": t1 + t2, "diff": t2 - t1, "quot": t1 / 3, "scaled": t1 * 2.5,
         "sum4": t1 + t4, "prod4": t1 * t4, "sqrt": t1.map("sqrt"),
-        "row": ls.cost.normalize(t1, "row"), "col": ls.cost.normalize(t2, "col"),
-        "recip": ls.cost.sum_reciprocal(t1, t4),
+        "row": tf.cost.normalize(t1, "row"), "col": tf.cost.normalize(t2, "col"),
+        "recip": tf.cost.sum_reciprocal(t1, t4),
         "r_nzcol": t2.to_raster(), "r_nzrow": t2.to_raster("NZrowMeans"), "r_colsums": t1.to_raster("colSums"),
         "r_rowmeans": t2.to_raster("rowMeans"),
         "adjacency": np.column_stack(adj) + 1,

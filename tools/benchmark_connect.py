@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Contiguity and corridors in ls.prioritize against Gurobi.
+"""Contiguity and corridors in tf.prioritize against Gurobi.
 
 Instances (``--instances``):
 
@@ -11,9 +11,9 @@ Instances (``--instances``):
 
 Solvers (``--solvers``):
 
-- ``landschaft``: ``Problem.solve`` on HiGHS (the first patch, then the branch-and-cut);
+- ``terraflux``: ``Problem.solve`` on HiGHS (the first patch, then the branch-and-cut);
 - ``gurobi``: Gurobi on the same compiled (exact) model;
-- ``gurobi_cuts``: the same with landschaft's cuts (``opt_separate_connected``) added at Gurobi's nodes as
+- ``gurobi_cuts``: the same with terraflux's cuts (``opt_separate_connected``) added at Gurobi's nodes as
   user cuts.
 
 Every run: objective, bound, gap and seconds, with the gap and time limit given.
@@ -33,9 +33,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
 
-import landschaft as ls  # noqa: E402
+import terraflux as tf  # noqa: E402
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 def synthetic13():
@@ -50,8 +50,8 @@ def synthetic13():
 
 
 def serra_verde_3km():
-    cost = ls.load_raster(P.example_data("cost"))
-    feats = ls.load_raster(P.example_data("features"))
+    cost = tf.load_raster(P.example_data("cost"))
+    feats = tf.load_raster(P.example_data("features"))
     c, f = P.coarsen(cost, feats, 3)
     return P.problem(c, f).add_min_set_objective().add_relative_targets(0.2).add_binary_decisions() \
         .add_contiguity_constraints()
@@ -82,8 +82,8 @@ def run_landschaft(p, gap, time_limit, threads):
 def run_gurobi(p, gap, time_limit, threads, cuts: bool):
     import gurobipy as gp
 
-    from landschaft import _core
-    from landschaft.prioritize._milp_connect import structures
+    from terraflux import _core
+    from terraflux.prioritize._milp_connect import structures
 
     m = p.compile()
     n_units = p.units.n
@@ -125,7 +125,7 @@ def run_gurobi(p, gap, time_limit, threads, cuts: bool):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--instances", nargs="+", default=list(INSTANCES))
-    ap.add_argument("--solvers", nargs="+", default=["landschaft", "gurobi", "gurobi_cuts"])
+    ap.add_argument("--solvers", nargs="+", default=["terraflux", "gurobi", "gurobi_cuts"])
     ap.add_argument("--gap", type=float, default=0.01)
     ap.add_argument("--time-limit", type=float, default=120.0)
     ap.add_argument("--threads", type=int, default=4)
@@ -134,7 +134,7 @@ def main():
     for name in a.instances:
         p = INSTANCES[name]()
         for solver in a.solvers:
-            if solver == "landschaft":
+            if solver == "terraflux":
                 r = run_landschaft(p, a.gap, a.time_limit, a.threads)
             else:
                 r = run_gurobi(p, a.gap, a.time_limit, a.threads, solver == "gurobi_cuts")

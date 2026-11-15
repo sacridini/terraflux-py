@@ -35,10 +35,10 @@ how evenly spread) and **complexity** (information-theory measures).
 ## First metrics
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-landcover = ls.load_raster(ls.example_data("clc"))   # CORINE, 25 m
-lc = ls.Landscape(landcover)
+landcover = tf.load_raster(tf.example_data("clc"))   # CORINE, 25 m
+lc = tf.Landscape(landcover)
 lc
 ```
 
@@ -76,12 +76,12 @@ table.head()
 ```
 
 The one-call form, without keeping a `Landscape`, is
-`ls.landscape_metrics(landcover, level="landscape")`.
+`tf.landscape_metrics(landcover, level="landscape")`.
 
 ## Finding metrics
 
 ```python
-catalogue = ls.list_metrics()
+catalogue = tf.list_metrics()
 len(catalogue), catalogue["type"].unique()
 ```
 
@@ -90,7 +90,7 @@ filters select metrics everywhere (`level`, `metric`, `name`, `type`), and a
 leading minus excludes:
 
 ```python
-ls.list_metrics(level="landscape", type="diversity metric")[["metric", "name"]]
+tf.list_metrics(level="landscape", type="diversity metric")[["metric", "name"]]
 ```
 
 ```python
@@ -141,7 +141,7 @@ Options are given when creating the `Landscape`:
 | `nodata`, `res` | from the raster | NoData value and cell size (numpy arrays have cells of 1) |
 
 ```python
-lc4 = ls.Landscape(landcover, directions=4, edge_depth=3)
+lc4 = tf.Landscape(landcover, directions=4, edge_depth=3)
 lc4.class_metrics(["np", "tca"]).head()
 ```
 
@@ -149,20 +149,20 @@ lc4.class_metrics(["np", "tca"]).head()
 
 ```python
 area_map = lc.to_raster("area")   # every patch painted with its area
-ls.plot(area_map)
+tf.plot(area_map)
 ```
 
 With matplotlib, `show_*` draw the patches and metrics directly:
 
 ```python
-small = ls.Landscape(landcover[:600, :600])
+small = tf.Landscape(landcover[:600, :600])
 fig = small.show_lsm("shape")        # shape index of every patch
 ```
 
 ![Shape index of every patch](../assets/figures/lsm_shape.png)
 
 `show_patches()` draws the patches, `show_cores()` their core and edge cells,
-and `ls.show_correlation(table)` the correlation matrix of a set of metrics.
+and `tf.show_correlation(table)` the correlation matrix of a set of metrics.
 
 ## Sample plots
 
@@ -176,7 +176,7 @@ rng = np.random.default_rng(1)
 sites = np.column_stack([rng.uniform(xmin + 2000, xmax - 2000, 10),
                          rng.uniform(ymin + 2000, ymax - 2000, 10)])
 
-plots = ls.sample_metrics(landcover, sites, size=1000, shape="circle",
+plots = tf.sample_metrics(landcover, sites, size=1000, shape="circle",
                           level="landscape", metric=["shdi", "ed"])
 plots.head()
 ```
@@ -185,8 +185,8 @@ plots.head()
 `percentage_inside` is the area of the cells kept over the area of the plot:
 every cell the plot touches is kept, so it can exceed 100%; plots on the map
 border fall below. `y` can also be polygons (shapely geometries or a
-GeoDataFrame). `ls.scale_sample` repeats the sampling for several sizes and
-`ls.extract_metrics` returns the metrics of the patches under the points.
+GeoDataFrame). `tf.scale_sample` repeats the sampling for several sizes and
+`tf.extract_metrics` returns the metrics of the patches under the points.
 
 ## Moving windows
 
@@ -194,10 +194,10 @@ A metric computed in a window around every cell gives a map of how the
 landscape structure changes across space:
 
 ```python
-maps = ls.window_metrics(landcover[:800, :800], window=41, what=["lsm_l_shdi"])
+maps = tf.window_metrics(landcover[:800, :800], window=41, what=["lsm_l_shdi"])
 diversity = maps["shdi"]
-ls.plot(diversity)
-ls.write_raster(diversity, "shdi_window41.tif")
+tf.plot(diversity)
+tf.write_raster(diversity, "shdi_window41.tif")
 ```
 
 ![Shannon diversity in a 41 × 41 window](../assets/figures/lsm_window.png)
@@ -211,13 +211,13 @@ Metrics for each polygon of a vector layer, or for each cell of a regular
 grid (needs geopandas):
 
 ```python
-zones = ls.grid_zones(landcover, 5000)          # 5 km squares over the map
-per_zone = ls.zonal_metrics(landcover, zones, level="landscape", metric=["shdi", "np"])
+zones = tf.grid_zones(landcover, 5000)          # 5 km squares over the map
+per_zone = tf.zonal_metrics(landcover, zones, level="landscape", metric=["shdi", "np"])
 per_zone.head()
 ```
 
 The result is a GeoDataFrame, ready to map or save
-(`ls.write_table(per_zone, "zones.gpkg")`).
+(`tf.write_table(per_zone, "zones.gpkg")`).
 
 ![Diversity per 5 km cell](../assets/figures/lsm_zonal.png)
 
@@ -230,13 +230,13 @@ later = landcover.copy()
 block = later.values[1200:1500, 1300:1700]
 later.values[1200:1500, 1300:1700] = np.where(block == 12, 1, block)   # arable land built up
 
-ls.landscape_metrics([landcover, later], level="landscape", metric=["np", "shdi"])
+tf.landscape_metrics([landcover, later], level="landscape", metric=["np", "shdi"])
 ```
 
 `SpatioTemporalAnalysis` organises such series by date and plots them:
 
 ```python
-series = ls.SpatioTemporalAnalysis([landcover, later], dates=[2018, 2030])
+series = tf.SpatioTemporalAnalysis([landcover, later], dates=[2018, 2030])
 series.class_metrics(["pland", "np"]).head()
 ```
 
@@ -250,7 +250,7 @@ Describe many landscapes (or zones of one map) by a set of metrics, then
 find the main gradients and groups among them:
 
 ```python
-signatures = ls.SpatialSignatureAnalysis(
+signatures = tf.SpatialSignatureAnalysis(
     landcover, grid=5000,
     landscape_metrics=["shdi", "ed", "np"], class_metrics=["pland"],
 )
@@ -268,7 +268,7 @@ Some FRAGSTATS metrics need more information:
 
 ```python
 contrast = {(12, 23): 0.8, (12, 2): 0.3, (2, 23): 0.9}   # edge contrast between classes
-lcx = ls.Landscape(landcover, search_radius=500, connect_threshold=200, contrast=contrast)
+lcx = tf.Landscape(landcover, search_radius=500, connect_threshold=200, contrast=contrast)
 lcx.class_metrics(["prox_mn", "connect", "cwed"], extras=True).head()
 ```
 
@@ -285,7 +285,7 @@ results:
 
 <!-- no-run -->
 ```python
-big = ls.Landscape("continent_landcover.tif", block_rows="auto")
+big = tf.Landscape("continent_landcover.tif", block_rows="auto")
 big.class_metrics(["ca", "np", "ed"])
 ```
 

@@ -97,7 +97,7 @@ and a species with a 50% chance of crossing 1 km:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
 areas = np.array([100.0, 50.0, 20.0, 80.0])
 d = np.array([
@@ -128,7 +128,7 @@ landscape_area = 10_000.0                        # hectares
 ```
 
 ```python
-toy = ls.HabitatGraph(areas, d, landscape_area=landscape_area)
+toy = tf.HabitatGraph(areas, d, landscape_area=landscape_area)
 toy.overall(["PC"], distance=1000, probability=0.5)[["PCnum", "PC", "EC(PC)"]]
 ```
 
@@ -184,8 +184,8 @@ lie at the ends of the chain and connect nobody.
 Build the forest network of the example map, with edge-to-edge distances:
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
-forest_net = ls.HabitatGraph.from_raster(
+landcover = tf.load_raster(tf.example_data("clc"))
+forest_net = tf.HabitatGraph.from_raster(
     landcover, habitat=[23, 24, 25], area_unit="ha",
     distance="edge", max_distance=10_000,
     landscape_area=landcover.size * 25 * 25 / 1e4,
@@ -257,14 +257,14 @@ unprotected land, or through other regions). ProtConn is used to report
 progress towards international targets that ask for protected-area systems
 to be *well connected*, from the Aichi Target 11 (17% of land by 2020) to
 Target 3 of the Kunming–Montreal Global Biodiversity Framework (30% by
-2030). See `ls.conn.protconn` and the
+2030). See `tf.conn.protconn` and the
 [habitat networks tutorial](../tutorials/habitat-networks.md#connectivity-of-protected-areas-protconn).
 
 ## Structural networks from MSPA
 
 MSPA ([chapter 4](morphology.md)) already contains a graph: cores are nodes
-and bridges are links. `ls.gtn_components` and `ls.gtn_importance` analyse
-that structural network directly on the map, and `ls.conefor_inputs` exports
+and bridges are links. `tf.gtn_components` and `tf.gtn_importance` analyse
+that structural network directly on the map, and `tf.conefor_inputs` exports
 it as node and distance files. Combining MSPA's structural connectors with
 graph indices is an effective way to identify key corridors (Saura et al.,
 2011b).

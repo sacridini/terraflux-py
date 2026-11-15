@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Work shared with helpers (ls.parallel): the same results as on this computer alone."""
+"""Work shared with helpers (tf.parallel): the same results as on this computer alone."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ import pandas as pd
 import pytest
 import simulate_cases
 
-import landschaft as ls
-from landschaft._dist import _group, _net, _pairing, _tasks, _worker
+import terraflux as tf
+from terraflux._dist import _group, _net, _pairing, _tasks, _worker
 
-S = ls.simulate
+S = tf.simulate
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def group(tmp_path, monkeypatch):
 
 
 class _Helper:
-    """A `landschaft worker` in a thread of this process, connected to ``pool``."""
+    """A `terraflux-py worker` in a thread of this process, connected to ``pool``."""
 
     def __init__(self, pool, cache: Path, cores: int = 2):
         self.stop = threading.Event()
@@ -45,15 +45,15 @@ class _Helper:
         self.thread.join(timeout=30)
 
 
-def _pool(local: bool) -> ls.Helpers:
-    return ls.helpers(local=local, local_threads=2, port=0, discovery=False, verbose=False)
+def _pool(local: bool) -> tf.Helpers:
+    return tf.helpers(local=local, local_threads=2, port=0, discovery=False, verbose=False)
 
 
 def _tiles(folder: Path, n: int = 3) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
-    forest = ls.load_raster(ls.example_data("input"))
+    forest = tf.load_raster(tf.example_data("input"))
     for k in range(n):
-        ls.write_raster(forest[k * 200:k * 200 + 300, :300], folder / f"tile_{k}.tif")
+        tf.write_raster(forest[k * 200:k * 200 + 300, :300], folder / f"tile_{k}.tif")
     return folder
 
 
@@ -63,16 +63,16 @@ def _same_outputs(a: list, b: list) -> None:
         assert [p.name for p in ra.outputs] == [p.name for p in rb.outputs]
         for pa, pb in zip(ra.outputs, rb.outputs):
             if pa.suffix == ".tif":
-                np.testing.assert_array_equal(ls.load_raster(pa).values, ls.load_raster(pb).values)
+                np.testing.assert_array_equal(tf.load_raster(pa).values, tf.load_raster(pb).values)
             elif pa.suffix == ".csv":
                 pd.testing.assert_frame_equal(pd.read_csv(pa), pd.read_csv(pb))
 
 
 def test_batch_on_a_helper_gives_the_local_outputs(group, tmp_path):
     tiles = _tiles(tmp_path / "tiles")
-    here = ls.batch("accounting", tiles, tmp_path / "here")
+    here = tf.batch("accounting", tiles, tmp_path / "here")
     with _pool(local=False) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.batch("accounting", tiles, tmp_path / "there", on=pool)
+        there = tf.batch("accounting", tiles, tmp_path / "there", on=pool)
         assert any(not m["local"] and m["tasks"] == 3 for m in pool.machines)
     _same_outputs(here, there)
     meta = json.loads((tmp_path / "there" / "tile_0_accounting.json").read_text())
@@ -80,38 +80,38 @@ def test_batch_on_a_helper_gives_the_local_outputs(group, tmp_path):
     assert not (tmp_path / "there" / _tasks.PARTIAL).exists()
     # done before: skipped, nothing sent
     with _pool(local=True) as pool:
-        again = ls.batch("accounting", tiles, tmp_path / "there", on=pool)
+        again = tf.batch("accounting", tiles, tmp_path / "there", on=pool)
     assert [r.seconds for r in again] == [0.0, 0.0, 0.0]
 
 
 def test_mspa_batch_here_and_on_a_helper(group, tmp_path):
     tiles = _tiles(tmp_path / "tiles", 4)
-    here = ls.mspa_batch(tiles, tmp_path / "here", edge_width=2)
+    here = tf.mspa_batch(tiles, tmp_path / "here", edge_width=2)
     with _pool(local=True) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.mspa_batch(tiles, tmp_path / "there", edge_width=2, on=pool)
+        there = tf.mspa_batch(tiles, tmp_path / "there", edge_width=2, on=pool)
     for a, b in zip(here, there):
         assert a.output.name == b.output.name
-        np.testing.assert_array_equal(ls.load_raster(a.output).values, ls.load_raster(b.output).values)
+        np.testing.assert_array_equal(tf.load_raster(a.output).values, tf.load_raster(b.output).values)
 
 
 def test_a_broken_raster_fails_alone(group, tmp_path):
     tiles = _tiles(tmp_path / "tiles", 2)
     (tiles / "broken.tif").write_bytes(b"not a raster")
     with _pool(local=True) as pool:
-        runs = ls.batch("accounting", tiles, tmp_path / "out", on=pool)
+        runs = tf.batch("accounting", tiles, tmp_path / "out", on=pool)
     by_name = {r.input.name: r for r in runs}
     assert by_name["broken.tif"].error and not by_name["tile_0.tif"].error
     with _pool(local=True) as pool, pytest.raises(RuntimeError, match="broken.tif"):
-        ls.batch("accounting", tiles, tmp_path / "out2", on=pool, raise_errors=True)
+        tf.batch("accounting", tiles, tmp_path / "out2", on=pool, raise_errors=True)
 
 
 def test_batch_on_needs_named_tools_and_json_params(group, tmp_path):
     tiles = _tiles(tmp_path / "tiles", 1)
     with _pool(local=True) as pool:
         with pytest.raises(TypeError, match="BATCH_TOOLS"):
-            ls.batch(lambda x: x, tiles, tmp_path / "out", on=pool)
+            tf.batch(lambda x: x, tiles, tmp_path / "out", on=pool)
         with pytest.raises(TypeError, match="JSON"):
-            ls.batch("accounting", tiles, tmp_path / "out", on=pool, classes=np.array([1, 2]))
+            tf.batch("accounting", tiles, tmp_path / "out", on=pool, classes=np.array([1, 2]))
 
 
 def _model(n=40):
@@ -138,8 +138,8 @@ def test_scenarios_on_helpers_are_bit_identical(group, tmp_path):
 
 
 def test_scenarios_with_dinamica_pieces(group, tmp_path):
-    lu = ls.load_raster(S.example_data("sibuyan_landuse"))
-    dr = ls.load_raster(S.example_data("sibuyan_drivers"))
+    lu = tf.load_raster(S.example_data("sibuyan_landuse"))
+    dr = tf.load_raster(S.example_data("sibuyan_drivers"))
     model = S.presets.dinamica(lu[0], lu[1], dr, steps=2, woe=250)
     here = S.scenarios(model, lu[0], dr, replicates=2, seed=3)
     with _pool(local=False) as pool, _Helper(pool, tmp_path / "cache"):
@@ -176,8 +176,8 @@ def test_calibrate_grid_on_helpers(group, tmp_path):
 def test_the_cache_keeps_what_was_sent(group, tmp_path):
     tiles = _tiles(tmp_path / "tiles", 2)
     with _pool(local=False) as pool, _Helper(pool, tmp_path / "cache") as helper:
-        ls.batch("accounting", tiles, tmp_path / "a", on=pool)
-        ls.batch("fos", tiles, tmp_path / "b", on=pool)
+        tf.batch("accounting", tiles, tmp_path / "a", on=pool)
+        tf.batch("fos", tiles, tmp_path / "b", on=pool)
     received = [line for line in helper.lines if line.startswith(">")]
     assert len(received) == 2          # the second job found the tiles in the cache
     assert len(list((tmp_path / "cache").iterdir())) == 2
@@ -229,7 +229,7 @@ def test_names_and_archives_stay_inside(tmp_path):
 
 
 def test_only_registered_operations_run(tmp_path):
-    from landschaft._dist import _ops
+    from terraflux._dist import _ops
 
     with pytest.raises(ValueError, match="unknown operation"):
         _ops.run("os.system", {}, tmp_path, tmp_path / "out", 1)
@@ -240,7 +240,7 @@ def test_only_registered_operations_run(tmp_path):
 
 
 def test_job_threads_split_the_cores():
-    from landschaft._dist import Job
+    from terraflux._dist import Job
 
     assert Job("x", [None] * 100).threads_on(8) == 1
     assert Job("x", [None] * 2).threads_on(8) == 4
@@ -249,16 +249,16 @@ def test_job_threads_split_the_cores():
 
 
 def test_load_result_reads_a_saved_result(tmp_path):
-    forest = ls.load_raster(ls.example_data("input"))
-    result = ls.fos(forest)
-    parts = ls.load_result(result.save(tmp_path / "fos"))
+    forest = tf.load_raster(tf.example_data("input"))
+    result = tf.fos(forest)
+    parts = tf.load_result(result.save(tmp_path / "fos"))
     assert parts["result"] == "FOSResult"
     np.testing.assert_array_equal(parts["map"].values, np.asarray(result.map))
     assert isinstance(parts["stats"], pd.DataFrame)
 
 
 def test_cli_commands():
-    from landschaft._cli import build_parser
+    from terraflux._cli import build_parser
 
     p = build_parser()
     a = p.parse_args(["worker", "--join", "K7QM-2XDP", "--cores", "3", "--map", "Z:/=/mnt/nas"])
@@ -317,14 +317,14 @@ def test_values_travel_without_pickle(tmp_path):
     import xarray as xr
     from shapely.geometry import Point
 
-    from landschaft._dist import _pack
+    from terraflux._dist import _pack
 
-    forest = ls.load_raster(ls.example_data("input"))[:60, :80]
+    forest = tf.load_raster(tf.example_data("input"))[:60, :80]
     frame = pd.DataFrame({1: [1.5, np.nan], 2: [3, 4]}, index=pd.Index(["a", "b"], name="k"))
     multi = pd.DataFrame([[1.0, 2.0]], columns=pd.MultiIndex.from_tuples([("auc", "mean"), ("auc", "std")]))
     geo = gpd.GeoDataFrame({"v": [1, 2]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326")
     value = {"map": forest, "frame": frame, "multi": multi, "geo": geo, "series": frame[1],
-             "fad": ls.fad(forest, 7), (1, 2): [np.float32(2.5), float("inf"), None, ("t", 3)],
+             "fad": tf.fad(forest, 7), (1, 2): [np.float32(2.5), float("inf"), None, ("t", 3)],
              "ds": xr.Dataset({"a": forest.astype(float)})}
     back = _pack.read(_pack.write(value, tmp_path / "v"))
     _equal(back["map"], value["map"])
@@ -341,52 +341,52 @@ def test_values_travel_without_pickle(tmp_path):
 
 
 def test_map_on_a_helper_gives_the_local_results(group, tmp_path):
-    forest = ls.load_raster(ls.example_data("input"))
+    forest = tf.load_raster(tf.example_data("input"))
     rasters = [forest[k * 150:k * 150 + 200, :250] for k in range(3)]
-    here = ls.parallel.map("fad", rasters, window_size=13)
+    here = tf.parallel.map("fad", rasters, window_size=13)
     seeds = [dict(nrow=40, ncol=40, seed=s) for s in range(3)]
     with _pool(local=False) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.parallel.map(ls.fad, rasters, window_size=13, on=pool)
-        nlm_there = ls.parallel.map("nlm.random", seeds, on=pool)
+        there = tf.parallel.map(tf.fad, rasters, window_size=13, on=pool)
+        nlm_there = tf.parallel.map("nlm.random", seeds, on=pool)
     for a, b in zip(here, there):
         _equal(a, b)
-    for a, b in zip(ls.parallel.map("nlm.random", seeds), nlm_there):
+    for a, b in zip(tf.parallel.map("nlm.random", seeds), nlm_there):
         _equal(a, b)
-    saved = ls.parallel.map("nlm.random", seeds, output_dir=tmp_path / "out")
+    saved = tf.parallel.map("nlm.random", seeds, output_dir=tmp_path / "out")
     assert [p.name for p in saved] == ["0.tif", "1.tif", "2.tif"]
 
 
 def test_map_takes_registered_tools_and_data_only(group):
     with _pool(local=True) as pool:
         with pytest.raises(ValueError, match="not a tool"):
-            ls.parallel.map(ls.write_raster, [1], on=pool)
+            tf.parallel.map(tf.write_raster, [1], on=pool)
         with pytest.raises(ValueError, match="file path"):
-            ls.parallel.map("fad", ["C:/data/forest.tif"], on=pool)
+            tf.parallel.map("fad", ["C:/data/forest.tif"], on=pool)
 
 
 def test_monte_carlo_on_a_helper(group, tmp_path):
     src = np.zeros((25, 25))
     src[5, 7] = 1
     src[18, 12] = 2
-    f = ls.parallel.call("surface.gravity", src, exponent=ls.parallel.param(0))
-    here = ls.uncertainty.monte_carlo(f, [2.0], [0.2], n=40, seed=3, keep=True)
+    f = tf.parallel.call("surface.gravity", src, exponent=tf.parallel.param(0))
+    here = tf.uncertainty.monte_carlo(f, [2.0], [0.2], n=40, seed=3, keep=True)
     with _pool(local=False) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.uncertainty.monte_carlo(f, [2.0], [0.2], n=40, seed=3, keep=True, on=pool, chunk=7)
+        there = tf.uncertainty.monte_carlo(f, [2.0], [0.2], n=40, seed=3, keep=True, on=pool, chunk=7)
     np.testing.assert_array_equal(np.asarray(here.mean), np.asarray(there.mean))
     np.testing.assert_array_equal(np.asarray(here.sd), np.asarray(there.sd))
     with _pool(local=True) as pool, pytest.raises(TypeError, match="parallel.call"):
-        ls.uncertainty.monte_carlo(lambda p: p[0], [1.0], [0.1], n=5, on=pool)
+        tf.uncertainty.monte_carlo(lambda p: p[0], [1.0], [0.1], n=5, on=pool)
 
 
 def test_sensitivity_runs_on_a_helper(group, tmp_path):
     src = np.zeros((25, 25))
     src[5, 7] = 1
     src[18, 12] = 2
-    f = ls.parallel.call("surface.gravity", src, exponent=ls.parallel.param(0))
-    d = ls.sensitivity.design("morris", {"exponent": (1.0, 3.0), "unused": (5.0, 15.0)}, n=6, seed=2)
-    here = ls.sensitivity.evaluate(f, d, summary=np.mean)
+    f = tf.parallel.call("surface.gravity", src, exponent=tf.parallel.param(0))
+    d = tf.sensitivity.design("morris", {"exponent": (1.0, 3.0), "unused": (5.0, 15.0)}, n=6, seed=2)
+    here = tf.sensitivity.evaluate(f, d, summary=np.mean)
     with _pool(local=False) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.sensitivity.evaluate(f, d, on=pool, chunk=5, summary=np.mean)
+        there = tf.sensitivity.evaluate(f, d, on=pool, chunk=5, summary=np.mean)
     np.testing.assert_array_equal(here, there)
 
 
@@ -396,30 +396,30 @@ def test_sdm_folds_on_a_helper(group, tmp_path):
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    occ = ls.load_table(ls.sdm.example_data("bradypus"))
-    env = ls.load_raster(ls.sdm.example_data("bioclim"))
-    data = ls.sdm.prepare(occ, env, clean=False, background=600)
+    occ = tf.load_table(tf.sdm.example_data("bradypus"))
+    env = tf.load_raster(tf.sdm.example_data("bioclim"))
+    data = tf.sdm.prepare(occ, env, clean=False, background=600)
     models = {"glm": make_pipeline(StandardScaler(), LogisticRegression(max_iter=500)),
               "glm_c": LogisticRegression(C=0.5, max_iter=500)}
-    here = ls.sdm.fit(data, models)
+    here = tf.sdm.fit(data, models)
     with _pool(local=True) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.sdm.fit(data, models, on=pool)
+        there = tf.sdm.fit(data, models, on=pool)
     pd.testing.assert_frame_equal(here.metrics, there.metrics)
     pd.testing.assert_frame_equal(here.summary, there.summary)
     pd.testing.assert_frame_equal(here.predictions, there.predictions)
     with _pool(local=True) as pool, pytest.raises(TypeError, match="scikit-learn"):
-        ls.sdm.fit(data, {"x": object()}, on=pool)
+        tf.sdm.fit(data, {"x": object()}, on=pool)
 
 
 def _problem():
-    P = ls.prioritize
-    cost = ls.load_raster(P.example_data("cost"))
-    features = ls.load_raster(P.example_data("features"))
+    P = tf.prioritize
+    cost = tf.load_raster(P.example_data("cost"))
+    features = tf.load_raster(P.example_data("features"))
     return P.problem(cost, features).add_min_set_objective().add_relative_targets(0.2).add_binary_decisions()
 
 
 def test_prioritize_resolves_on_a_helper(group, tmp_path):
-    P = ls.prioritize
+    P = tf.prioritize
     p = _problem()
     sol = p.solve()
 
@@ -443,38 +443,38 @@ def test_prioritize_resolves_on_a_helper(group, tmp_path):
 # --------------------------------------------------------------------------- phase D: tiles
 
 def _dem():
-    return ls.nlm.fbm(130, 170, fract_dim=1.4, seed=11) * 300.0
+    return tf.nlm.fbm(130, 170, fract_dim=1.4, seed=11) * 300.0
 
 
 def test_tiles_give_the_whole_map():
     dem = _dem()
     for tool, kw in (("surface.tri", {}), ("surface.terrain", dict(v="slope")), ("surface.curvature", {}),
                      ("surface.dissection", {})):
-        whole = ls.parallel._registry.resolve(tool)(dem, **kw)
-        tiles = ls.parallel.tiled(tool, dem, tile=45, **kw)
+        whole = tf.parallel._registry.resolve(tool)(dem, **kw)
+        tiles = tf.parallel.tiled(tool, dem, tile=45, **kw)
         np.testing.assert_array_equal(tiles.values, whole.values)
     # running sums along the rows start elsewhere in a tile: to about 1e-12
-    tpi = ls.parallel.tiled("surface.tpi", dem, scale=7, halo=4, tile=45)
-    np.testing.assert_allclose(tpi.values, ls.surface.tpi(dem, scale=7).values, rtol=1e-11, atol=1e-11)
-    forest = ls.load_raster(ls.example_data("input"))[:300, :340]
-    fad = ls.parallel.tiled("fad", forest, window_size=13, tile=90)            # a dict of its maps (not stats)
-    whole = ls.fad(forest, 13)
+    tpi = tf.parallel.tiled("surface.tpi", dem, scale=7, halo=4, tile=45)
+    np.testing.assert_allclose(tpi.values, tf.surface.tpi(dem, scale=7).values, rtol=1e-11, atol=1e-11)
+    forest = tf.load_raster(tf.example_data("input"))[:300, :340]
+    fad = tf.parallel.tiled("fad", forest, window_size=13, tile=90)            # a dict of its maps (not stats)
+    whole = tf.fad(forest, 13)
     for k, v in fad.items():
         np.testing.assert_array_equal(v.values, getattr(whole, k).values)
-    wm = ls.parallel.tiled("window_metrics", forest, 7, metric=["np"], level="landscape", tile=100)
-    np.testing.assert_array_equal(wm["np"].values, ls.window_metrics(forest, 7, metric=["np"])["np"].values)
-    g = ls.surface.geomorphons(dem, search=8)
-    gt = ls.parallel.tiled("surface.geomorphons", dem, search=8, tile=40, n_workers=2)
+    wm = tf.parallel.tiled("window_metrics", forest, 7, metric=["np"], level="landscape", tile=100)
+    np.testing.assert_array_equal(wm["np"].values, tf.window_metrics(forest, 7, metric=["np"])["np"].values)
+    g = tf.surface.geomorphons(dem, search=8)
+    gt = tf.parallel.tiled("surface.geomorphons", dem, search=8, tile=40, n_workers=2)
     assert type(gt) is type(g)
     np.testing.assert_array_equal(gt.forms.values, g.forms.values)
     np.testing.assert_array_equal(gt.ternary.values, g.ternary.values)
     with pytest.raises(ValueError, match="halo"):
-        ls.parallel.tiled("hydro.fill", dem)
+        tf.parallel.tiled("hydro.fill", dem)
 
 
 def test_tiles_on_a_helper(group, tmp_path):
     dem = _dem()
-    whole = ls.surface.geomorphons(dem, search=6)
+    whole = tf.surface.geomorphons(dem, search=6)
     with _pool(local=True) as pool, _Helper(pool, tmp_path / "cache"):
-        there = ls.parallel.tiled("surface.geomorphons", dem, search=6, tile=64, on=pool)
+        there = tf.parallel.tiled("surface.geomorphons", dem, search=6, tile=64, on=pool)
     np.testing.assert_array_equal(there.forms.values, whole.forms.values)

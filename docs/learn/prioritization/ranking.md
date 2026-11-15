@@ -6,7 +6,7 @@ A ranking gives every cell of a landscape a priority, from the first to give up 
 needs no target and no budget: the best 10 % lies inside the best 30 %, so the same map answers every
 budget at once, and performance curves tell what each share of the landscape keeps of every feature.
 This chapter explains how Zonation builds such a ranking (Moilanen et al. 2005, 2022), the method
-behind `ls.prioritize.zonation`.
+behind `tf.prioritize.zonation`.
 
 !!! abstract "In this chapter"
     - marginal loss, and the core-area and additive-benefit rules;
@@ -55,7 +55,7 @@ first step:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 sites = np.array([[1, 1, 0, 1], [1, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]],
                  dtype="float32")[:, None, :]                       # 4 species x 4 sites
@@ -89,7 +89,7 @@ kernel of about 500 m, so that a cell's value is the habitat around it (see
 import pandas as pd
 import xarray as xr
 
-clc = ls.load_raster(ls.example_data("clc"))
+clc = tf.load_raster(tf.example_data("clc"))
 
 def share(*codes):
     """The fraction of every 125 m cell covered by the land-cover classes."""
@@ -98,8 +98,8 @@ def share(*codes):
 names = ["forest_bird", "mire_plant", "grassland_butterfly", "farmland_bird"]
 species = xr.concat([share(23, 24, 25), share(35, 36), share(18, 26),
                      share(20, 21) + 0.3 * share(12)], dim="species")
-res = ls.prioritize.zonation(species, names=names,
-                             connectivity=[ls.prioritize.Kernel("negexp", 4)] * 4)   # 4 cells of 125 m
+res = tf.prioritize.zonation(species, names=names,
+                             connectivity=[tf.prioritize.Kernel("negexp", 4)] * 4)   # 4 cells of 125 m
 
 def kept(res, best):
     """The share of every feature in the best `best` fraction of the cells."""

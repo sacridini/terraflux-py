@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the MILP prioritization (landschaft._core.opt_*).
+// Python bindings of the MILP prioritization (terraflux._core.opt_*).
 
 #include "opt/python.hpp"
 

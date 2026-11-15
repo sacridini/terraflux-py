@@ -1,6 +1,6 @@
 # Learn landscape ecology
 
-This is a short course on the ideas behind every tool of Landschaft. It is
+This is a short course on the ideas behind every tool of Terraflux. It is
 written for readers who have never studied landscape ecology: students,
 analysts who were handed a land-cover map and a question, researchers from
 neighbouring fields. By the end you should be able to say **what** each
@@ -10,14 +10,14 @@ tool, and **how** to read and defend its results.
 The chapters follow the order of a university course. Each one starts from
 the ecological question, introduces the concepts and, where it helps, the
 mathematics behind them, then puts them to work on the maps that ship with
-Landschaft. Everything is cited to the primary literature, so you can follow
+Terraflux. Everything is cited to the primary literature, so you can follow
 any thread further.
 
 !!! tip "How to read this course"
     - **Read in order the first time.** Later chapters rely on the vocabulary
       of the earlier ones (patch, matrix, grain, extent, edge...).
     - **Run the code.** Every code block runs as it is, in order within a
-      chapter: open a notebook next to the page, with Landschaft
+      chapter: open a notebook next to the page, with Terraflux
       [installed](../getting-started/installation.md).
     - **Answer the questions** at the end of each chapter before opening the
       answers.

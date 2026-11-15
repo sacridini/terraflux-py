@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Validation (ls.simulate phase 8a): lulcc's three-map comparison, MOLUSCE's kappa and error budget."""
+"""Validation (tf.simulate phase 8a): lulcc's three-map comparison, MOLUSCE's kappa and error budget."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import simulate_cases
 import simulate_reference
 from conftest import WINDOWS_BLAS
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 @pytest.mark.parametrize("case", simulate_reference.case_ids("validation"))

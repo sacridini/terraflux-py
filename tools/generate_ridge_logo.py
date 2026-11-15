@@ -1,4 +1,4 @@
-"""Generate the landschaft "Raster Ridge" logo set.
+"""Generate the terraflux "Raster Ridge" logo set.
 
 Everything is parametric: edit PALETTE, the RIDGES heights or the SUN block and rerun.
 
@@ -129,7 +129,7 @@ class Wordmark:
         return f'<path d="{" ".join(d)}" fill="{fill}"/>'
 
 
-def svg(w, h, body, title="landschaft", extra_ns=""):
+def svg(w, h, body, title="terraflux", extra_ns=""):
     return (f'<svg xmlns="http://www.w3.org/2000/svg"{extra_ns} viewBox="0 0 {fmt(w)} {fmt(h)}" '
             f'width="{fmt(w)}" height="{fmt(h)}" role="img" aria-label="{title}">\n<title>{title}</title>\n'
             f'{body}\n</svg>\n')
@@ -188,7 +188,7 @@ def editable():
 <text x="40" y="455" font-family="Poppins, sans-serif" font-size="12" font-weight="500" fill="#0f172a">Palette - grid 16 x 16 cells of 8 px, badge 128 px, radius 28</text>
 {"".join(swatches)}
 </g>'''
-    return svg(W, H, body, title="landschaft - Raster Ridge (editable master)", extra_ns=ns)
+    return svg(W, H, body, title="terraflux - Raster Ridge (editable master)", extra_ns=ns)
 
 
 def main():

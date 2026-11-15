@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.one_per_cell against terra::cellFromXY + duplicated()."""
+"""tf.sdm.one_per_cell against terra::cellFromXY + duplicated()."""
 
 from __future__ import annotations
 

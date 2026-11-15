@@ -78,19 +78,19 @@ example you can run. Each page covers one topic; the
 
 <!-- no-run -->
 ```python
-import landschaft as ls             # most tools: ls.mspa, ls.fad, ls.Landscape...
-ls.conn.protconn(...)               # habitat networks and protected areas
-from landschaft import circuit      # Circuitscape
-ls.cost.transition(r, "mean", 8)    # distances and routes on grids
-ls.surface.metrics(z)               # surface texture of continuous rasters
-ls.nlm.random(100, 100, seed=1)     # neutral landscape models
-ls.bio.BaseData.from_table(...)     # biodiversity analysis
-ls.prioritize.zonation(features)    # spatial conservation prioritization
-ls.sdm.prepare(occ, env)            # species distribution models
+import terraflux as tf             # most tools: tf.mspa, tf.fad, tf.Landscape...
+tf.conn.protconn(...)               # habitat networks and protected areas
+from terraflux import circuit      # Circuitscape
+tf.cost.transition(r, "mean", 8)    # distances and routes on grids
+tf.surface.metrics(z)               # surface texture of continuous rasters
+tf.nlm.random(100, 100, seed=1)     # neutral landscape models
+tf.bio.BaseData.from_table(...)     # biodiversity analysis
+tf.prioritize.zonation(features)    # spatial conservation prioritization
+tf.sdm.prepare(occ, env)            # species distribution models
 ```
 
 !!! example "Every example runs"
-    The examples use the maps that ship with landschaft (`ls.example_data`) or
+    The examples use the maps that ship with terraflux (`tf.example_data`) or
     small arrays built in place, and they are run as tests, outputs included.
     Copy one into a Python session to try a function.
 
@@ -123,48 +123,48 @@ def summary(obj) -> str:
 def prefix(ident: str) -> str:
     name = ident.split(".")[-1]
     if ".conn." in ident:
-        return "ls.conn."
+        return "tf.conn."
     if ".lsm." in ident:
-        return "ls.lsm."
+        return "tf.lsm."
     if ".nlm." in ident:
-        return "ls.nlm."
+        return "tf.nlm."
     if ".bio." in ident:
-        return "ls.bio."
+        return "tf.bio."
     if ".cost." in ident:
-        return "ls.cost."
+        return "tf.cost."
     if ".surface." in ident:
-        return "ls.surface."
+        return "tf.surface."
     if ".uncertainty." in ident:
-        return "ls.uncertainty."
+        return "tf.uncertainty."
     if ".accuracy." in ident:
-        return "ls.accuracy."
+        return "tf.accuracy."
     if ".redd." in ident:
-        return "ls.redd."
+        return "tf.redd."
     if ".forest_code." in ident:
-        return "ls.forest_code."
+        return "tf.forest_code."
     if ".sensitivity." in ident:
-        return "ls.sensitivity."
+        return "tf.sensitivity."
     if ".stats." in ident:
-        return "ls.stats."
+        return "tf.stats."
     if ".download." in ident:
-        return "ls.download."
+        return "tf.download."
     if ".hydro.swat." in ident:
-        return "ls.hydro.swat."
+        return "tf.hydro.swat."
     if ".hydro." in ident:
-        return "ls.hydro."
+        return "tf.hydro."
     if ".circuit." in ident and name != "omniscape":
         return "circuit."
-    import landschaft
+    import terraflux
 
-    if getattr(landschaft, name, None) is resolve(ident):
-        return "ls."
-    # a submodule's name that ls does not re-export: ls.sdm.thin, ls.prioritize.zonation...
+    if getattr(terraflux, name, None) is resolve(ident):
+        return "tf."
+    # a submodule's name that tf does not re-export: tf.sdm.thin, tf.prioritize.zonation...
     parts = [p for p in ident.split(".")[1:-1] if not p.startswith("_")]
-    obj = landschaft
+    obj = terraflux
     for p in [*parts, name]:
         obj = getattr(obj, p, None)
-    # (a module a function of the same name hides, as ls.batch: its full path)
-    return ("ls." if obj is resolve(ident) else "landschaft.") + "".join(p + "." for p in parts)
+    # (a module a function of the same name hides, as tf.batch: its full path)
+    return ("tf." if obj is resolve(ident) else "terraflux.") + "".join(p + "." for p in parts)
 
 
 def main() -> None:

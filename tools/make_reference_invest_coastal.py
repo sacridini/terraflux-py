@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of InVEST's coastal vulnerability model (natcap.invest) for ls.services.
+"""Generate golden outputs of InVEST's coastal vulnerability model (natcap.invest) for tf.services.
 
 Usage::
 
@@ -13,9 +13,9 @@ all in SIRGAS 2000 / UTM 23S, runs ``natcap.invest.coastal_vulnerability.execute
 on them, and stores per case the inputs and the outputs in
 ``tests/data/reference/invest/<case>.npz`` and the vectors (WKB), tables, settings
 and versions in ``<case>.json`` (as ``make_reference_invest.py`` does for the other
-models). It does not import landschaft.
+models). It does not import terraflux.
 
-The cases run InVEST with two bugs corrected (landschaft has only the correct form):
+The cases run InVEST with two bugs corrected (terraflux has only the correct form):
 
 * shore lines: InVEST drops the edges of the landmass whose two ends are
   ``numpy.isclose(..., rtol=1e-7)``, meant for repeated vertices, but relative to

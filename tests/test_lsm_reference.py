@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import lsm_reference
 import lsm_scenes
 from conftest import DATA, same_bits
@@ -26,7 +26,7 @@ MANIFEST = json.loads((REF_DIR / "manifest.json").read_text())
 
 # calculate_lsm builds te, ed, iji and contag from the neighbourhood matrix of
 # the complexity metrics; the lsm_l_te/lsm_*_iji/lsm_l_contag functions (and
-# landschaft) always use 4 neighbours. With neighbourhood = 8 these are
+# terraflux) always use 4 neighbours. With neighbourhood = 8 these are
 # compared with the 4-neighbour reference instead.
 NEIGHBOURHOOD_QUIRK = {"te", "ed", "iji", "contag"}
 
@@ -63,7 +63,7 @@ def compare(ours: pd.DataFrame, ref: pd.DataFrame, label: str) -> None:
 
 
 def implemented(ref: pd.DataFrame) -> pd.DataFrame:
-    available = set(ls.list_metrics()["function_name"])
+    available = set(tf.list_metrics()["function_name"])
     prefix = ref["level"].map({"patch": "lsm_p_", "class": "lsm_c_", "landscape": "lsm_l_"})
     return ref[(prefix + ref["metric"]).isin(available)]
 
@@ -75,7 +75,7 @@ def test_matches_landscapemetrics(fname):
     options = info["options"]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # geographic CRS of podlasie
-        ours = ls.Landscape(DATA / "lsm" / info["input"], **options).metrics()
+        ours = tf.Landscape(DATA / "lsm" / info["input"], **options).metrics()
     ref = implemented(lsm_reference.read_reference(REF_DIR / fname))
     if not ref["metric"].str.startswith("circle").any():  # non-square cells
         ours = ours[~ours["metric"].str.startswith("circle")]
@@ -89,7 +89,7 @@ def test_matches_landscapemetrics(fname):
 def test_every_catalogue_metric_is_referenced():
     ref = lsm_reference.read_reference(REF_DIR / "lm_landscape__default.csv.gz")
     prefix = ref["level"].map({"patch": "lsm_p_", "class": "lsm_c_", "landscape": "lsm_l_"})
-    assert set(ls.list_metrics()["function_name"]) <= set(prefix + ref["metric"])
+    assert set(tf.list_metrics()["function_name"]) <= set(prefix + ref["metric"])
 
 
 # -- live comparison ---------------------------------------------------------
@@ -132,7 +132,7 @@ def test_live_landscapemetrics(rscript, kind, params, res, options):
     ref = implemented(lsm_reference.run_array(rscript, data, res, **options))
     if options.get("neighbourhood") == 8:
         ref = ref[~ref["metric"].isin(NEIGHBOURHOOD_QUIRK)]
-    ours = ls.Landscape(data, res=res, **options).metrics()
+    ours = tf.Landscape(data, res=res, **options).metrics()
     if options.get("neighbourhood") == 8:
         ours = ours[~ours["metric"].isin(NEIGHBOURHOOD_QUIRK)]
     if res[0] != res[1]:

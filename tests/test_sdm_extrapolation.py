@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.mess / mop / exdet against predicts::mess, mop::mop and dsmextra::ExDet."""
+"""tf.sdm.mess / mop / exdet against predicts::mess, mop::mop and dsmextra::ExDet."""
 
 from __future__ import annotations
 

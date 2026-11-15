@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # diffeR 0.0-8 functions with their defects corrected, the reference for the
-# corrected forms in ls.simulate (source(file.path(TOOLS, "differ_fixed.R"))).
+# corrected forms in tf.simulate (source(file.path(TOOLS, "differ_fixed.R"))).
 
 # sample2pop: the population of the row's category (population[i, 2]), not of
 # the row's position (diffeR uses population[j, 2]).

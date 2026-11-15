@@ -9,7 +9,7 @@ import math
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from bio_cases import BASEDATA_CASES, CLUSTER_CASES, DATA, REFERENCE
 
 _BD: dict = {}
@@ -18,20 +18,20 @@ _BD: dict = {}
 def _basedata(name: str):
     if name not in _BD:
         case = BASEDATA_CASES[name]
-        kw = {k: v for k, v in case["landschaft"].items() if v is not None}
-        _BD[name] = ls.bio.BaseData.from_table(DATA / case["file"], **kw)
+        kw = {k: v for k, v in case["terraflux"].items() if v is not None}
+        _BD[name] = tf.bio.BaseData.from_table(DATA / case["file"], **kw)
     return _BD[name]
 
 
 def _run(name: str, **kw):
     case = CLUSTER_CASES[name]
     a = case["args"]
-    tree = ls.bio.read_tree(DATA / case["tree"]) if "tree" in case else None
+    tree = tf.bio.read_tree(DATA / case["tree"]) if "tree" in case else None
     if case.get("region_grower"):
-        return ls.bio.region_grower(
+        return tf.bio.region_grower(
             _basedata(case["basedata"]), a.get("index", "RICHNESS_ALL"), a.get("spatial_conditions"),
             a.get("definition_query"), calculations=case.get("calcs"), tree=tree, prng_seed=a.get("prng_seed"), **kw)
-    return ls.bio.cluster(
+    return tf.bio.cluster(
         _basedata(case["basedata"]), a.get("index", "SORENSON"), a.get("linkage_function", "link_average"),
         a.get("spatial_conditions"), a.get("definition_query"), calculations=case.get("calcs"), tree=tree,
         prng_seed=a.get("prng_seed"), tie_breaker=a.get("cluster_tie_breaker"), **kw)
@@ -80,7 +80,7 @@ def test_cluster_matches_biodiverse(reference, name):
 @pytest.mark.parametrize("seed", [1, 2])
 def test_cut_nests_subtrees(seed):
     bd = _basedata("site_100k")
-    cl = ls.bio.cluster(bd, prng_seed=seed)
+    cl = tf.bio.cluster(bd, prng_seed=seed)
     terminals = {}  # node -> set of groups below it
     children = cl.nodes["children"].to_dict()
 

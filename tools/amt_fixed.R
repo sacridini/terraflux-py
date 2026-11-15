@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# amt 0.3.1 with its errors corrected, the references ls.move is tested against,
+# amt 0.3.1 with its errors corrected, the references tf.move is tested against,
 # and the helpers of the amt cases (tests/move_cases.py).
 #
 # direction_abs(lonlat = TRUE): geosphere::bearing, clockwise from north, is

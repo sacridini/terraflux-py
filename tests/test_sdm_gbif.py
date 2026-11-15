@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.download_gbif with the GBIF API replaced by a fake one (no network)."""
+"""tf.sdm.download_gbif with the GBIF API replaced by a fake one (no network)."""
 
 from __future__ import annotations
 
 import pytest
 
-import landschaft as ls
-from landschaft.sdm import _gbif
+import terraflux as tf
+from terraflux.sdm import _gbif
 
 
 def fake_api(n_records: int, calls: list):
@@ -27,7 +27,7 @@ def fake_api(n_records: int, calls: list):
 def test_pages_synonym_and_filters(monkeypatch):
     calls = []
     monkeypatch.setattr(_gbif, "_get", fake_api(1000, calls))
-    occ = ls.sdm.download_gbif("A b", country="BR", year=(1990, 2020))
+    occ = tf.sdm.download_gbif("A b", country="BR", year=(1990, 2020))
     assert len(occ) == 1000 and occ["gbifID"].tolist() == list(range(1000))
     assert occ.loc[0, "issue"] == "A;B" and occ.loc[1, "issue"] == ""
     searches = [c[1] for c in calls if c[0] == "occurrence/search"]
@@ -38,7 +38,7 @@ def test_pages_synonym_and_filters(monkeypatch):
 
 def test_limit_and_uncertainty(monkeypatch):
     monkeypatch.setattr(_gbif, "_get", fake_api(5000, []))
-    occ = ls.sdm.download_gbif(7, limit=400, max_uncertainty=1000)
+    occ = tf.sdm.download_gbif(7, limit=400, max_uncertainty=1000)
     # 400 records, the odd ones above 1000 m dropped (k >= 101), the even ones have none
     assert len(occ) == 200 + 50 and occ.attrs["gbif"]["truncated"]
 
@@ -46,4 +46,4 @@ def test_limit_and_uncertainty(monkeypatch):
 def test_unknown_species(monkeypatch):
     monkeypatch.setattr(_gbif, "_get", fake_api(0, []))
     with pytest.raises(ValueError, match="no taxon"):
-        ls.sdm.download_gbif("Nonexistent")
+        tf.sdm.download_gbif("Nonexistent")

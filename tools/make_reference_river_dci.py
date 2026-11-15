@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What R's riverconn (0.3) gives, for landschaft's tests (tests/test_rivers.py), written to
+"""What R's riverconn (0.3) gives, for terraflux's tests (tests/test_rivers.py), written to
 tests/data/reference/rivers/river_dci.json:
 
     python tools/make_reference_river_dci.py

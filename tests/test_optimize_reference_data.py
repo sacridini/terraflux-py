@@ -111,7 +111,7 @@ def test_raster_inputs_reach_prioritizr_unchanged():
 @pytest.mark.external_reference
 def test_table_targets_are_r_sums():
     """With tables, relative targets are shares of R's sum() (80-bit accumulation) of the amounts."""
-    from landschaft import _core
+    from terraflux import _core
 
     m = model("core", "minset_table")
     t = optimize_cases.pu_table()

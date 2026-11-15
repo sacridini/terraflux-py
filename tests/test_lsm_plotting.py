@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import lsm_scenes
 
 matplotlib = pytest.importorskip("matplotlib")
@@ -27,12 +27,12 @@ def images(fig):
 
 
 def test_show_patches():
-    lm = ls.Landscape(DATA)
+    lm = tf.Landscape(DATA)
     fig = lm.show_patches()
     (img,) = images(fig)
     labels = np.asarray(lm.labels())
     np.testing.assert_array_equal(np.ma.getmaskarray(img) | np.isnan(np.ma.getdata(img)), labels == 0)
-    fig = ls.show_patches(DATA, "all", labels=True, directions=4)
+    fig = tf.show_patches(DATA, "all", labels=True, directions=4)
     assert len(images(fig)) == 3
     assert any(ax.texts for ax in fig.axes)
     fig = lm.show_patches(classes=[2])
@@ -43,7 +43,7 @@ def test_show_patches():
 
 
 def test_show_cores_marks_the_core_cells():
-    lm = ls.Landscape(DATA, edge_depth=2)
+    lm = tf.Landscape(DATA, edge_depth=2)
     fig = lm.show_cores("global", edge_depth=2, consider_boundary=False, labels=True)
     (img,) = images(fig)
     img = np.ma.getdata(img)
@@ -52,7 +52,7 @@ def test_show_cores_marks_the_core_cells():
 
 
 def test_show_lsm():
-    lm = ls.Landscape(DATA, res=10)
+    lm = tf.Landscape(DATA, res=10)
     fig = lm.show_lsm("area", "all", labels=True)
     assert len(images(fig)) == 3
     area = np.asarray(lm.to_raster("area"))
@@ -63,10 +63,10 @@ def test_show_lsm():
 
 
 def test_show_correlation():
-    metrics = ls.Landscape(DATA).metrics(what=["lsm_p_area", "lsm_p_perim", "lsm_p_shape", "lsm_c_ca", "lsm_c_te"])
-    fig = ls.show_correlation(metrics, labels=True)
+    metrics = tf.Landscape(DATA).metrics(what=["lsm_p_area", "lsm_p_perim", "lsm_p_shape", "lsm_c_ca", "lsm_c_te"])
+    fig = tf.show_correlation(metrics, labels=True)
     assert len(images(fig)) == 2
-    cor = ls.calculate_correlation(metrics, method="spearman")
-    fig = ls.show_correlation(cor["patch"])
+    cor = tf.calculate_correlation(metrics, method="spearman")
+    fig = tf.show_correlation(cor["patch"])
     (img,) = images(fig)
     assert np.ma.getdata(img)[0, 0] == 1.0

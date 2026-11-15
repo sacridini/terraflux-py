@@ -1,6 +1,6 @@
 # Getting started
 
-New to Landschaft? These pages take you from nothing installed to your first
+New to Terraflux? These pages take you from nothing installed to your first
 analysis, and explain the few ideas that every tool shares.
 
 <div class="grid cards" markdown>
@@ -9,7 +9,7 @@ analysis, and explain the few ideas that every tool shares.
 
     ---
 
-    Set up Python, a compiler and Landschaft on Windows, macOS or Linux, and
+    Set up Python, a compiler and Terraflux on Windows, macOS or Linux, and
     check that everything works.
 
     [:octicons-arrow-right-24: Install](installation.md)
@@ -45,7 +45,7 @@ analysis, and explain the few ideas that every tool shares.
 
     ---
 
-    `ls.plot` draws any map, vector layer, table or result on an interactive
+    `tf.plot` draws any map, vector layer, table or result on an interactive
     map over satellite imagery, or as a chart, in one call.
 
     [:octicons-arrow-right-24: Plot your data](plotting.md)
@@ -54,7 +54,7 @@ analysis, and explain the few ideas that every tool shares.
 
 ## Suggested path
 
-1. [Install Landschaft](installation.md) and run the check at the end of the page.
+1. [Install Terraflux](installation.md) and run the check at the end of the page.
 2. Follow the [quickstart](quickstart.md) with the example map that ships with the package.
 3. Read [core concepts](concepts.md) before you use your own data: most
    surprises come from how the input map is coded.

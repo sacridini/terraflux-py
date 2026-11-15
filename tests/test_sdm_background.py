@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.background against dismo::randomPoints (the same cells for the same seed)."""
+"""tf.sdm.background against dismo::randomPoints (the same cells for the same seed)."""
 
 from __future__ import annotations
 

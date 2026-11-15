@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Circuitscape's network (graph) mode (ls.circuit.circuitscape_network_*).
+"""Circuitscape's network (graph) mode (tf.circuit.circuitscape_network_*).
 
 ``tests/data/reference/circuit/circuitscape_network.npz`` holds Circuitscape
 6.1's outputs (CHOLMOD) for its own network test cases and synthetic ones
@@ -13,8 +13,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft.circuit import circuitscape_ini, circuitscape_network_advanced, circuitscape_network_pairwise
+import terraflux as tf
+from terraflux.circuit import circuitscape_ini, circuitscape_network_advanced, circuitscape_network_pairwise
 
 REF = Path(__file__).parent / "data" / "reference" / "circuit"
 CS = REF / "circuitscape"
@@ -188,5 +188,5 @@ def test_writes_outputs(tmp_path, monkeypatch):
 
 
 def test_top_level_names():
-    assert ls.circuit.NetworkResult is not None
-    assert callable(ls.circuit.circuitscape_network_advanced)
+    assert tf.circuit.NetworkResult is not None
+    assert callable(tf.circuit.circuitscape_network_advanced)

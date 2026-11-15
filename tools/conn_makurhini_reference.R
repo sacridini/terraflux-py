@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Reference values of Makurhini's MK_dPCIIC for landschaft's habitat graphs.
+# Reference values of Makurhini's MK_dPCIIC for terraflux's habitat graphs.
 #
 #   Rscript conn_makurhini_reference.R spatial <out_dir> <polygons.gpkg> <resistance.tif>
 #       nodesfile / distancefile (centroid, edge) on Makurhini's example raster

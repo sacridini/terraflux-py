@@ -5,7 +5,7 @@ where it was recorded to the environment there, and maps the result over a
 whole region. Most of the work is in the data: cleaning the records,
 removing the bias of where people looked, choosing the area and the
 predictors, and splitting the data so that the evaluation is honest.
-`ls.sdm` does each of those steps with one call, keeps a record of every
+`tf.sdm` does each of those steps with one call, keeps a record of every
 choice, and hands the data to scikit-learn, whose models it then
 cross-validates, combines and projects. The ideas behind it are in the
 course chapter [Species distributions](../learn/sdm.md).
@@ -39,12 +39,12 @@ basis of each record, and with the usual problems.
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-records = ls.load_table(ls.sdm.example_data("acaule"))
+records = tf.load_table(tf.sdm.example_data("acaule"))
 print(len(records), records["species"].nunique())
 records["species"] = "Solanum acaule"          # one species, spelled 12 ways
-flags = ls.sdm.clean_occurrences(records, action="flag", countries={"column": "ISO2"})
+flags = tf.sdm.clean_occurrences(records, action="flag", countries={"column": "ISO2"})
 print(flags.filter(like="flag").sum())
 ```
 
@@ -125,9 +125,9 @@ bioclimatic variables at 0.5° (temperatures in tenths of a degree,
 precipitation in millimetres).
 
 ```python
-occ = ls.load_table(ls.sdm.example_data("bradypus"))
-env = ls.load_raster(ls.sdm.example_data("bioclim"))
-data = ls.sdm.prepare(occ, env, background=5000)
+occ = tf.load_table(tf.sdm.example_data("bradypus"))
+env = tf.load_raster(tf.sdm.example_data("bioclim"))
+data = tf.sdm.prepare(occ, env, background=5000)
 print(data)
 print(data.report)
 ```
@@ -187,10 +187,10 @@ species could have reached, and how strict the collinearity filter is.
 Each step is a function of its own. Cleaning and one record per cell first:
 
 ```python
-occ1 = ls.sdm.clean_occurrences(occ)
-occ1 = ls.sdm.one_per_cell(occ1, env)
+occ1 = tf.sdm.clean_occurrences(occ)
+occ1 = tf.sdm.one_per_cell(occ1, env)
 for d in (25_000, 50_000, 100_000, 200_000):
-    print(f"at least {d // 1000:3d} km apart: {len(ls.sdm.thin(occ1, d, seed=1))} records")
+    print(f"at least {d // 1000:3d} km apart: {len(tf.sdm.thin(occ1, d, seed=1))} records")
 ```
 
 ```text
@@ -212,10 +212,10 @@ country or a biome). The collinearity of the predictors is measured inside
 it:
 
 ```python
-occ2 = ls.sdm.thin(occ1, 50_000, seed=1)
-area = ls.sdm.accessible_area(occ2, distance=500_000)
+occ2 = tf.sdm.thin(occ1, 50_000, seed=1)
+area = tf.sdm.accessible_area(occ2, distance=500_000)
 print(round(float(area.to_crs("EPSG:6933").area.iloc[0]) / 1e12, 1))   # million km2
-print(ls.sdm.vif(env, area=area, seed=1).round(1))
+print(tf.sdm.vif(env, area=area, seed=1).round(1))
 ```
 
 ```text
@@ -240,7 +240,7 @@ VIF, recomputes, and repeats until all are below the threshold; a stricter
 threshold of 5 also removes bio8:
 
 ```python
-env2 = ls.sdm.select_predictors(env, vif=5, area=area, seed=1)
+env2 = tf.sdm.select_predictors(env, vif=5, area=area, seed=1)
 print(env2.attrs["selection"]["excluded"], env2.attrs["selection"]["kept"])
 ```
 
@@ -256,9 +256,9 @@ every predictor and without a presence, then everything goes into one
 `SDMData` with spatial folds of 500 km hexagons:
 
 ```python
-bg = ls.sdm.background(env2, 2000, occ=occ2, area=area, seed=1)
-careful = ls.sdm.dataset(occ2, bg, env2)
-careful = ls.sdm.spatial_blocks(careful, size=500_000, k=5, seed=1)
+bg = tf.sdm.background(env2, 2000, occ=occ2, area=area, seed=1)
+careful = tf.sdm.dataset(occ2, bg, env2)
+careful = tf.sdm.spatial_blocks(careful, size=500_000, k=5, seed=1)
 print(careful)
 ```
 
@@ -315,7 +315,7 @@ designs of ENMeval and blockCV.
 
 ## Fitting models
 
-`ls.sdm.fit` takes any scikit-learn estimator (anything with `fit` and
+`tf.sdm.fit` takes any scikit-learn estimator (anything with `fit` and
 `predict_proba`), fits it on every training set of the folds, scores it on
 the test fold, and fits it once more to all the data. Three classics: a
 logistic regression with quadratic terms (a GLM), a random forest and
@@ -333,7 +333,7 @@ models = {
     "rf": RandomForestClassifier(n_estimators=500, random_state=1),
     "brt": HistGradientBoostingClassifier(random_state=1),
 }
-res = ls.sdm.fit(careful, models)
+res = tf.sdm.fit(careful, models)
 cols = ["auc_train", "auc_test", "auc_diff", "tss", "boyce", "or_mtp", "or_10p"]
 print(res.summary.xs("mean", axis=1, level=1)[cols].round(2))
 ```
@@ -365,7 +365,7 @@ trees and a slower learning rate fix it:
 models["rf"] = RandomForestClassifier(n_estimators=500, max_samples=0.1, min_samples_leaf=5, random_state=1)
 models["brt"] = HistGradientBoostingClassifier(learning_rate=0.02, max_iter=200, max_depth=2,
                                                min_samples_leaf=20, random_state=1)
-res = ls.sdm.fit(careful, models)
+res = tf.sdm.fit(careful, models)
 print(res.summary.xs("mean", axis=1, level=1)[cols].round(2))
 ```
 
@@ -402,7 +402,7 @@ places for a sloth; the same GLM on the one-call data, with background from
 the whole map, scores much higher:
 
 ```python
-whole = ls.sdm.fit(data, {"glm": models["glm"]})
+whole = tf.sdm.fit(data, {"glm": models["glm"]})
 print(round(whole.summary.loc["glm", ("auc_test", "mean")], 2))
 ```
 
@@ -416,13 +416,13 @@ can only be compared between models with the same background and folds
 
 ## Projecting the models
 
-`ls.sdm.predict` projects every model onto the predictor rasters, in blocks
+`tf.sdm.predict` projects every model onto the predictor rasters, in blocks
 of rows (rasters larger than memory work), and combines them into an
 ensemble weighted by each model's cross-validated AUC above 0.5, with the
 standard deviation between the models:
 
 ```python
-suit = ls.sdm.predict(res, env)
+suit = tf.sdm.predict(res, env)
 print([str(b) for b in suit.band.values])
 print({k: round(v, 3) for k, v in res.weights().items()})
 ```
@@ -450,8 +450,8 @@ predictor, with the others at their mean; permutation importance, how much
 the AUC drops when a predictor's values are shuffled:
 
 ```python
-curves = ls.sdm.response_curves(res)
-imp = ls.sdm.importance(res)
+curves = tf.sdm.response_curves(res)
+imp = tf.sdm.importance(res)
 print(imp.pivot(index="predictor", columns="model", values="importance").round(3))
 ```
 
@@ -475,14 +475,14 @@ make steps and stay flat beyond the data.
 
 ## From suitability to presence and absence
 
-A binary map needs a threshold. The default of `ls.sdm.threshold` maximises
+A binary map needs a threshold. The default of `tf.sdm.threshold` maximises
 sensitivity plus specificity (the maximum TSS), computed from the ensemble
 at the presences and the background:
 
 ```python
 ens = suit.sel(band="ensemble")
-at = ls.extract(ens, careful.coords)["suitability"].to_numpy()
-t = ls.sdm.threshold(at[careful.y == 1], at[careful.y == 0])
+at = tf.extract(ens, careful.coords)["suitability"].to_numpy()
+t = tf.sdm.threshold(at[careful.y == 1], at[careful.y == 0])
 today = ens >= t
 print(round(float(t), 3), f"{float(today.where(ens.notnull()).mean()):.0%}")
 ```
@@ -493,7 +493,7 @@ print(round(float(t), 3), f"{float(today.where(ens.notnull()).mean()):.0%}")
 
 ![Suitable cells at the maximum-TSS threshold](../assets/figures/sdm_threshold.png)
 
-23 % of the land of the map is above 0.44. `ls.sdm.evaluate` gives the
+23 % of the land of the map is above 0.44. `tf.sdm.evaluate` gives the
 whole table of thresholds (kappa, sensitivity, specificity, TSS at every
 candidate) and the other usual choices: `"mtp"` (the lowest prediction at a
 presence), `"p10"`, `"equal_sens_spec"` and more.
@@ -508,7 +508,7 @@ same threshold:
 temps = ["bio1", "bio5", "bio6", "bio8", "bio9"]
 future = env.copy()
 future.loc[{"band": temps}] = env.sel(band=temps) + 20
-later = ls.sdm.predict(res, future).sel(band="ensemble") >= t
+later = tf.sdm.predict(res, future).sel(band="ensemble") >= t
 print(int((today & later).sum()), int((today & ~later).sum()), int((~today & later).sum()))
 ```
 
@@ -521,11 +521,11 @@ change, check where the warmer climate is outside the data:
 
 ```python
 new = future.sel(band=careful.predictors)
-mess = ls.sdm.mess(careful, new, full=True)
+mess = tf.sdm.mess(careful, new, full=True)
 novel = mess.sel(band="mess") < 0
-print(int(novel.sum()), int((ls.sdm.mess(careful, env.sel(band=careful.predictors)).sel(band="mess") < 0).sum()))
+print(int(novel.sum()), int((tf.sdm.mess(careful, env.sel(band=careful.predictors)).sel(band="mess") < 0).sum()))
 print({str(b): int((mess.sel(band=b) < 0).sum()) for b in mess.band.values[:-1]})
-mop = ls.sdm.mop(careful, new)
+mop = tf.sdm.mop(careful, new)
 print([str(b) for b in mop.band.values], int(mop.sel(band="basic").sum()))
 print(int((novel & today).sum()))
 ```
@@ -551,21 +551,21 @@ llanos of the Orinoco, north-eastern Brazil and the Chaco. MOP flags the same 2 
 cells as outside the reference ranges (`basic`) and gives the distance to
 the nearest reference conditions (`mop`). Only 30 of the cells suitable
 today become novel: the projection over the current range rests on
-conditions the models have seen; beyond it, it does not. `ls.sdm.exdet`
+conditions the models have seen; beyond it, it does not. `tf.sdm.exdet`
 adds the cells inside every range whose *combination* of values is new.
 
 ## Maxent (MaxNet)
 
-Maxent is the most used model for presence-background data. `ls.sdm.MaxNet`
+Maxent is the most used model for presence-background data. `tf.sdm.MaxNet`
 is a native implementation of maxnet (Phillips et al. 2017), Maxent's
 open-source version in R: the same features (linear, quadratic, product,
 hinge, threshold) and the same regularised fit, behind scikit-learn's API.
 It is the default model of `fit`, and mixes with the others:
 
 ```python
-res_all = ls.sdm.fit(careful, {**models, "maxnet": ls.sdm.MaxNet()})
+res_all = tf.sdm.fit(careful, {**models, "maxnet": tf.sdm.MaxNet()})
 print(res_all.summary.xs("mean", axis=1, level=1)[["auc_test", "tss", "boyce", "or_10p"]].round(2))
-suit_all = ls.sdm.predict(res_all, env)
+suit_all = tf.sdm.predict(res_all, env)
 print([str(b) for b in suit_all.band.values])
 ```
 
@@ -579,7 +579,7 @@ rf          0.69  0.37   0.57    0.10
 ['ensemble', 'sd', 'glm', 'rf', 'brt', 'maxnet']
 ```
 
-`ls.sdm.fit(careful)` without models fits MaxNet alone, with maxnet's
+`tf.sdm.fit(careful)` without models fits MaxNet alone, with maxnet's
 defaults (the feature classes chosen by the number of presences,
 regularisation multiplier 1).
 
@@ -589,12 +589,12 @@ spatial folds before choosing one (Radosavljevic & Anderson 2014).
 
 ## Saving the results
 
-Maps go to GeoTIFF with `ls.write_raster` (one band per layer, with their
+Maps go to GeoTIFF with `tf.write_raster` (one band per layer, with their
 names); the data and the results save into folders of CSV tables and a JSON
 summary:
 
 ```python
-ls.write_raster(suit, "bradypus_suitability.tif")
+tf.write_raster(suit, "bradypus_suitability.tif")
 folder = careful.save("bradypus_data")
 print(sorted(p.name for p in folder.iterdir()))
 folder = res.save("bradypus_models")
@@ -614,9 +614,9 @@ fitted estimators themselves are ordinary scikit-learn objects in
 
 ## Going further
 
-- **Your own records**: `ls.sdm.download_gbif("Tapirus terrestris",
+- **Your own records**: `tf.sdm.download_gbif("Tapirus terrestris",
   country="BR")` queries GBIF (no account needed), or read a GBIF download
-  with `ls.bio.read_occurrences`; `prepare(..., species=...)` picks one
+  with `tf.bio.read_occurrences`; `prepare(..., species=...)` picks one
   species from a table of many.
 - **Sampling bias**: `bias_surface(group_records, env, bandwidth=...)` is
   the kernel density of the records of the whole taxonomic group, and
@@ -628,9 +628,9 @@ fitted estimators themselves are ordinary scikit-learn objects in
 - **Tuning**: `data.cv` is a list of (train, test) indices, so
   `GridSearchCV(model, grid, cv=careful.cv)` tunes any estimator on the
   spatial folds.
-- **Evaluation by hand**: `ls.sdm.evaluate`, `boyce` and `omission_rate`
+- **Evaluation by hand**: `tf.sdm.evaluate`, `boyce` and `omission_rate`
   score any predictions, e.g. at independent survey data.
 - **Large rasters**: `predict` works block by block, on dask-backed rasters
-  (`ls.load_raster(..., chunks="auto")`) too.
+  (`tf.load_raster(..., chunks="auto")`) too.
 
 The [API reference](../api/sdm.md) documents every option.

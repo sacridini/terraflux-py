@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Golden outputs of R's move2 and amt for ls.move (run by tools/make_reference_move.py).
+# Golden outputs of R's move2 and amt for tf.move (run by tools/make_reference_move.py).
 #
 # Usage: Rscript move_reference.R job.json outdir
 # job.json: {"sets": {name: {"dir", "n", "crs", "track", "extra"}}, "cases": [{"name", "data", "code"}]}

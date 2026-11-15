@@ -41,9 +41,9 @@ DEFAULT_PLANGEA = Path(os.environ.get("LANDSCHAFT_PLANGEA", "C:/Users/eduar/Docu
 
 
 def write_tif(path: Path, values: np.ndarray, res: float = pc.RES) -> str:
-    import landschaft as ls
+    import terraflux as tf
 
-    ls.write_raster(pc.grid(values, res=res), path)
+    tf.write_raster(pc.grid(values, res=res), path)
     return path.as_posix()
 
 

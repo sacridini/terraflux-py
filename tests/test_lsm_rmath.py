@@ -17,7 +17,7 @@ import pandas as pd
 import pytest
 
 from conftest import DATA
-from landschaft import _core
+from terraflux import _core
 
 RMATH = DATA / "reference" / "lsm_rmath" / "rmath.csv.gz"
 LM = DATA / "reference" / "lsm_rmath" / "lm.csv.gz"

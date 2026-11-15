@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import landschaft as ls
-from landschaft.validation import InvalidInputError
+import terraflux as tf
+from terraflux.validation import InvalidInputError
 
 SPATCON_EXE = r"C:\Users\eduar\Documents\dev\GTB\external_sources\spatcon64.exe"
 HAS_SPATCON = os.path.exists(SPATCON_EXE)
@@ -51,7 +51,7 @@ def test_contagion_pff_basic():
     data[2:8, 2:8] = 2  # 6x6 foreground core
     data[0, 0] = 0      # 1 missing pixel
 
-    res = ls.contagion_pff(data, window_size=3)
+    res = tf.contagion_pff(data, window_size=3)
     assert isinstance(res, np.ndarray)
     assert res.shape == (10, 10)
     assert res.dtype == np.uint8
@@ -68,7 +68,7 @@ def test_clustering_fac_basic():
     data[2:8, 2:8] = 2
     data[0, 0] = 0
 
-    res = ls.clustering_fac(data, window_size=3)
+    res = tf.clustering_fac(data, window_size=3)
     assert isinstance(res, np.ndarray)
     assert res.shape == (10, 10)
     assert res.dtype == np.uint8
@@ -84,7 +84,7 @@ def test_contagion_float_output():
     data[1:8, 1:8] = 2  # 7x7 core
     data[0, 0] = 0
 
-    res = ls.contagion_pff(data, window_size=5, as_byte=False)
+    res = tf.contagion_pff(data, window_size=5, as_byte=False)
     assert res.dtype == np.float32
     assert np.isnan(res[0, 0])
     assert np.isnan(res[0, 1])
@@ -96,7 +96,7 @@ def test_clustering_float_output():
     data[1:8, 1:8] = 2  # 7x7 core
     data[0, 0] = 0
 
-    res = ls.clustering_fac(data, window_size=5, as_byte=False)
+    res = tf.clustering_fac(data, window_size=5, as_byte=False)
     assert res.dtype == np.float32
     assert np.isnan(res[0, 0])
     assert np.isnan(res[0, 1])
@@ -109,7 +109,7 @@ def test_contagion_xarray_metadata():
         dims=("y", "x"),
         attrs={"crs": "EPSG:4326"},
     )
-    res = ls.contagion_pff(da, window_size=3)
+    res = tf.contagion_pff(da, window_size=3)
     assert isinstance(res, xr.DataArray)
     assert res.attrs["landschaft_product"] == "CONTAGION"
     assert res.attrs["metric"] == "Pff"
@@ -119,11 +119,11 @@ def test_contagion_xarray_metadata():
 def test_invalid_parameters():
     data = np.array([[1, 2], [2, 2]], dtype=np.uint8)
     with pytest.raises(ValueError, match="odd integer"):
-        ls.contagion_pff(data, window_size=4)
+        tf.contagion_pff(data, window_size=4)
     with pytest.raises(ValueError, match="odd integer"):
-        ls.clustering_fac(data, window_size=2)
+        tf.clustering_fac(data, window_size=2)
     with pytest.raises(InvalidInputError):
-        ls.contagion_pff(np.array([[5, 6]]), window_size=3)
+        tf.contagion_pff(np.array([[5, 6]]), window_size=3)
 
 
 @pytest.mark.skipif(not HAS_SPATCON, reason="spatcon64.exe not found")
@@ -134,15 +134,15 @@ def test_accuracy_against_gtb_spatcon():
 
     # 1. Pff (Contagion) window 7
     gtb_pff = run_gtb_spatcon(sample, 7, 77)
-    py_pff = ls.contagion_pff(sample, window_size=7)
+    py_pff = tf.contagion_pff(sample, window_size=7)
     np.testing.assert_array_equal(py_pff, gtb_pff)
 
     # 2. FAC (Clustering) window 7
     gtb_fac = run_gtb_spatcon(sample, 7, 76)
-    py_fac = ls.clustering_fac(sample, window_size=7)
+    py_fac = tf.clustering_fac(sample, window_size=7)
     np.testing.assert_array_equal(py_fac, gtb_fac)
 
     # 3. Larger window 13
     gtb_pff13 = run_gtb_spatcon(sample, 13, 77)
-    py_pff13 = ls.contagion_pff(sample, window_size=13)
+    py_pff13 = tf.contagion_pff(sample, window_size=13)
     np.testing.assert_array_equal(py_pff13, gtb_pff13)

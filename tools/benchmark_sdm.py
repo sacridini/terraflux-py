@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Time ls.sdm against the R packages it reproduces (the tasks of tools/sdm_benchmark.R).
+"""Time tf.sdm against the R packages it reproduces (the tasks of tools/sdm_benchmark.R).
 
 Usage::
 
@@ -8,7 +8,7 @@ Usage::
 Writes the inputs (synthetic records over the example climate, the Bradypus
 presences with 10 000 background points, predictions to evaluate) to
 ``build/benchmark_sdm`` and prints a Markdown table: each task's best time in
-R and in Landschaft (default threads, best of ``reps``). Needs Rscript and the
+R and in Terraflux (default threads, best of ``reps``). Needs Rscript and the
 library of ``tools/make_reference_sdm.py``.
 """
 
@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-import landschaft as ls  # noqa: E402
+import terraflux as tf  # noqa: E402
 import lsm_reference  # noqa: E402
 import make_reference_sdm  # noqa: E402
 
@@ -49,12 +49,12 @@ LABELS = {
 
 
 def inputs(work: Path):
-    """Write the inputs for R and return them for Landschaft."""
+    """Write the inputs for R and return them for Terraflux."""
     rng = np.random.default_rng(1)
-    env = ls.load_raster(ls.sdm.example_data("bioclim"))
-    occ = ls.load_table(ls.sdm.example_data("bradypus"))
+    env = tf.load_raster(tf.sdm.example_data("bioclim"))
+    occ = tf.load_table(tf.sdm.example_data("bradypus"))
     cells = np.flatnonzero(~np.isnan(env.values[0]).ravel())
-    from landschaft.sdm._background import _cell_centres
+    from terraflux.sdm._background import _cell_centres
 
     pick = rng.choice(cells, 5000)
     x, y = _cell_centres(env, pick)
@@ -64,8 +64,8 @@ def inputs(work: Path):
     centres = rng.uniform([-70, -25], [-45, 0], (40, 2))
     t = centres[rng.integers(0, 40, 2000)] + rng.normal(0, 0.5, (2000, 2))
     thin = pd.DataFrame({"lon": t[:, 0], "lat": t[:, 1]})
-    bg = ls.sdm.background(env, 10_000, occ=occ, seed=1)
-    data = ls.sdm.dataset(occ, bg, env)
+    bg = tf.sdm.background(env, 10_000, occ=occ, seed=1)
+    data = tf.sdm.dataset(occ, bg, env)
     pts = pd.DataFrame({"lon": data.coords.geometry.x, "lat": data.coords.geometry.y, "occ": data.y.astype(float)})
     p = np.round(rng.beta(4, 1.5, 1000), 4)
     a = np.round(rng.uniform(0, 1, 10_000), 4)
@@ -79,7 +79,7 @@ def inputs(work: Path):
 
 
 def tasks(env, occ, records, thin, data, p, a) -> dict:
-    sdm = ls.sdm
+    sdm = tf.sdm
     pts = data.coords.copy()
     pts["occ"] = data.y.astype(float)
     off = dict(seas=False, urban=False, countries=False, duplicates=False, aohi=False)
@@ -111,7 +111,7 @@ def best(f, reps: int) -> float:
 def run_r(work: Path, reps: int) -> dict:
     rscript = lsm_reference.find_rscript()
     out = subprocess.run([str(rscript), str(ROOT / "tools" / "sdm_benchmark.R"), str(work),
-                          str(ls.sdm.example_data("bioclim")), str(reps)],
+                          str(tf.sdm.example_data("bioclim")), str(reps)],
                          capture_output=True, text=True, check=True, env=make_reference_sdm.r_environment())
     res = {}
     for line in out.stdout.splitlines():
@@ -145,7 +145,7 @@ def main() -> None:
     values = inputs(work)
     ours = {name: best(f, args.reps) for name, f in tasks(*values).items()}
     theirs = {} if args.no_r else run_r(work, args.r_reps)
-    print("| Task | R | Landschaft | Speed-up |")
+    print("| Task | R | Terraflux | Speed-up |")
     print("|---|---|---|---|")
     for name, (label, ref) in LABELS.items():
         r, o = theirs.get(name), ours[name]

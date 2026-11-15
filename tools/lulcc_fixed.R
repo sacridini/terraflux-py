@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # lulcc 1.0.4 with its defects corrected, the reference for the corrected
-# forms in ls.simulate (source(file.path(TOOLS, "lulcc_fixed.R")) after
+# forms in tf.simulate (source(file.path(TOOLS, "lulcc_fixed.R")) after
 # library(lulcc)).
 #
 # - The CLUE-S allocation (src/allocateclues.c) adds the signed differences

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Dynamic variables and regional demands (ls.simulate phase 7a)."""
+"""Dynamic variables and regional demands (tf.simulate phase 7a)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import simulate_cases
 import xarray as xr
 from scipy import ndimage
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _land(n=40, seed=1):
@@ -72,9 +72,9 @@ def test_distance_to_by_cost_follows_a_road():
     land[15, 0] = 2
     cond = np.full((n, n), 0.1)
     cond[15, :] = 10.0  # a road along row 15
-    tr = ls.cost.transition(cond, "mean", 8)
+    tr = tf.cost.transition(cond, "mean", 8)
     d = S.distance_to(2, cost=tr)(land)
-    np.testing.assert_allclose(d, np.asarray(ls.cost.acc_cost(tr, (land == 2).astype(np.uint8))))
+    np.testing.assert_allclose(d, np.asarray(tf.cost.acc_cost(tr, (land == 2).astype(np.uint8))))
     assert d[15, 29] < d[0, 15]  # far along the road is nearer than a little off it
 
 
@@ -94,12 +94,12 @@ def test_gravity_of():
     land[0, 0] = np.nan
     g = S.gravity_of(2, 1.5)(land)
     src = np.where(land == 2, 1.0, np.nan)
-    ref = np.asarray(ls.surface.gravity(src, 1.5))
+    ref = np.asarray(tf.surface.gravity(src, 1.5))
     ref[0, 0] = np.nan
     np.testing.assert_array_equal(g, ref)
     mass = np.arange(land.size, dtype=float).reshape(land.shape)
     gm = S.gravity_of([2, 3], mass=mass)(land)
-    ref = np.asarray(ls.surface.gravity(np.where(np.isin(land, [2, 3]), mass, np.nan)))
+    ref = np.asarray(tf.surface.gravity(np.where(np.isin(land, [2, 3]), mass, np.nan)))
     ref[0, 0] = np.nan
     np.testing.assert_array_equal(gm, ref)
     da = simulate_cases.grid(np.nan_to_num(land, nan=1))
@@ -114,7 +114,7 @@ def test_gravity_of():
         S.gravity_of(2, unit="km")
     with pytest.raises(ValueError, match="shape"):
         S.gravity_of(2, mass=np.ones((3, 3)))(land)
-    from landschaft.simulate._graph import _dynamic_nodes
+    from terraflux.simulate._graph import _dynamic_nodes
 
     with pytest.raises(TypeError, match="Terraflux"):  # no Terraflux node yet
         _dynamic_nodes(S.Model(pot, {(1, 2): 0.02}, alloc, dynamic={"d2": S.gravity_of(2)}), "drivers", None)

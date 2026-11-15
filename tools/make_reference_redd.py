@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What UDef-ARP (Clark Labs' tool of Verra's VT0007, https://github.com/Clark-Labs/UDef-ARP) gives, for landschaft's
+"""What UDef-ARP (Clark Labs' tool of Verra's VT0007, https://github.com/Clark-Labs/UDef-ARP) gives, for terraflux's
 tests (the same files as Terraflux's), written to tests/data/reference/redd/redd.npz and .json:
 
     python tools/make_reference_redd.py path/to/UDef-ARP

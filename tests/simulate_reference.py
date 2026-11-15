@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Reading the references of the land change tools behind ls.simulate (tools/make_reference_simulate.py)."""
+"""Reading the references of the land change tools behind tf.simulate (tools/make_reference_simulate.py)."""
 
 from __future__ import annotations
 

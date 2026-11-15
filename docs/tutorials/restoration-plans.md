@@ -3,7 +3,7 @@
 Where should converted land be restored, and how much of each place, to bring back the most biodiversity, carbon
 and ecological integrity for a given area or budget? This tutorial builds a complete restoration plan for Serra
 Verde, the example region of the [optimized conservation plans](conservation-plans.md), with the restoration
-problem of `ls.prioritize`: the model of Strassburg et al. (2020), *Global priority areas for ecosystem
+problem of `tf.prioritize`: the model of Strassburg et al. (2020), *Global priority areas for ecosystem
 restoration*, solved exactly.
 
 **You will learn to:**
@@ -50,17 +50,17 @@ and the cost of land.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cover = ls.load_raster(P.example_data("land_cover"))          # share of each class (6 bands)
-past = ls.load_raster(P.example_data("past_cover"))           # natural classes in the past (3 bands)
-features = ls.load_raster(P.example_data("features"))         # habitat suitability of 8 features
-footprint = ls.load_raster(P.example_data("footprint"))       # human footprint index (0-50)
-ecoregions = ls.load_raster(P.example_data("ecoregions"))     # 4 ecoregions
-carbon = ls.load_raster(P.example_data("carbon_potential"))   # t/ha in restored vegetation
-cost = ls.load_raster(P.example_data("cost"))                 # thousand USD per km²
-regions = ls.load_raster(P.example_data("regions"))           # 3 administrative regions
+P = tf.prioritize
+cover = tf.load_raster(P.example_data("land_cover"))          # share of each class (6 bands)
+past = tf.load_raster(P.example_data("past_cover"))           # natural classes in the past (3 bands)
+features = tf.load_raster(P.example_data("features"))         # habitat suitability of 8 features
+footprint = tf.load_raster(P.example_data("footprint"))       # human footprint index (0-50)
+ecoregions = tf.load_raster(P.example_data("ecoregions"))     # 4 ecoregions
+carbon = tf.load_raster(P.example_data("carbon_potential"))   # t/ha in restored vegetation
+cost = tf.load_raster(P.example_data("cost"))                 # thousand USD per km²
+regions = tf.load_raster(P.example_data("regions"))           # 3 administrative regions
 
 natural = ["forest", "savanna", "mangrove"]
 anthropic = ["pasture", "cropland"]
@@ -76,7 +76,7 @@ neither natural nor anthropic here: they are not restored. Your own data can hav
 
 ## Step 1: the original vegetation
 
-What would grow back on a converted cell? `ls.original_vegetation` gives the anthropic share of each cell back to
+What would grow back on a converted cell? `tf.original_vegetation` gives the anthropic share of each cell back to
 the natural classes, in the proportions they had there in the `past`. Where the past map has no natural cover left,
 or the cell is almost all converted (above `threshold`, 95 %), it uses the proportions of the cell's
 **ecoregion**. Compute them from the past map, as the mean proportions of its cells:
@@ -89,7 +89,7 @@ for code in np.unique(codes[np.isfinite(codes)]):
     inside = codes == code
     eco_props.values[:, inside] = np.nanmean(props.values[:, inside], axis=1)[:, None]
 
-veg = ls.original_vegetation(cover, natural, anthropic, past=past, ecoregions=eco_props)
+veg = tf.original_vegetation(cover, natural, anthropic, past=past, ecoregions=eco_props)
 print(veg.classes)
 source, cells = np.unique(veg.source.values[np.isfinite(veg.source.values)], return_counts=True)
 print(dict(zip(source.astype(int).tolist(), cells.tolist())))      # cells per source
@@ -111,7 +111,7 @@ cell (`restore`), the `source` of those proportions (0 the past, 1 the ecoregion
 
 A species' **area of habitat** is the part of its range covered by the natural classes it lives in. With
 land-cover shares, every cell of the range counts for its area times the share of those classes. Given the
-original vegetation, `ls.sdm.area_of_habitat` also gives the habitat before conversion (the **potential**) and
+original vegetation, `tf.sdm.area_of_habitat` also gives the habitat before conversion (the **potential**) and
 how much habitat each species gains per unit of each cell restored: what the plan needs.
 
 Here the ranges are the cells where each feature's suitability is above 0; with real data they come from range
@@ -124,7 +124,7 @@ suitability = {
     "maned_wolf": ["savanna"], "golden_lion_tamarin": ["forest"],
     "neotropical_otter": ["forest", "mangrove"], "araucaria_forest": ["forest"], "mangrove": ["mangrove"],
 }
-aoh = ls.sdm.area_of_habitat(ranges, cover, natural, suitability=suitability, original=veg)
+aoh = tf.sdm.area_of_habitat(ranges, cover, natural, suitability=suitability, original=veg)
 
 t = aoh.table[["species", "current", "potential"]].copy()
 t["left"] = t["current"] / t["potential"]
@@ -228,8 +228,8 @@ pressure of the land restored, here 4 for pasture and 7 for cropland (Venter et 
 ```python
 reduction = ((4 * cover.sel(band="pasture") + 7 * cover.sel(band="cropland"))
              / cover.sel(band=anthropic).sum("band")).fillna(0)
-q = ls.intactness(footprint, radius=3)                       # radius in cells
-gain = ls.intactness_gradient(footprint, reduction, radius=3)  # what restoring each cell adds
+q = tf.intactness(footprint, radius=3)                       # radius in cells
+gain = tf.intactness_gradient(footprint, reduction, radius=3)  # what restoring each cell adds
 print(f"mean intactness {float(q.mean()):.3f}")
 ```
 
@@ -368,7 +368,7 @@ the plan converts natural land where it costs the least benefit, and with `resto
 elsewhere what it converts. Both need the habitat each species *loses* per unit of natural land, `loss=True`:
 
 ```python
-aoh = ls.sdm.area_of_habitat(ranges, cover, natural, suitability=suitability, original=veg, loss=True)
+aoh = tf.sdm.area_of_habitat(ranges, cover, natural, suitability=suitability, original=veg, loss=True)
 nat = cover.sel(band=natural).sum("band")           # the natural share of every cell
 keep = (P.restoration_problem(conservable=nat, threat=(footprint / 20).clip(0, 1))
           .add_extinction_risk_benefit(aoh, name="species")
@@ -417,11 +417,11 @@ region for `add_area_target`.
 
 The exponent z of the species-area relationship is uncertain: 0.25 is a typical value, but estimates vary from about 0.15
 to 0.35 (the original model uses a standard deviation of 0.1). `eval_risk_reduction(z_sd=...)` propagates it to the total by the delta
-method; `ls.uncertainty.interval` turns it into a confidence interval:
+method; `tf.uncertainty.interval` turns it into a confidence interval:
 
 ```python
 ru = P.eval_risk_reduction(p, plan, z_sd=0.1)
-low, high = ls.uncertainty.interval(ru.total, ru.sd)
+low, high = tf.uncertainty.interval(ru.total, ru.sd)
 print(f"risk avoided {ru.total:.3f} ± {ru.sd:.3f} (95 %: {low:.3f} to {high:.3f})")
 ```
 
@@ -431,18 +431,18 @@ The species' z err together (`method="correlated"`, the default) when they come 
 treats them as separate estimates and gives a smaller deviation. The z of each species can also be set:
 `add_extinction_risk_benefit(aoh, z={"golden_lion_tamarin": 0.3})`.
 
-The same holds for any linear total. With an error of 25 % in each cell's carbon, `ls.uncertainty.sum_sd` gives the
+The same holds for any linear total. With an error of 25 % in each cell's carbon, `tf.uncertainty.sum_sd` gives the
 deviation of the plan's carbon, independent errors or fully correlated (a bias of the carbon map):
 
 ```python
 on_plan = np.nan_to_num(plan.restored.values)               # km² restored per cell (cells of 1 km²)
 total = float(np.nansum(carbon.values * 100 * on_plan))     # tonnes
 sd = 0.25 * carbon.values * 100
-print(f"carbon {total / 1e6:.3f} Mt; sd {ls.uncertainty.sum_sd(sd, weights=on_plan) / 1e6:.3f} Mt if independent, "
-      f"{ls.uncertainty.sum_sd(sd, weights=on_plan, correlation=1.0) / 1e6:.3f} Mt if correlated")
+print(f"carbon {total / 1e6:.3f} Mt; sd {tf.uncertainty.sum_sd(sd, weights=on_plan) / 1e6:.3f} Mt if independent, "
+      f"{tf.uncertainty.sum_sd(sd, weights=on_plan, correlation=1.0) / 1e6:.3f} Mt if correlated")
 ```
 
-`ls.uncertainty` also has `product_sd`, `delta_method` and `monte_carlo` for other combinations
+`tf.uncertainty` also has `product_sd`, `delta_method` and `monte_carlo` for other combinations
 ([API](../api/uncertainty.md)).
 
 ## Saving and sharing
@@ -454,8 +454,8 @@ Every result saves in one call. A plan becomes a folder with the shares restored
 plan.save("restoration_plan")                          # restored.tif, benefits.csv, summary.json
 rr.save("risk_by_species")                             # the table per species and the totals
 veg.save("original_vegetation")                        # original.tif, restore.tif, source.tif, anthropic.tif
-ls.write_raster(plan.restored, "restored_share.tif")   # just the map
-page = ls.plot(plan.restored, show=False)              # an interactive map
+tf.write_raster(plan.restored, "restored_share.tif")   # just the map
+page = tf.plot(plan.restored, show=False)              # an interactive map
 ```
 
 ## Going further

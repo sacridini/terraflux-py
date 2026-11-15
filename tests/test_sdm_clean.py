@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.clean_occurrences against CoordinateCleaner, test by test."""
+"""tf.sdm.clean_occurrences against CoordinateCleaner, test by test."""
 
 from __future__ import annotations
 

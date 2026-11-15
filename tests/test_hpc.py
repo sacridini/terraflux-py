@@ -15,8 +15,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft import _cli, _jobs
+import terraflux as tf
+from terraflux import _cli, _jobs
 
 _JOB_VARIABLES = ["SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID", "SLURM_ARRAY_TASK_ID", "SLURM_ARRAY_TASK_MIN",
                   "SLURM_ARRAY_TASK_MAX", "SLURM_ARRAY_TASK_STEP", "SLURM_ARRAY_TASK_COUNT", "PBS_JOBID",
@@ -32,9 +32,9 @@ def _no_job(monkeypatch):
 @pytest.fixture(scope="module")
 def tiles(tmp_path_factory):
     folder = tmp_path_factory.mktemp("tiles")
-    forest = ls.load_raster(ls.example_data("input"))
+    forest = tf.load_raster(tf.example_data("input"))
     for i in range(5):
-        ls.write_raster(forest[i * 100:(i + 1) * 100, :200], folder / f"t{i}.tif")
+        tf.write_raster(forest[i * 100:(i + 1) * 100, :200], folder / f"t{i}.tif")
     return folder
 
 
@@ -97,17 +97,17 @@ def test_run_names(monkeypatch):
 
 
 def test_parts_cover_the_whole_batch(tiles, tmp_path):
-    whole = ls.batch("accounting", tiles, tmp_path / "whole")
+    whole = tf.batch("accounting", tiles, tmp_path / "whole")
     assert not (tmp_path / "whole" / _jobs.STATE).exists()    # no record on a desktop without shard=
-    parts = [ls.batch("accounting", tiles, tmp_path / "parts", shard=f"{i}/2") for i in range(2)]
+    parts = [tf.batch("accounting", tiles, tmp_path / "parts", shard=f"{i}/2") for i in range(2)]
     assert [r.input.name for r in parts[0]] == ["t0.tif", "t2.tif", "t4.tif"]
     assert [r.input.name for r in parts[1]] == ["t1.tif", "t3.tif"]
     for name in ("t0", "t3"):
-        a = ls.load_raster(tmp_path / "whole" / f"{name}_accounting_ids.tif")
-        b = ls.load_raster(tmp_path / "parts" / f"{name}_accounting_ids.tif")
+        a = tf.load_raster(tmp_path / "whole" / f"{name}_accounting_ids.tif")
+        b = tf.load_raster(tmp_path / "parts" / f"{name}_accounting_ids.tif")
         np.testing.assert_array_equal(a.values, b.values)
     assert len(whole) == 5
-    status = ls.batch_status(tmp_path / "parts")
+    status = tf.batch_status(tmp_path / "parts")
     assert status.ok and len(status.done) == 5 and status.tool == "accounting"
     assert "Every input is done." in str(status)
     # no partial files left
@@ -121,12 +121,12 @@ def test_status_failed_missing_and_tasks(tiles, tmp_path, monkeypatch):
     def tool(data, n_threads=None):
         if float(data.mean()) > 1.4:
             raise ValueError("too much forest")
-        return ls.accounting(data, n_threads=n_threads)
+        return tf.accounting(data, n_threads=n_threads)
 
     tool.__name__ = "fussy"
-    runs = ls.batch(tool, tiles, out, shard="array")
+    runs = tf.batch(tool, tiles, out, shard="array")
     assert [r.input.name for r in runs] == ["t1.tif", "t3.tif"]
-    status = ls.batch_status(out)
+    status = tf.batch_status(out)
     failed = [r.input.name for r in runs if not r.ok]
     assert sorted(status.failed) == failed and status.missing == ["t0.tif", "t2.tif", "t4.tif"]
     assert all(e["run"] == "77_1" and "too much forest" in e["error"] for e in status.failed.values())
@@ -140,14 +140,14 @@ def test_status_failed_missing_and_tasks(tiles, tmp_path, monkeypatch):
 
 def test_resume_ignores_partial_outputs(tiles, tmp_path):
     out = tmp_path / "mspa"
-    first = ls.mspa_batch(tiles, out, shard="0/5")
+    first = tf.mspa_batch(tiles, out, shard="0/5")
     dst = first[0].output
     # a run killed while writing leaves only a partial file under another name: not taken as done
     (out / f".{dst.stem}.123-456.part.tif").write_bytes(b"half")
     dst.unlink()
-    again = ls.mspa_batch(tiles, out, shard="0/5")
+    again = tf.mspa_batch(tiles, out, shard="0/5")
     assert again[0].ok and again[0].seconds > 0 and dst.exists()
-    assert ls.batch_status(out).done == ["t0.tif"]
+    assert tf.batch_status(out).done == ["t0.tif"]
 
 
 def _stopping_tool(calls):
@@ -155,7 +155,7 @@ def _stopping_tool(calls):
         calls.append(1)
         if len(calls) == 2:  # SIGTERM while the second raster works (the handler the batch installed)
             signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
-        return ls.accounting(data, n_threads=n_threads)
+        return tf.accounting(data, n_threads=n_threads)
 
     tool.__name__ = "slowly"
     return tool
@@ -168,7 +168,7 @@ def test_sigterm_stops_and_requeues(tiles, tmp_path, monkeypatch):
     _array(monkeypatch, 0, first=0, last=0)
     calls: list = []
     with pytest.raises(_jobs.Stopped) as info:
-        ls.batch(_stopping_tool(calls), tiles, tmp_path / "out", shard="array", requeue=True, n_workers=1)
+        tf.batch(_stopping_tool(calls), tiles, tmp_path / "out", shard="array", requeue=True, n_workers=1)
     stopped = info.value
     assert len(calls) == 2 and requeued == [1] and stopped.requeued == "77_0"
     assert [r is not None for r in stopped.results] == [True, True, False, False, False]
@@ -178,8 +178,8 @@ def test_sigterm_stops_and_requeues(tiles, tmp_path, monkeypatch):
     # the handler is put back
     assert signal.getsignal(signal.SIGTERM) is not None
     # the task requeued runs the rest
-    rest = ls.batch(_stopping_tool([1, 1, 1]), tiles, tmp_path / "out", shard="array", requeue=True)
-    assert all(r.ok for r in rest) and ls.batch_status(tmp_path / "out").ok
+    rest = tf.batch(_stopping_tool([1, 1, 1]), tiles, tmp_path / "out", shard="array", requeue=True)
+    assert all(r.ok for r in rest) and tf.batch_status(tmp_path / "out").ok
 
 
 def test_no_requeue_without_progress_or_when_cancelled(tiles, tmp_path, monkeypatch):
@@ -189,7 +189,7 @@ def test_no_requeue_without_progress_or_when_cancelled(tiles, tmp_path, monkeypa
     # cancelled (scancel): an hour left
     monkeypatch.setattr(_jobs, "time_left", lambda: 3600.0)
     with pytest.raises(_jobs.Stopped) as info:
-        ls.batch(_stopping_tool([]), tiles, tmp_path / "a", requeue=True, n_workers=1)
+        tf.batch(_stopping_tool([]), tiles, tmp_path / "a", requeue=True, n_workers=1)
     assert requeued == [] and info.value.requeued is None
     # no input ended in this run
     monkeypatch.setattr(_jobs, "time_left", lambda: 60.0)
@@ -230,7 +230,7 @@ def test_slurm_script(tiles, tmp_path, monkeypatch, capsys):
                  "#SBATCH --requeue", "#SBATCH --mem=2G", "module load gdal"):
         assert line in text, line
     command = text.splitlines()[-1]
-    assert command.startswith("exec ") and "-m landschaft batch fad" in command
+    assert command.startswith("exec ") and "-m terraflux batch fad" in command
     assert "--shard array --requeue" in command and "'scales=[7, 13]'" in command and "--max-memory" in command
     assert json.loads((out / _jobs.STATE / _jobs.SPLIT).read_text())["count"] == 3
     with pytest.raises(ValueError):
@@ -271,26 +271,26 @@ def test_real_sigterm(tiles, tmp_path):
     script = tmp_path / "run.py"
     script.write_text(textwrap.dedent(f"""
         import sys, time
-        import landschaft as ls
+        import terraflux as tf
 
         def slow(data, n_threads=None):
             print("started", flush=True)
             time.sleep(1.5)
-            return ls.accounting(data, n_threads=n_threads)
+            return tf.accounting(data, n_threads=n_threads)
 
         try:
-            ls.batch(slow, {str(tiles)!r}, {str(tmp_path / 'out')!r}, n_workers=1, shard="0/1")
-        except ls.batch_module.Stopped as e:
+            tf.batch(slow, {str(tiles)!r}, {str(tmp_path / 'out')!r}, n_workers=1, shard="0/1")
+        except tf.batch_module.Stopped as e:
             print("stopped", sum(r is not None for r in e.results), flush=True)
             sys.exit(143)
-    """).replace("ls.batch_module.Stopped", "__import__('landschaft.batch', fromlist=['Stopped']).Stopped"))
+    """).replace("tf.batch_module.Stopped", "__import__('terraflux.batch', fromlist=['Stopped']).Stopped"))
     proc = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE, text=True,
                             env={**os.environ, "LANDSCHAFT_NUM_THREADS": "1"})
     assert proc.stdout.readline().strip() == "started"
     proc.send_signal(signal.SIGTERM)
     out, _ = proc.communicate(timeout=120)
     assert proc.returncode == 143 and out.strip().endswith("stopped 1")
-    assert len(ls.batch_status(tmp_path / "out").done) == 1
+    assert len(tf.batch_status(tmp_path / "out").done) == 1
 
 
 def test_offline_messages(tmp_path, monkeypatch):
@@ -298,8 +298,8 @@ def test_offline_messages(tmp_path, monkeypatch):
     import urllib.error
     import urllib.request
 
-    from landschaft import _download
-    from landschaft.sdm import _gbif
+    from terraflux import _download
+    from terraflux.sdm import _gbif
 
     assert _download.connection_failed(urllib.error.URLError(socket.gaierror(-2, "Name or service not known")))
     assert _download.connection_failed(TimeoutError())
@@ -311,11 +311,11 @@ def test_offline_messages(tmp_path, monkeypatch):
 
     monkeypatch.setenv("LANDSCHAFT_CACHE", str(tmp_path))
     monkeypatch.setattr(urllib.request, "urlopen", no_network)
-    with pytest.raises(OSError, match="no internet access.*landschaft fetch sdm"):
+    with pytest.raises(OSError, match="no internet access.*terraflux-py fetch sdm"):
         _download.fetch("sdm/thing.zip", ["https://a.example/thing.zip", "https://b.example/thing.zip"])
     with pytest.raises(OSError, match="no internet access") as info:
         _download.fetch("other/thing.zip", "https://a.example/thing.zip")
-    assert "landschaft fetch" not in str(info.value)
+    assert "terraflux-py fetch" not in str(info.value)
     with pytest.raises(OSError, match="GBIF.*no internet access"):
         _gbif._get("occurrence/search", {"taxonKey": 1})
 
@@ -331,7 +331,7 @@ def test_offline_messages(tmp_path, monkeypatch):
 
 
 def test_one_cache_root(tmp_path, monkeypatch):
-    from landschaft._dist._worker import default_cache_dir
+    from terraflux._dist._worker import default_cache_dir
 
     monkeypatch.setenv("LANDSCHAFT_CACHE", str(tmp_path / "cache"))
     assert default_cache_dir() == tmp_path / "cache" / "helper"
@@ -340,7 +340,7 @@ def test_one_cache_root(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
     if sys.platform == "win32":
         assert default_cache_dir() == tmp_path / "local" / "landschaft" / "cache" / "helper"
-        (tmp_path / "local" / "landschaft" / "helper-cache").mkdir(parents=True)   # an older landschaft's
+        (tmp_path / "local" / "landschaft" / "helper-cache").mkdir(parents=True)   # an older terraflux's
         assert default_cache_dir() == tmp_path / "local" / "landschaft" / "helper-cache"
     elif sys.platform.startswith("linux"):
         assert default_cache_dir() == tmp_path / "xdg" / "landschaft" / "helper"
@@ -353,12 +353,12 @@ def test_helpers_inside_a_job(tiles, tmp_path, monkeypatch):
     import threading
     import time
 
-    from landschaft._dist import _group, _worker
+    from terraflux._dist import _group, _worker
 
     monkeypatch.setenv("LANDSCHAFT_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("SLURM_JOB_ID", "99")
-    assert ls.helpers()._options["discovery"] is False
-    assert ls.helpers(discovery=True)._options["discovery"] is True
+    assert tf.helpers()._options["discovery"] is False
+    assert tf.helpers(discovery=True)._options["discovery"] is True
     with pytest.raises(RuntimeError, match="--connect"):
         _worker.run_worker(cores=1, stop=threading.Event(), out=lambda text: None)
     with socket.socket() as probe:
@@ -374,8 +374,8 @@ def test_helpers_inside_a_job(tiles, tmp_path, monkeypatch):
         end = time.monotonic() + 30
         while not any(waiting in line for line in lines) and time.monotonic() < end:  # the helper first
             time.sleep(0.02)
-        with ls.helpers(local=False, port=port, verbose=False) as pool:     # creates the group
-            runs = ls.batch("accounting", tiles, tmp_path / "out", on=pool)
+        with tf.helpers(local=False, port=port, verbose=False) as pool:     # creates the group
+            runs = tf.batch("accounting", tiles, tmp_path / "out", on=pool)
         assert all(r.ok for r in runs) and len(runs) == 5
         assert any(waiting in line for line in lines)
     finally:
@@ -384,7 +384,7 @@ def test_helpers_inside_a_job(tiles, tmp_path, monkeypatch):
 
 
 def test_plots_are_not_shown_without_a_display(monkeypatch, capsys):
-    from landschaft._plotting import _env
+    from terraflux._plotting import _env
 
     monkeypatch.setenv("LANDSCHAFT_PLOT_SHOW", "1")
     monkeypatch.setattr(_env, "_told", False)
@@ -404,12 +404,12 @@ def test_plots_are_not_shown_without_a_display(monkeypatch, capsys):
 
 
 def test_doctor(monkeypatch, capsys):
-    from landschaft import _doctor
+    from terraflux import _doctor
 
     text = _doctor.report(network=False)
-    from landschaft._dist._group import version
+    from terraflux._dist._group import version
 
-    assert text.startswith(f"landschaft {version()}") and "Threads (the default of n_threads):" in text
+    assert text.startswith(f"terraflux {version()}") and "Threads (the default of n_threads):" in text
     assert "Job: none" in text and "Cache:" in text and "Network" not in text
     _array(monkeypatch, 2, first=0, last=9)
     monkeypatch.setenv("SLURM_CPUS_PER_TASK", "1")
@@ -420,8 +420,8 @@ def test_doctor(monkeypatch, capsys):
     assert "Display: none, inside a Slurm job" in text
     monkeypatch.setattr(_doctor, "probe", lambda url, timeout=5.0: "the name does not resolve (no DNS)")
     text = _doctor.report(network=True)
-    assert text.count("NO: the name does not resolve") == len(_doctor.SERVICES) and "landschaft fetch" in text
-    ls.doctor(network=False)
+    assert text.count("NO: the name does not resolve") == len(_doctor.SERVICES) and "terraflux-py fetch" in text
+    tf.doctor(network=False)
     assert "Threads" in capsys.readouterr().out
     _cli.main(["doctor", "--no-network"])
     assert "Job: Slurm job" in capsys.readouterr().out
@@ -435,8 +435,8 @@ def test_sigterm_after_the_last_raster_is_no_stop(tiles, tmp_path, monkeypatch):
         calls.append(1)
         if len(calls) == 5:  # the last raster
             signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
-        return ls.accounting(data, n_threads=n_threads)
+        return tf.accounting(data, n_threads=n_threads)
 
     tool.__name__ = "last"
-    runs = ls.batch(tool, tiles, tmp_path / "out", n_workers=1)
+    runs = tf.batch(tool, tiles, tmp_path / "out", n_workers=1)
     assert len(runs) == 5 and all(r.ok for r in runs)

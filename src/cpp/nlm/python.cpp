@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the neutral landscape models (landschaft._core.nlm_*).
+// Python bindings of the neutral landscape models (terraflux._core.nlm_*).
 
 #include "nlm/python.hpp"
 

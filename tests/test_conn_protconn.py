@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
 gpd = pytest.importorskip("geopandas")
 shapely = pytest.importorskip("shapely")
@@ -51,7 +51,7 @@ def _mk_nodes(case: str):
 def test_formulas_on_makurhini_nodes(case, region, dists, tb, ttype, bound):
     nodes, m, la, pieces, raw = _mk_nodes(case)
     for d in dists:
-        ours = ls.conn.protconn_indicators(nodes, m, distance=d, la=la, pieces=pieces)
+        ours = tf.conn.protconn_indicators(nodes, m, distance=d, la=la, pieces=pieces)
         for _, row in raw[raw["extra"] == d].iterrows():
             v = _value(row["value"])
             key = RAW_NAMES.get(row["name"], row["name"])
@@ -65,13 +65,13 @@ def test_formulas_on_makurhini_nodes(case, region, dists, tb, ttype, bound):
 def test_end_to_end(case, region, dists, tb, ttype, bound):
     area = REGIONS[REGIONS["id"] == region]
     nodes, _, la, pieces, raw = _mk_nodes(case)
-    prep = ls.conn.protconn_nodes(PAS, area, transboundary=tb, transboundary_type=ttype, bound=bound,
+    prep = tf.conn.protconn_nodes(PAS, area, transboundary=tb, transboundary_type=ttype, bound=bound,
                                   area_unit="ha")
     assert sorted(prep.nodes["type"]) == sorted(nodes["type"])
     np.testing.assert_allclose(np.sort(prep.nodes["attribute"]), np.sort(nodes["attribute"]), rtol=1e-13)
     np.testing.assert_allclose(np.sort(prep.pieces), np.sort(pieces), rtol=1e-13)
     assert prep.la == pytest.approx(la, rel=1e-15)
-    table, delta = ls.conn.protconn(PAS, area, distance=dists, transboundary=tb, transboundary_type=ttype,
+    table, delta = tf.conn.protconn(PAS, area, distance=dists, transboundary=tb, transboundary_type=ttype,
                                     bound=bound, area_unit="ha", delta=True)
     sub = MK[MK["case"] == case]
     for d in dists:
@@ -96,20 +96,20 @@ def test_end_to_end(case, region, dists, tb, ttype, bound):
 
 
 def test_regions_and_weights():
-    rows = ls.conn.protconn_regions(PAS, REGIONS, id="id", distance=[2000.0], area_unit="ha")
+    rows = tf.conn.protconn_regions(PAS, REGIONS, id="id", distance=[2000.0], area_unit="ha")
     assert list(rows["region"]) == [1, 2]
-    one = ls.conn.protconn(PAS, REGIONS[REGIONS["id"] == 2], distance=[2000.0], area_unit="ha")
+    one = tf.conn.protconn(PAS, REGIONS[REGIONS["id"] == 2], distance=[2000.0], area_unit="ha")
     pd.testing.assert_series_equal(rows.iloc[1].drop("region"), one.iloc[0], check_names=False)
     # Weight 0: transboundary nodes are stepping stones only; the ECA is a graph's EC(PC).
     area = REGIONS[REGIONS["id"] == 1]
-    prep = ls.conn.protconn_nodes(PAS, area, transboundary=3000.0, area_unit="ha")
+    prep = tf.conn.protconn_nodes(PAS, area, transboundary=3000.0, area_unit="ha")
     m = np.array([[shapely.distance(a, b) for b in prep.nodes.geometry] for a in prep.nodes.geometry])
-    zero = ls.conn.protconn_indicators(prep.nodes, m, distance=2000.0, la=prep.la, transboundary_weight=0.0)
+    zero = tf.conn.protconn_indicators(prep.nodes, m, distance=2000.0, la=prep.la, transboundary_weight=0.0)
     i, j = np.triu_indices(len(m), 1)
-    g = ls.HabitatGraph(prep.nodes["attribute"].to_numpy(), pd.DataFrame({"a": i + 1, "b": j + 1, "d": m[i, j]}))
+    g = tf.HabitatGraph(prep.nodes["attribute"].to_numpy(), pd.DataFrame({"a": i + 1, "b": j + 1, "d": m[i, j]}))
     ec = g.overall("PC", distance=2000.0, pij_min=0.0).iloc[0]["EC(PC)"]
     assert zero["ECA"] == pytest.approx(ec, rel=1e-12)
-    one_w = ls.conn.protconn_indicators(prep.nodes, m, distance=2000.0, la=prep.la)
+    one_w = tf.conn.protconn_indicators(prep.nodes, m, distance=2000.0, la=prep.la)
     assert one_w["ECA"] > zero["ECA"]
 
 
@@ -117,11 +117,11 @@ def test_single_and_empty_regions():
     region = gpd.GeoDataFrame(geometry=[shapely.box(0, 0, 1000, 1000)], crs=PAS.crs)
     pa = gpd.GeoDataFrame(geometry=[shapely.box(100, 100, 300, 400), shapely.box(5000, 5000, 5100, 5100)],
                           crs=PAS.crs)
-    one = ls.conn.protconn(pa, region, distance=[500.0]).iloc[0]
+    one = tf.conn.protconn(pa, region, distance=[500.0]).iloc[0]
     assert one["ProtConn"] == pytest.approx(100 * 200 * 300 / 1e6)
     assert one["PC"] == pytest.approx(200 * 300 / 1e12)  # MK's single-node branch: area / LA^2
     assert one["ProtConn_Prot"] == 100 and np.isnan(one["ProtConn_Trans"])
-    none = ls.conn.protconn(pa.iloc[[1]], region, distance=[500.0]).iloc[0]
+    none = tf.conn.protconn(pa.iloc[[1]], region, distance=[500.0]).iloc[0]
     assert none["ProtConn"] == 0 and none["Unprotected"] == 100
     with pytest.raises(ValueError, match="transboundary_type"):
-        ls.conn.protconn(pa, region, distance=[500.0], transboundary=10.0, transboundary_type="x")
+        tf.conn.protconn(pa, region, distance=[500.0], transboundary=10.0, transboundary_type="x")

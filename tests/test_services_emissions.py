@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.services.emissions: the carbon of land change, against sums done by hand (Terraflux's carbon.emissions
+"""tf.services.emissions: the carbon of land change, against sums done by hand (Terraflux's carbon.emissions
 tests: a forest kept, a forest cleared, a pasture left to regrow and a secondary forest of unknown age turned to
 forest)."""
 
@@ -13,7 +13,7 @@ import rioxarray  # noqa: F401
 import xarray as xr
 from affine import Affine
 
-import landschaft as ls
+import terraflux as tf
 
 # four cells of a hectare at 2000, 2010 and 2020: 1 forest (100 tC/ha), 2 pasture (10), 3 secondary forest
 LAYERS = [[[1, 1], [2, 3]], [[1, 2], [3, 3]], [[1, 2], [3, 1]]]
@@ -33,7 +33,7 @@ def _row(t, year, a, b):
 
 def test_emissions_and_removals_by_hand():
     regrowth = 80.0 * (1.0 - math.exp(-0.1 * 10.0))
-    e = ls.services.emissions(_maps(), {1: 100, 2: 10, 3: 40}, regrowth={3: {"max": 80, "rate": 0.1}}, co2=False)
+    e = tf.services.emissions(_maps(), {1: 100, 2: 10, 3: 40}, regrowth={3: {"max": 80, "rate": 0.1}}, co2=False)
     p = e.periods
     assert p[["year_from", "year_to"]].values.tolist() == [[2000, 2010], [2010, 2020]]
     # 2000-2010: the forest cleared (90) and the pasture's 10 lost when it turned to young regrowth
@@ -59,7 +59,7 @@ def test_emissions_and_removals_by_hand():
 
 
 def test_co2_and_linear_regrowth():
-    e = ls.services.emissions(_maps(), {1: 100, 2: 10, 3: 40},
+    e = tf.services.emissions(_maps(), {1: 100, 2: 10, 3: 40},
                               regrowth={3: {"max": 80, "rate": 3, "form": "linear"}})
     assert e.periods["emissions"][0] == pytest.approx(100.0 * 44.0 / 12.0, rel=1e-12)
     assert e.periods["removals"][1] == pytest.approx((30.0 + 60.0) * 44.0 / 12.0, rel=1e-12)
@@ -70,7 +70,7 @@ def test_missing_cells_and_regrowth_shape():
     a = np.array([[1, 3], [np.nan, 1]])
     b = np.array([[3, 3], [3, np.nan]])
     c = np.array([[3, 3], [3, 3]])
-    e = ls.services.emissions([a, b, c], {1: 100}, regrowth={3: {"max": 80, "rate": 0.2, "shape": 2}},
+    e = tf.services.emissions([a, b, c], {1: 100}, regrowth={3: {"max": 80, "rate": 0.2, "shape": 2}},
                               times=[0, 5, 15], cell_area=10000, co2=False)
     s = e.stocks.values
     curve = lambda age: 80 * (1 - math.exp(-0.2 * age)) ** 2
@@ -85,12 +85,12 @@ def test_missing_cells_and_regrowth_shape():
 
 def test_errors():
     with pytest.raises(ValueError, match="class 2 has no stock"):
-        ls.services.emissions([np.ones((2, 2)), np.full((2, 2), 2)], {1: 10})
+        tf.services.emissions([np.ones((2, 2)), np.full((2, 2), 2)], {1: 10})
     with pytest.raises(ValueError, match="form"):
-        ls.services.emissions([np.ones((2, 2)), np.ones((2, 2))], {1: 10},
+        tf.services.emissions([np.ones((2, 2)), np.ones((2, 2))], {1: 10},
                               regrowth={1: {"max": 1, "rate": 1, "form": "logistic"}})
     with pytest.raises(ValueError, match="two maps"):
-        ls.services.emissions([np.ones((2, 2))], {1: 10})
+        tf.services.emissions([np.ones((2, 2))], {1: 10})
 
 
 def test_threads_do_not_change_the_sums():
@@ -98,9 +98,9 @@ def test_threads_do_not_change_the_sums():
     maps = [rng.integers(1, 5, size=(300, 400)) for _ in range(4)]
     stock = {1: 120.5, 2: 10.25, 3: 33.3, 4: 0.7}
     r = {3: {"max": 90, "rate": 0.07, "shape": 1.3}}
-    one = ls.services.emissions(maps, stock, regrowth=r, times=[2000, 2005, 2012, 2020], cell_area=900,
+    one = tf.services.emissions(maps, stock, regrowth=r, times=[2000, 2005, 2012, 2020], cell_area=900,
                                 n_threads=1)
-    two = ls.services.emissions(maps, stock, regrowth=r, times=[2000, 2005, 2012, 2020], cell_area=900,
+    two = tf.services.emissions(maps, stock, regrowth=r, times=[2000, 2005, 2012, 2020], cell_area=900,
                                 n_threads=2)
     assert one.periods.equals(two.periods) and one.transitions.equals(two.transitions)
     assert np.array_equal(one.net.values, two.net.values, equal_nan=True)

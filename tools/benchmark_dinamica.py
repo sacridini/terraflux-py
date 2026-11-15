@@ -7,7 +7,7 @@ Usage::
 
 The process (and Dinamica, its child) is pinned to the given cores and both
 sides use as many threads (Dinamica's ``-processors``). Dinamica's time is
-the functor's own, from its log; Landschaft's the best of ``reps`` calls.
+the functor's own, from its log; Terraflux's the best of ``reps`` calls.
 Prints a Markdown table.
 """
 
@@ -73,10 +73,10 @@ def main() -> None:
     import psutil
 
     psutil.Process().cpu_affinity(cores)
-    import landschaft as ls
+    import terraflux as tf
 
-    ls.set_default_threads(len(cores))
-    S = ls.simulate
+    tf.set_default_threads(len(cores))
+    S = tf.simulate
     rng = np.random.default_rng(0)
     rows = []
 
@@ -88,7 +88,7 @@ def main() -> None:
                  '  a := CalcInteractionPotentialMap s .none 2 .float32 .default;\n  SaveMap a "a.tif";\n}};\n',
                  "Calc Interaction Potential Map", len(cores))
     rows.append(("Gravity potential, 1000 × 1000, 1000 sources", d,
-                 best(lambda: ls.surface.gravity(src, 2.0), a.reps)))
+                 best(lambda: tf.surface.gravity(src, 2.0), a.reps)))
 
     n = 3000
     stock, prob = grid(rng.random((n, n)) * 200), grid(rng.random((n, n)))
@@ -111,7 +111,7 @@ def main() -> None:
     rows.append(("Cost surface to a road network, 3000 × 3000 (passes until exact)", d,
                  best(lambda: S.friction_cost(net, fr), a.reps)))
 
-    print(f"| Task | Dinamica EGO {se.dinamica_version()} | Landschaft {ls.__version__} |")
+    print(f"| Task | Dinamica EGO {se.dinamica_version()} | Terraflux {tf.__version__} |")
     print("|---|---|---|")
     for task, d, o in rows:
         print(f"| {task} | {d:.3g} s | {o:.3g} s |")

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate src/landschaft/hydro/swat/_tables.py: the columns and units of the tables
+"""Generate src/terraflux/hydro/swat/_tables.py: the columns and units of the tables
 SWAT+ prints (the *_header and *_header_units types of its output modules, as
-src/cpp/swat/modules.hpp keeps them), for ls.hydro.swat's results.
+src/cpp/swat/modules.hpp keeps them), for tf.hydro.swat's results.
 
     python tools/swat/tables2py.py
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULES = ROOT / "src" / "cpp" / "swat" / "modules.hpp"
-OUT = ROOT / "src" / "landschaft" / "hydro" / "swat" / "_tables.py"
+OUT = ROOT / "src" / "terraflux" / "hydro" / "swat" / "_tables.py"
 KEYS = 7  # jday mon day yr unit gis_id name
 
 

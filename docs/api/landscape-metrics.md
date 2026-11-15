@@ -6,7 +6,7 @@ utilities. Tutorial: [landscape metrics](../tutorials/landscape-metrics.md).
 
 ## Metrics of a map
 
-::: landschaft.Landscape
+::: terraflux.Landscape
     options:
       members:
         - patch_metrics
@@ -33,65 +33,65 @@ utilities. Tutorial: [landscape metrics](../tutorials/landscape-metrics.md).
         - show_cores
         - show_lsm
 
-::: landschaft.landscape_metrics
+::: terraflux.landscape_metrics
 
-::: landschaft.list_metrics
+::: terraflux.list_metrics
 
 ## Plots, windows and zones
 
-::: landschaft.sample_metrics
+::: terraflux.sample_metrics
 
-::: landschaft.scale_sample
+::: terraflux.scale_sample
 
-::: landschaft.extract_metrics
+::: terraflux.extract_metrics
 
-::: landschaft.window_metrics
+::: terraflux.window_metrics
 
-::: landschaft.zonal_metrics
+::: terraflux.zonal_metrics
 
-::: landschaft.grid_zones
+::: terraflux.grid_zones
 
 Metric tables (and zonal metrics as GeoDataFrames) are written with
-[`ls.write_table`](data.md#landschaft.write_table) or [`ls.save`](data.md#landschaft.save).
+[`tf.write_table`](data.md#terraflux.write_table) or [`tf.save`](data.md#terraflux.save).
 
 ## Time series and spatial signatures
 
-::: landschaft.SpatioTemporalAnalysis
+::: terraflux.SpatioTemporalAnalysis
 
-::: landschaft.SpatialSignatureAnalysis
+::: terraflux.SpatialSignatureAnalysis
 
-::: landschaft.lsm.PCAResult
+::: terraflux.lsm.PCAResult
     options:
       show_root_full_path: false
 
-::: landschaft.lsm.NMFResult
+::: terraflux.lsm.NMFResult
 
-::: landschaft.lsm.ClustergramResult
+::: terraflux.lsm.ClustergramResult
 
 ## Plots
 
-::: landschaft.show_patches
+::: terraflux.show_patches
 
-::: landschaft.show_cores
+::: terraflux.show_cores
 
-::: landschaft.show_lsm
+::: terraflux.show_lsm
 
-::: landschaft.show_correlation
+::: terraflux.show_correlation
 
 ## Utilities
 
-::: landschaft.check_landscape
+::: terraflux.check_landscape
 
-::: landschaft.calculate_correlation
+::: terraflux.calculate_correlation
 
-::: landschaft.raster_boundaries
+::: terraflux.raster_boundaries
 
-::: landschaft.construct_buffer
+::: terraflux.construct_buffer
 
-::: landschaft.pad_raster
+::: terraflux.pad_raster
 
-::: landschaft.unpad_raster
+::: terraflux.unpad_raster
 
-::: landschaft.raster_to_points
+::: terraflux.raster_to_points
 
-::: landschaft.get_unique_values
+::: terraflux.get_unique_values

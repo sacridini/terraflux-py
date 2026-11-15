@@ -10,10 +10,10 @@ import pandas as pd
 import pytest
 from optimize_reference import result
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 def _bits(a, b):
@@ -112,8 +112,8 @@ def test_targets_and_errors():
     g = irr.gamma.values.ravel()[u.index]
     assert ((b >= 0) & (b <= 1)).all() and (g >= b).all()
     assert "ProxIRR(" in repr(irr)
-    assert "Plot" in repr(ls.plot(irr))
-    assert "Plot" in repr(ls.plot(P.eval_proxirr_marxan(oc.marxan_pu(), oc.marxan_spec(), oc.marxan_puvspr())))
+    assert "Plot" in repr(tf.plot(irr))
+    assert "Plot" in repr(tf.plot(P.eval_proxirr_marxan(oc.marxan_pu(), oc.marxan_spec(), oc.marxan_puvspr())))
     with pytest.raises(ValueError, match="needs targets"):
         P.eval_proxirr(P.problem(oc.pu_cost(), oc.features()))
     with pytest.raises(ValueError, match="no targets"):

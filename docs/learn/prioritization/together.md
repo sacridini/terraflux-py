@@ -2,9 +2,9 @@
 
 # Ranking and optimization together
 
-Zonation ([chapter 12.3](ranking.md)) and the optimization of `ls.prioritize`
+Zonation ([chapter 12.3](ranking.md)) and the optimization of `tf.prioritize`
 ([chapter 12.4](optimization.md)) are often presented as rival schools. They answer different questions, and
-in Landschaft they work on the same data. This chapter compares their answers on the same problem, shows how
+in Terraflux they work on the same data. This chapter compares their answers on the same problem, shows how
 each can feed the other, brings in species distribution models as features, and ends with what to do when
 a problem is too large.
 
@@ -22,11 +22,11 @@ optimized plan, and compares the two:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 p = (P.problem(cost, features).add_min_set_objective().add_relative_targets(0.3)
        .add_binary_decisions().add_highs_solver(gap=0.001))
 sol = p.solve()
@@ -69,7 +69,7 @@ returns the features in their own units, ready for an optimization problem. Here
 feature is weighted by its condition, so that degraded habitat counts for less:
 
 ```python
-condition = ls.load_raster(P.example_data("condition"))
+condition = tf.load_raster(P.example_data("condition"))
 good = P.zonation_features(features, condition=[condition] * 8)
 pc = (P.problem(cost, good).add_min_set_objective().add_relative_targets(0.3)
         .add_binary_decisions().add_highs_solver(gap=0.001))
@@ -87,7 +87,7 @@ weighted, the plan moves away from degraded land: 689 cells are in both plans, 1
 60 only in the one with condition.</figcaption>
 </figure>
 
-The same works with `connectivity=[ls.prioritize.Kernel("negexp", 3)] * 8` (habitat valued by the habitat
+The same works with `connectivity=[tf.prioritize.Kernel("negexp", 3)] * 8` (habitat valued by the habitat
 around it, [chapter 12.3](ranking.md#connectivity-and-persistence)) and the other transforms of `zonation`.
 
 ## A ranking as a starting point
@@ -107,12 +107,12 @@ large), it gives the solver a good plan to improve from the first moment.
 ## Species distribution models as features
 
 Features are often the predictions of species distribution models ([chapter 13](../sdm.md)).
-`sdm_features` turns fitted `ls.sdm` models into a feature stack: the predicted suitability, or presence and
+`sdm_features` turns fitted `tf.sdm` models into a feature stack: the predicted suitability, or presence and
 absence with a threshold.
 
 <!-- no-run -->
 ```python
-results = {"species_a": res_a, "species_b": res_b}          # ls.sdm.fit results
+results = {"species_a": res_a, "species_b": res_b}          # tf.sdm.fit results
 feats = P.sdm_features(results, env, threshold="max_tss")    # 1 where present, 0 elsewhere
 p = P.problem(cost, feats).add_min_set_objective().add_relative_targets(0.3).add_binary_decisions()
 ```
@@ -127,7 +127,7 @@ Serra Verde has 4825 planning units. National and continental plans have million
 
 | Problem | What to expect |
 |---|---|
-| minimum set and budget objectives | millions of cells: Landschaft's covering engine solves a minimum set of 10 million cells in about a minute |
+| minimum set and budget objectives | millions of cells: Terraflux's covering engine solves a minimum set of 10 million cells in about a minute |
 | boundary and connectivity penalties | hundreds of thousands of cells, with a modest gap (1-5 %) |
 | multi-action plans | hundreds of thousands of units to a 1 % gap in seconds |
 | contiguity and corridors | thousands of units |

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What numpy's sampling and R's mapaccuracy (0.1.2) give for a sample of a classified map, for landschaft's tests
+"""What numpy's sampling and R's mapaccuracy (0.1.2) give for a sample of a classified map, for terraflux's tests
 (the same file as Terraflux's), written to tests/data/reference/accuracy/accuracy.json:
 
     python tools/make_reference_accuracy.py
 
 A map of four classes (60 x 80 cells of 30 m, a few missing): a stratified random sample drawn as
-`ls.accuracy.sample` draws it (numpy's default_rng(seed).choice of each class's cells, class after class), reference
+`tf.accuracy.sample` draws it (numpy's default_rng(seed).choice of each class's cells, class after class), reference
 classes made up for it, and a map of three strata of its own. R's `olofsson` (the strata are the map's classes)
 and `stehman2014` (the map's classes as strata, and the strata of their own) on it; and `olofsson` on the
 published example of Olofsson et al. (2014, table 8). Needs R with mapaccuracy (Rscript on the PATH or in

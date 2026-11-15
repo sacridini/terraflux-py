@@ -13,16 +13,16 @@ import pandas as pd
 import pytest
 from optimize_reference import result
 
-import landschaft as ls
+import terraflux as tf
 
 
 def _raster():
-    return ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
+    return tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
         .add_relative_targets(0.3)
 
 
 def _table():
-    return ls.prioritize.problem(optimize_cases.pu_table(), optimize_cases.FEATURES, cost_column="cost") \
+    return tf.prioritize.problem(optimize_cases.pu_table(), optimize_cases.FEATURES, cost_column="cost") \
         .add_min_set_objective().add_relative_targets(0.3)
 
 
@@ -61,7 +61,7 @@ def test_locked_status_and_table_column():
     p = _table().add_binary_decisions()
     t = optimize_cases.pu_table()
     t["status"] = np.where(np.arange(len(t)) % 9 == 0, 1.0, np.where(np.arange(len(t)) % 9 == 4, 0.0, np.nan))
-    q = ls.prioritize.problem(t, optimize_cases.FEATURES, cost_column="cost").add_min_set_objective() \
+    q = tf.prioritize.problem(t, optimize_cases.FEATURES, cost_column="cost").add_min_set_objective() \
         .add_relative_targets(0.3).add_binary_decisions()
     m = q.add_manual_locked_constraints(status="status").compile()
     d = pd.DataFrame({"pu": np.flatnonzero(np.isfinite(t["status"])) + 1.0, "status": t["status"].dropna()})
@@ -134,7 +134,7 @@ def test_proportion_bounds_hold_on_every_engine():
     n = p.units.n
     lo, hi = np.full(n, np.nan), np.full(n, np.nan)
     lo[[2, 40, 90]], hi[[2, 40, 90]] = [0.3, 0.5, 0.0], [0.6, 0.5, 0.2]
-    for q in (p, ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
+    for q in (p, tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
               .add_max_utility_objective(2500).add_proportion_decisions()):
         s = q.add_manual_bounded_constraints(lower=lo, upper=hi).add_highs_solver(gap=0).solve()
         k = np.isfinite(lo)
@@ -169,5 +169,5 @@ def test_tools_read_the_bounds():
     np.testing.assert_array_equal(lb, m.lb[:p.units.n])
     np.testing.assert_array_equal(ub, m.ub[:p.units.n])
     fixed = float(p.units.cost @ lb)
-    front = ls.prioritize.pareto_front(q, n=3)
+    front = tf.prioritize.pareto_front(q, n=3)
     assert front.table["value"].iloc[0] > fixed

@@ -59,7 +59,7 @@ filter before thresholding):
 import numpy as np
 import pandas as pd
 from scipy import ndimage
-import landschaft as ls
+import terraflux as tf
 
 rng = np.random.default_rng(7)
 noise = rng.random((400, 400))
@@ -76,7 +76,7 @@ maps = {
     "very clumped": habitat_map(ndimage.gaussian_filter(noise, 10), 0.3),
 }
 summary = {
-    name: ls.Landscape(m, res=25).class_metrics(["pland", "np", "area_mn", "lpi", "ed"])
+    name: tf.Landscape(m, res=25).class_metrics(["pland", "np", "area_mn", "lpi", "ed"])
           .set_index("class").loc[2]
     for name, m in maps.items()
 }
@@ -131,7 +131,7 @@ for p in [0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.8]:
     random_map = np.where(rng.random((300, 300)) < p, 2, 1).astype("uint8")
     row = {"habitat_%": 100 * p}
     for directions in (4, 8):
-        largest = ls.Landscape(random_map, directions=directions).class_metrics(["lpi"])
+        largest = tf.Landscape(random_map, directions=directions).class_metrics(["lpi"])
         row[f"largest patch, {directions} neighbours (%)"] = largest.set_index("class").loc[2, "lpi"]
     rows.append(row)
 
@@ -156,8 +156,8 @@ Three lessons carry over to real landscapes:
    at lower amounts, as the neutral maps above suggested. Neutral models are
    a baseline, not a prediction.
 
-!!! tip "Neutral landscapes in Landschaft"
-    `ls.nlm` simulates the classic neutral landscape models (random maps,
+!!! tip "Neutral landscapes in Terraflux"
+    `tf.nlm` simulates the classic neutral landscape models (random maps,
     gradients, fractal surfaces, Gaussian fields, clusters, mosaics) and turns
     them into habitat maps of a chosen habitat share. The
     [neutral landscapes tutorial](../tutorials/neutral-landscapes.md) uses them
@@ -187,8 +187,8 @@ Its values are summarised in six classes: *intact* (100%), *interior*
 (10–40%) and *rare* (below 10%).
 
 ```python
-forest = ls.load_raster(ls.example_data("input"))
-density = ls.fad(forest, window_size=27)
+forest = tf.load_raster(tf.example_data("input"))
+density = tf.fad(forest, window_size=27)
 density.stats
 ```
 
@@ -202,7 +202,7 @@ A forest cell can be intact within 175 m and patchy within 6 km. The
 (7, 13, 27, 81 and 243 cells) and combines them (Vogt & Riitters, 2017):
 
 ```python
-multi = ls.fad_multiscale(forest)
+multi = tf.fad_multiscale(forest)
 multi.stats[["observation_scale", "intact_%", "interior_%", "patchy_%", "average_fad"]]
 ```
 
@@ -219,10 +219,10 @@ measure its **arrangement** in the window:
 
 | Measure | Question | Tool |
 |---|---|---|
-| area density (FAD) | how much of the neighbourhood is habitat? | `ls.fad`, `ls.fos(method="FAD")` |
-| edge density (FED) | how much habitat edge is in the neighbourhood? | `ls.fos(method="FED")` |
-| area clustering (FAC) | how aggregated is the habitat in the neighbourhood? | `ls.fos(method="FAC")`, `ls.clustering_fac` |
-| contagion (Pff) | if I am on habitat, how likely is my neighbour habitat? | `ls.contagion_pff` |
+| area density (FAD) | how much of the neighbourhood is habitat? | `tf.fad`, `tf.fos(method="FAD")` |
+| edge density (FED) | how much habitat edge is in the neighbourhood? | `tf.fos(method="FED")` |
+| area clustering (FAC) | how aggregated is the habitat in the neighbourhood? | `tf.fos(method="FAC")`, `tf.clustering_fac` |
+| contagion (Pff) | if I am on habitat, how likely is my neighbour habitat? | `tf.contagion_pff` |
 
 The pair of **density** (*P*<sub>f</sub>) and **contagion**
 (*P*<sub>ff</sub>) is the basis of the classic forest fragmentation model of
@@ -233,8 +233,8 @@ blocks.
 ### Continuous maps
 
 Not every landscape is well described as habitat versus non-habitat.
-Percent tree cover, for example, varies continuously. `ls.fos` accepts such
-**grayscale** maps (0–100%), and `ls.gray_spatial_convolution` computes the
+Percent tree cover, for example, varies continuously. `tf.fos` accepts such
+**grayscale** maps (0–100%), and `tf.gray_spatial_convolution` computes the
 mean, variability, diversity or contagion of any percentage map in a moving
 window: the [gradient view](landscape-ecology.md#patches-corridors-and-the-matrix)
 of landscape structure.
@@ -256,11 +256,11 @@ an example.
 
 | Question | Tool | Output |
 |---|---|---|
-| How much habitat surrounds every point, at one scale? | `ls.fad` | density map and six classes |
-| How does that change with the observation scale? | `ls.fad_multiscale` | one map per scale, statistics per scale |
-| Is habitat fragmented by edges or scattered, around every point? | `ls.fos` (FED, FAC), `ls.contagion_pff` | class maps |
-| What land uses surround the habitat? | `ls.landscape_mosaic` and its heatmap | 19 or 103 classes |
-| How disordered is the pattern overall? | `ls.spatial_entropy`, `ls.spatial_entropy_map` | an index or a map |
+| How much habitat surrounds every point, at one scale? | `tf.fad` | density map and six classes |
+| How does that change with the observation scale? | `tf.fad_multiscale` | one map per scale, statistics per scale |
+| Is habitat fragmented by edges or scattered, around every point? | `tf.fos` (FED, FAC), `tf.contagion_pff` | class maps |
+| What land uses surround the habitat? | `tf.landscape_mosaic` and its heatmap | 19 or 103 classes |
+| How disordered is the pattern overall? | `tf.spatial_entropy`, `tf.spatial_entropy_map` | an index or a map |
 | How many patches, how large and how isolated? | patch metrics, [chapter 5](metrics.md) | tables |
 | Which pixels are core, edge or corridor? | MSPA, [chapter 4](morphology.md) | class map |
 

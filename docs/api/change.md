@@ -7,32 +7,32 @@ landscape mosaics. Tutorial:
 
 All functions take the two dates on the same grid. The change of
 connectivity indices over time is in
-[`ls.conn.eca_change`](networks.md#landschaft.conn.eca_change).
+[`tf.conn.eca_change`](networks.md#terraflux.conn.eca_change).
 
 ## Habitat change
 
-::: landschaft.simple_change
+::: terraflux.simple_change
 
-::: landschaft.SimpleChangeResult
+::: terraflux.SimpleChangeResult
 
-::: landschaft.morphological_change
+::: terraflux.morphological_change
 
-::: landschaft.MorphologicalChangeResult
+::: terraflux.MorphologicalChangeResult
 
 ## Fragmentation change
 
-::: landschaft.fos_change
+::: terraflux.fos_change
 
-::: landschaft.FOSChangeResult
+::: terraflux.FOSChangeResult
 
-::: landschaft.fad_multiscale_change
+::: terraflux.fad_multiscale_change
 
-::: landschaft.FADMultiscaleChangeResult
+::: terraflux.FADMultiscaleChangeResult
 
-::: landschaft.FADChangeScale
+::: terraflux.FADChangeScale
 
 ## Landscape mosaic change
 
-::: landschaft.landscape_mosaic_change
+::: terraflux.landscape_mosaic_change
 
-::: landschaft.LMHeatmapChange
+::: terraflux.LMHeatmapChange

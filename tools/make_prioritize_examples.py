@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Write the example data of ls.prioritize (src/landschaft/prioritize/data): "Serra Verde", an imaginary
+"""Write the example data of tf.prioritize (src/terraflux/prioritize/data): "Serra Verde", an imaginary
 coastal region of 60 x 90 cells of 1 km (SIRGAS 2000 / UTM 23S) with mountains in the north-west, a
 coastal plain with three cities, two rivers, roads, eight conservation features, protected areas,
 habitat condition, regions, carbon and two threats; and, for restoration plans, the shares of six land-cover
@@ -20,9 +20,9 @@ import numpy as np
 import xarray as xr
 from scipy import ndimage
 
-import landschaft as ls
+import terraflux as tf
 
-OUT = Path(__file__).resolve().parents[1] / "src" / "landschaft" / "prioritize" / "data"
+OUT = Path(__file__).resolve().parents[1] / "src" / "terraflux" / "prioritize" / "data"
 ROWS, COLS, CELL = 60, 90, 1000.0
 CRS = "EPSG:31983"
 ORIGIN_X, ORIGIN_Y = 600000.0, 7500000.0
@@ -180,18 +180,18 @@ def main() -> None:
         "elevation": np.round(L["elevation"], 3),
     }
     for name, arr in write.items():
-        ls.write_raster(_grid(arr, land), OUT / f"{name}.tif")
-    ls.write_raster(_grid(np.stack(L["species"]), land, SPECIES), OUT / "features.tif")
-    ls.write_raster(_grid(np.stack([np.round(L["deforestation"], 3), np.round(L["fire"], 3)]), land,
+        tf.write_raster(_grid(arr, land), OUT / f"{name}.tif")
+    tf.write_raster(_grid(np.stack(L["species"]), land, SPECIES), OUT / "features.tif")
+    tf.write_raster(_grid(np.stack([np.round(L["deforestation"], 3), np.round(L["fire"], 3)]), land,
                           ["deforestation", "fire"]), OUT / "threats.tif")
     # the restoration tutorial
     R = build_restoration(L)
-    ls.write_raster(_grid(R["land_cover"], land, COVER), OUT / "land_cover.tif")
-    ls.write_raster(_grid(R["past_cover"], land, NATURAL), OUT / "past_cover.tif")
+    tf.write_raster(_grid(R["land_cover"], land, COVER), OUT / "land_cover.tif")
+    tf.write_raster(_grid(R["past_cover"], land, NATURAL), OUT / "past_cover.tif")
     for name in ("footprint", "ecoregions", "carbon_potential"):
-        ls.write_raster(_grid(R[name], land), OUT / f"{name}.tif")
+        tf.write_raster(_grid(R[name], land), OUT / f"{name}.tif")
     # rivers and roads as rasters (1 = present) for the maps of the documentation
-    ls.write_raster(_grid(np.stack([L["river"], L["roads"]]).astype(np.float32), land, ["rivers", "roads"]),
+    tf.write_raster(_grid(np.stack([L["river"], L["roads"]]).astype(np.float32), land, ["rivers", "roads"]),
                     OUT / "lines.tif")
     print(f"written to {OUT}: {sorted(p.name for p in OUT.glob('*.tif'))}")
 

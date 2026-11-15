@@ -16,7 +16,7 @@ made at some scale, chosen or not.
       example maps;
     - the scale of effect: the extent at which a landscape matters to an
       organism;
-    - how scale enters every tool of Landschaft, and practical rules for
+    - how scale enters every tool of Terraflux, and practical rules for
       choosing it.
 
 ## The components of scale
@@ -57,9 +57,9 @@ at least half of the block is forest.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input")).values   # 0 missing, 1 background, 2 forest
+forest = tf.load_raster(tf.example_data("input")).values   # 0 missing, 1 background, 2 forest
 
 
 def coarsen(habitat, k):
@@ -79,7 +79,7 @@ import pandas as pd
 rows = []
 for k in [1, 2, 4, 8, 16]:
     grain = 25 * k                                           # metres
-    metrics = ls.Landscape(coarsen(forest, k), res=grain).class_metrics(
+    metrics = tf.Landscape(coarsen(forest, k), res=grain).class_metrics(
         ["pland", "np", "area_mn", "ed"])
     rows.append(metrics[metrics["class"] == 2].assign(grain_m=grain))
 
@@ -122,16 +122,16 @@ top-level groups (artificial, agricultural, forest and semi-natural,
 wetlands, water):
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
-level1 = ls.reclassify(landcover, [(1, 12, 1),     # artificial surfaces
+landcover = tf.load_raster(tf.example_data("clc"))
+level1 = tf.reclassify(landcover, [(1, 12, 1),     # artificial surfaces
                                    (12, 23, 2),    # agricultural areas
                                    (23, 35, 3),    # forest and semi-natural areas
                                    (35, 40, 4),    # wetlands
                                    (40, 45, 5)])   # water
 
 compare = pd.concat({
-    "26 classes": ls.Landscape(landcover).landscape_metrics(["pr", "np", "shdi", "ed"]),
-    "5 classes": ls.Landscape(level1).landscape_metrics(["pr", "np", "shdi", "ed"]),
+    "26 classes": tf.Landscape(landcover).landscape_metrics(["pr", "np", "shdi", "ed"]),
+    "5 classes": tf.Landscape(level1).landscape_metrics(["pr", "np", "shdi", "ed"]),
 })
 compare.round(2)
 ```
@@ -151,7 +151,7 @@ kinds of landscape. Two effects are worth remembering:
 
 - **The map border truncates patches.** Patches cut by the edge of the map
   look smaller and have artificially straight boundaries. The smaller the
-  extent relative to the patches, the stronger the bias. Landschaft follows
+  extent relative to the patches, the stronger the bias. Terraflux follows
   the convention of FRAGSTATS and landscapemetrics: the map border is not
   counted as edge unless you ask (`count_boundary=True`).
 - **Rare classes need large extents.** Class-level metrics of a class with
@@ -179,19 +179,19 @@ Studies that choose one radius *a priori*, without testing, often miss the
 scale of effect and underestimate the effect of the landscape (Jackson &
 Fahrig, 2015).
 
-Landschaft computes the landscape side of such an analysis in one call. Here
+Terraflux computes the landscape side of such an analysis in one call. Here
 are three hypothetical sites, and the percentage of forest within circles of
 250 m to 4 km around each:
 
 ```python
-xmin, xmax, ymin, ymax = ls.Landscape(landcover).extent
+xmin, xmax, ymin, ymax = tf.Landscape(landcover).extent
 sites = np.array([[xmin + 12_000, ymin + 12_000],
                   [xmin + 25_000, ymin + 25_000],
                   [xmax - 12_000, ymax - 12_000]])
 radii = [250.0, 500.0, 1000.0, 2000.0, 4000.0]
 
-forest_lc = ls.reclassify(landcover, foreground=[23, 24, 25])
-plots = ls.scale_sample(forest_lc, sites, size=radii, shape="circle",
+forest_lc = tf.reclassify(landcover, foreground=[23, 24, 25])
+plots = tf.scale_sample(forest_lc, sites, size=radii, shape="circle",
                         what=["lsm_c_pland"], verbose=False)
 
 forest_share = (plots[plots["class"] == 2]
@@ -208,7 +208,7 @@ site 3 has three times more forest. With a response variable measured at
 each site (say, the abundance of a forest bird), you would correlate it with
 each column and keep the radius that explains it best.
 
-## Scale in the tools of Landschaft
+## Scale in the tools of Terraflux
 
 Almost every tool has a scale parameter. Most are counted in **cells**, so
 their meaning on the ground depends on the grain:

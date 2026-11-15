@@ -60,7 +60,7 @@ def circuitscape_test_dir() -> Path:
 
 
 def _read_output(path: Path) -> np.ndarray:
-    from landschaft.circuit.circuitscape import read_raster
+    from terraflux.circuit.circuitscape import read_raster
 
     if path.suffix in (".asc", ".tif"):
         return read_raster(path)[0]

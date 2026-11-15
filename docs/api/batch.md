@@ -3,85 +3,85 @@
 Many rasters at once, maps larger than memory, and tiled MSPA. Tutorial:
 [large data and batch processing](../tutorials/large-data.md).
 
-Most tools also accept a [`RasterCollection`](data.md#landschaft.RasterCollection)
-or a lazy stack directly (e.g. `ls.mspa(ls.load_raster("tiles/*.tif"),
-output_dir="out")`), and [`Landscape`](landscape-metrics.md#landschaft.Landscape)
+Most tools also accept a [`RasterCollection`](data.md#terraflux.RasterCollection)
+or a lazy stack directly (e.g. `tf.mspa(tf.load_raster("tiles/*.tif"),
+output_dir="out")`), and [`Landscape`](landscape-metrics.md#terraflux.Landscape)
 reads large maps in blocks (`block_rows`).
 
 ## Folders of rasters
 
-::: landschaft.batch
+::: terraflux.batch
 
-::: landschaft.mspa_batch
+::: terraflux.mspa_batch
 
-::: landschaft.BatchResult
+::: terraflux.BatchResult
 
-::: landschaft.batch_status
+::: terraflux.batch_status
 
-::: landschaft.batch.Stopped
+::: terraflux.batch.Stopped
 
 ### Tools of `batch`
 
-`ls.BATCH_TOOLS` lists the names `batch` accepts; any function taking a raster
+`tf.BATCH_TOOLS` lists the names `batch` accepts; any function taking a raster
 as its first argument works too.
 
 `accounting`, `clustering_fac`, `conefor_inputs`, `contagion_pff`, `contortion`, `distance_to_resistance`, `euclidean_distance`, `fad`, `fad_multiscale`, `fos`, `gray_spatial_convolution`, `gtn_components`, `gtn_importance`, `influence_zones`, `landscape_mosaic`, `landscape_mosaic_heatmap`, `landscape_mosaic_stats`, `mspa`, `parcellation`, `proximity`, `reclassify`, `restoration_status`, `spa`, `spatial_entropy`, `spatial_entropy_map`, `landscape_metrics`, `window_metrics`.
 
 ## Several computers
 
-`on=ls.helpers()` runs the tasks of `batch`, `mspa_batch`,
+`on=tf.helpers()` runs the tasks of `batch`, `mspa_batch`,
 `simulate.scenarios`, `simulate.calibrate`, `sdm.fit` (its cross-validation),
 `uncertainty.monte_carlo`, the trade-off calibrations and replacement importance
-of `ls.prioritize`, `parallel.map` and `parallel.tiled` on this computer and on
-the computers of its group running `landschaft worker`. Tutorial:
+of `tf.prioritize`, `parallel.map` and `parallel.tiled` on this computer and on
+the computers of its group running `terraflux-py worker`. Tutorial:
 [several computers](../tutorials/many-computers.md).
 
-::: landschaft.parallel.helpers
+::: terraflux.parallel.helpers
 
-::: landschaft.parallel.Helpers
+::: terraflux.parallel.Helpers
 
-::: landschaft.parallel.map
+::: terraflux.parallel.map
 
-::: landschaft.parallel.tiled
+::: terraflux.parallel.tiled
 
-::: landschaft.parallel.call
+::: terraflux.parallel.call
 
-::: landschaft.parallel.param
+::: terraflux.parallel.param
 
-`ls.parallel.TOOLS` lists the tools `map`, `tiled` and `monte_carlo` can run by name:
-the analyses of `ls` (`"fad"`, `"mspa"`, ...), `ls.surface` (`"surface.geomorphons"`),
-`ls.hydro`, `ls.services`, `ls.nlm` and `ls.circuit`.
+`tf.parallel.TOOLS` lists the tools `map`, `tiled` and `monte_carlo` can run by name:
+the analyses of `tf` (`"fad"`, `"mspa"`, ...), `tf.surface` (`"surface.geomorphons"`),
+`tf.hydro`, `tf.services`, `tf.nlm` and `tf.circuit`.
 
-::: landschaft.parallel.run_worker
+::: terraflux.parallel.run_worker
 
-::: landschaft.parallel.invite_helpers
+::: terraflux.parallel.invite_helpers
 
-::: landschaft.parallel.list_helpers
+::: terraflux.parallel.list_helpers
 
-::: landschaft.parallel.leave_group
+::: terraflux.parallel.leave_group
 
-::: landschaft.parallel.open_firewall
+::: terraflux.parallel.open_firewall
 
-### The `landschaft` command
+### The `terraflux` command
 
 | Command | What it does |
 |---|---|
-| `landschaft helpers invite [--minutes 10]` | show a code with which other computers join this one's group |
-| `landschaft worker --join CODE` | join a group (the first time) and lend this computer |
-| `landschaft worker [--cores N] [--connect HOST[:PORT]] [--map SRC=DST] [--cache-gb 20]` | lend this computer until Ctrl+C |
-| `landschaft helpers list` | the helpers waiting for work on the local network |
-| `landschaft helpers firewall` | Windows: let helpers reach this computer (TCP 47811, UDP 47810, local subnet) |
-| `landschaft helpers leave` | take this computer out of its group |
-| `landschaft batch TOOL INPUTS OUTPUT [key=value ...] [--shard I/N\|array] [--requeue] [--workers N] [--threads-per-worker N] [--max-memory 16GB]` | `ls.batch` from the command line |
-| `landschaft status OUTPUT` | the rasters done, failed and left, and the job array tasks to submit again (exit code 3 while rasters are left) |
-| `landschaft slurm TOOL INPUTS OUTPUT --cpus 16 [--mem 32G] [--time 2:00:00] [--partition P] [--submit] [key=value ...]` | write (and submit) the Slurm job script that splits the batch among the tasks of a job array |
-| `landschaft fetch [sdm\|examples\|all]` | download beforehand what Landschaft downloads on first use |
-| `landschaft doctor [--no-network]` | what Landschaft finds on this computer: threads, job, cache, network, versions |
+| `terraflux-py helpers invite [--minutes 10]` | show a code with which other computers join this one's group |
+| `terraflux-py worker --join CODE` | join a group (the first time) and lend this computer |
+| `terraflux-py worker [--cores N] [--connect HOST[:PORT]] [--map SRC=DST] [--cache-gb 20]` | lend this computer until Ctrl+C |
+| `terraflux-py helpers list` | the helpers waiting for work on the local network |
+| `terraflux-py helpers firewall` | Windows: let helpers reach this computer (TCP 47811, UDP 47810, local subnet) |
+| `terraflux-py helpers leave` | take this computer out of its group |
+| `terraflux-py batch TOOL INPUTS OUTPUT [key=value ...] [--shard I/N\|array] [--requeue] [--workers N] [--threads-per-worker N] [--max-memory 16GB]` | `tf.batch` from the command line |
+| `terraflux-py status OUTPUT` | the rasters done, failed and left, and the job array tasks to submit again (exit code 3 while rasters are left) |
+| `terraflux-py slurm TOOL INPUTS OUTPUT --cpus 16 [--mem 32G] [--time 2:00:00] [--partition P] [--submit] [key=value ...]` | write (and submit) the Slurm job script that splits the batch among the tasks of a job array |
+| `terraflux-py fetch [sdm\|examples\|all]` | download beforehand what Terraflux downloads on first use |
+| `terraflux-py doctor [--no-network]` | what Terraflux finds on this computer: threads, job, cache, network, versions |
 
 On a cluster, see [on a cluster (HPC, Slurm)](../tutorials/hpc-slurm.md).
 
 ## Maps larger than memory
 
-::: landschaft.mspa_tiled
+::: terraflux.mspa_tiled
 
-::: landschaft.tile_layout
+::: terraflux.tile_layout

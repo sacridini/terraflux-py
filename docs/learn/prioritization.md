@@ -16,7 +16,7 @@ comes with a map, a chart and a few lines of code you can run.
 !!! abstract "In this chapter"
     - why "protect the richest places" fails, shown with a real experiment;
     - representation, complementarity, irreplaceability, efficiency and persistence;
-    - the four ways to set priorities, and the two families of methods in `ls.prioritize`;
+    - the four ways to set priorities, and the two families of methods in `tf.prioritize`;
     - what a prioritization produces, and what it is not;
     - a map of the chapters that follow.
 
@@ -57,7 +57,7 @@ the consequence: many species, especially those with small ranges, do not occur 
 4. **implement, manage and monitor**, and revise the plan as things change.
 
 Step 3, the choice of areas, is **spatial prioritization** (Moilanen et al. 2009), and it is what
-`ls.prioritize` does. [Chapter 12.10](prioritization/process.md) returns to the whole process: who takes
+`tf.prioritize` does. [Chapter 12.10](prioritization/process.md) returns to the whole process: who takes
 part, how goals are chosen, and how a map becomes action on the ground.
 
 ## Core ideas
@@ -80,7 +80,7 @@ sites and four species:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 sites = np.array([[1, 1, 0, 1],     # species 1 in sites A, B and D
                   [1, 1, 0, 0],     # species 2 in A and B
@@ -88,7 +88,7 @@ sites = np.array([[1, 1, 0, 1],     # species 1 in sites A, B and D
                   [0, 0, 1, 0]],    # species 4 only in C
                  dtype="float32")[:, None, :]
 print("species per site:", sites.sum(axis=0)[0])      # A, B, C, D
-res = ls.prioritize.zonation(sites)
+res = tf.prioritize.zonation(sites)
 print("rank:", np.asarray(res.rank)[0])               # 0 = least important
 ```
 
@@ -114,15 +114,15 @@ The goal is to protect **30 % of the habitat of each feature**. Two strategies s
 habitat maps), then select cells from the highest score down until the money runs out. Many "hotspot" maps
 follow this logic.
 
-**B. Optimize.** Ask `ls.prioritize` for the cheapest set of cells that meets every target, a *minimum-set*
+**B. Optimize.** Ask `tf.prioritize` for the cheapest set of cells that meets every target, a *minimum-set*
 problem ([chapter 12.4](prioritization/optimization.md)). Its cost becomes the budget of strategy A.
 
 ```python
 import xarray as xr
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 
 # B. the cheapest plan that holds 30 % of every feature
 p = (P.problem(cost, features)
@@ -176,9 +176,9 @@ about being stingy. Every dollar saved can protect something else, or make a pla
 
 ## Four ways to set priorities
 
-| Approach | Question it answers | In `ls.prioritize` |
+| Approach | Question it answers | In `tf.prioritize` |
 |---|---|---|
-| **Scoring** | Which places score highest on an index (richness, endemism, threat)? | not a method of its own: hotspot maps, `ls.bio` indices |
+| **Scoring** | Which places score highest on an index (richness, endemism, threat)? | not a method of its own: hotspot maps, `tf.bio` indices |
 | **Ranking** | In what order would we give up the landscape, keeping as much of everything for as long as possible? | `zonation` ([chapter 12.3](prioritization/ranking.md)) |
 | **Minimum set** | What is the cheapest set of areas that meets a target for every feature? | `add_min_set_objective` ([chapter 12.4](prioritization/optimization.md)) |
 | **Maximal coverage** | With this budget, what set of areas achieves the most? | `add_max_utility_objective`, `add_min_shortfall_objective`, ... |
@@ -199,7 +199,7 @@ together: a ranking to explore, an optimized plan to decide.
 
 ## What a prioritization produces
 
-Depending on how the problem is framed, `ls.prioritize` returns:
+Depending on how the problem is framed, `tf.prioritize` returns:
 
 - **a plan**: a map of the areas to select (1) or not (0), the most common output;
 - **a ranking**: a priority for every cell, with performance curves for every feature;
@@ -237,7 +237,7 @@ Spatial prioritization is used by governments, NGOs, companies and researchers w
 - **land-use planning**: balancing agriculture, water and biodiversity in watersheds and municipalities;
 - **threat management**: which threats to fight, where, to protect the most species (Cattarino et al. 2015).
 
-[Chapter 12.10](prioritization/process.md#recipes) shows how each of these is written with `ls.prioritize`.
+[Chapter 12.10](prioritization/process.md#recipes) shows how each of these is written with `tf.prioritize`.
 
 ## The chapters of this part
 

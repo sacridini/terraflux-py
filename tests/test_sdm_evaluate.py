@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.evaluate / boyce / omission_rate against predicts, ecospat (corrected) and ENMeval."""
+"""tf.sdm.evaluate / boyce / omission_rate against predicts, ecospat (corrected) and ENMeval."""
 
 from __future__ import annotations
 

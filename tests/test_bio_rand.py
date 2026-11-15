@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from bio_cases import BASEDATA_CASES, DATA, RAND_CASES, REFERENCE
 from conftest import same_bits
 
@@ -20,14 +20,14 @@ _BD: dict = {}
 def _basedata(name: str):
     if name not in _BD:
         case = BASEDATA_CASES[name]
-        kw = {k: v for k, v in case["landschaft"].items() if v is not None}
-        _BD[name] = ls.bio.BaseData.from_table(DATA / case["file"], **kw)
+        kw = {k: v for k, v in case["terraflux"].items() if v is not None}
+        _BD[name] = tf.bio.BaseData.from_table(DATA / case["file"], **kw)
     return _BD[name]
 
 
 def _run(name: str, **kw):
     case = RAND_CASES[name]
-    tree = ls.bio.read_tree(DATA / case["tree"]) if "tree" in case else None
+    tree = tf.bio.read_tree(DATA / case["tree"]) if "tree" in case else None
     bd = _basedata(case["basedata"])
     if case.get("group_props"):
         import copy
@@ -35,10 +35,10 @@ def _run(name: str, **kw):
         from bio_cases import GROUP_PROPS
 
         bd = copy.copy(bd)
-        bd.set_group_properties(ls.bio.read_properties(DATA / GROUP_PROPS["file"], GROUP_PROPS["element_columns"],
+        bd.set_group_properties(tf.bio.read_properties(DATA / GROUP_PROPS["file"], GROUP_PROPS["element_columns"],
                                                        GROUP_PROPS["properties"]))
-    res = ls.bio.spatial_analysis(bd, case["conditions"], case["calcs"], tree=tree)
-    return ls.bio.randomise(res, case["function"], case["iterations"], seed=case["seed"], name="rnd",
+    res = tf.bio.spatial_analysis(bd, case["conditions"], case["calcs"], tree=tree)
+    return tf.bio.randomise(res, case["function"], case["iterations"], seed=case["seed"], name="rnd",
                             **case.get("args", {}), **kw)
 
 
@@ -118,9 +118,9 @@ def test_randomisation_matches_biodiverse(reference, name):
 def test_randomisation_continues():
     a = _run("csr_circle")
     case = RAND_CASES["csr_circle"]
-    tree = ls.bio.read_tree(DATA / case["tree"])
-    res = ls.bio.spatial_analysis(_basedata(case["basedata"]), case["conditions"], case["calcs"], tree=tree)
-    b = ls.bio.randomise(res, case["function"], 4, seed=case["seed"], name="rnd")
+    tree = tf.bio.read_tree(DATA / case["tree"])
+    res = tf.bio.spatial_analysis(_basedata(case["basedata"]), case["conditions"], case["calcs"], tree=tree)
+    b = tf.bio.randomise(res, case["function"], 4, seed=case["seed"], name="rnd")
     b.run(case["iterations"] - 4)
     assert b.iterations == a.iterations
     np.testing.assert_array_equal(a.comparison().to_numpy(), b.comparison().to_numpy())
@@ -129,7 +129,7 @@ def test_randomisation_continues():
 def test_binomial_deviates_match_perl():
     # Math::Random::MT::Auto->new(seed => 77)->binomial(p, n), first three rounds
     cases = [(0.03, 10), (0.02, 30), (0.04, 100), (0.7, 50), (0.3, 200), (0.05, 1000), (0.5, 25)]
-    rng = ls._core.BioRandom(77)
+    rng = tf._core.BioRandom(77)
     got = [[rng.binomial(p, n) for p, n in cases] for _ in range(3)]
     assert got == [[0, 1, 2, 34, 72, 43, 16], [0, 1, 0, 39, 50, 47, 11], [1, 0, 5, 38, 60, 47, 11]]
 
@@ -137,10 +137,10 @@ def test_binomial_deviates_match_perl():
 @pytest.mark.parametrize("function", ["rand_structured", "rand_diffusion", "rand_curveball"])
 def test_pipelined_iterations_match_sequential(function):
     """Randomising the next iteration during the analysis changes nothing, also when continued."""
-    bd = ls.bio.BaseData.from_table(ls.bio.example_data("sites"), group_columns=["x", "y"],
+    bd = tf.bio.BaseData.from_table(tf.bio.example_data("sites"), group_columns=["x", "y"],
                                     label_columns=["genus", "species"], cell_sizes=[100000, 100000])
-    res = ls.bio.spatial_analysis(bd, "sp_circle (radius => 200000)", ["richness", "endemism_whole"])
-    one = ls.bio.randomise(res, function, iterations=6, seed=7, n_threads=1)
-    many = ls.bio.randomise(res, function, iterations=2, seed=7, n_threads=4).run(4, n_threads=4)
+    res = tf.bio.spatial_analysis(bd, "sp_circle (radius => 200000)", ["richness", "endemism_whole"])
+    one = tf.bio.randomise(res, function, iterations=6, seed=7, n_threads=1)
+    many = tf.bio.randomise(res, function, iterations=2, seed=7, n_threads=4).run(4, n_threads=4)
     assert many.iterations == 6
     pd.testing.assert_frame_equal(one.comparison(), many.comparison())

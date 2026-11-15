@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.hydro.swat HRUs (hru_control: snow, ET, curve number runoff, MUSLE, percolation,
+"""tf.hydro.swat HRUs (hru_control: snow, ET, curve number runoff, MUSLE, percolation,
 lateral flow, nutrients, plant growth, management) and the whole daily simulation against SWAT+
 62.0.1: the HRU balances of each day, and the routing fed by our own HRUs, as the
 reference dumps them (tools/make_reference_swat.py)."""
@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from landschaft import _core
+from terraflux import _core
 from conftest import assert_swat_close
 
 REF = Path(__file__).parent / "data" / "reference" / "swat"

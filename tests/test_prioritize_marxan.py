@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
 REF = Path(__file__).parent / "data" / "reference" / "optimize"
 
@@ -32,7 +32,7 @@ def _meta() -> dict:
 def _run(case: str, **kw):
     c = marxan_cases.CASES[case]
     pu, spec, puvspr, bound = marxan_cases.tables(c.status, c.spec)
-    return ls.prioritize.marxan(pu, spec, puvspr, bound, **{**c.options, **kw})
+    return tf.prioritize.marxan(pu, spec, puvspr, bound, **{**c.options, **kw})
 
 
 @pytest.mark.parametrize("case", list(marxan_cases.CASES))
@@ -70,10 +70,10 @@ def test_same_runs_on_any_threads():
 def test_marxan_inputs():
     pu, spec, puvspr, bound = marxan_cases.tables()
     with pytest.raises(ValueError, match="twice"):
-        ls.prioritize.marxan(pu, spec, pd.concat([puvspr, puvspr.head(1)]), bound)
+        tf.prioritize.marxan(pu, spec, pd.concat([puvspr, puvspr.head(1)]), bound)
     with pytest.raises(ValueError, match="not in pu"):
-        ls.prioritize.marxan(pu, spec, puvspr.assign(pu=puvspr["pu"] + 10_000), bound)
+        tf.prioritize.marxan(pu, spec, puvspr.assign(pu=puvspr["pu"] + 10_000), bound)
     with pytest.raises(ValueError, match="run modes"):
-        ls.prioritize.marxan(pu, spec, puvspr, bound, run_mode=3)
-    r = ls.prioritize.marxan(pu, spec, puvspr, bound, num_reps=2, num_iters=20_000, num_temp=100, seed=3)
+        tf.prioritize.marxan(pu, spec, puvspr, bound, run_mode=3)
+    r = tf.prioritize.marxan(pu, spec, puvspr, bound, num_reps=2, num_iters=20_000, num_temp=100, seed=3)
     assert len(r.summary) == 2 and set(r.frequency["frequency"]) <= {0.0, 0.5, 1.0}

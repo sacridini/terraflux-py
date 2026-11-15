@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Reference outputs of Circuitscape 6.1 / Omniscape 0.7 for landschaft's
+# Reference outputs of Circuitscape 6.1 / Omniscape 0.7 for terraflux's
 # circuit module; called by tools/make_reference_omniscape.py.
 #
 #   julia omniscape_reference.jl advanced <inputs.npz> <outputs.npz>

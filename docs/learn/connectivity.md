@@ -40,7 +40,7 @@ Structural connectivity is easy to map but says nothing on whether an
 organism actually moves; actual connectivity is what matters but is costly to
 measure and specific to a place and time. Most applied work uses
 **potential** connectivity: models that combine the map with a few,
-well-chosen facts about the species. All the connectivity tools of Landschaft
+well-chosen facts about the species. All the connectivity tools of Terraflux
 are of this kind. Their results are hypotheses about movement, to be tested
 with movement or genetic data when possible (Bélisle, 2005).
 
@@ -113,11 +113,11 @@ distance to the nearest forest in both ways:
 
 ```python
 from scipy import ndimage
-import landschaft as ls
+import terraflux as tf
 
-landcover = ls.load_raster(ls.example_data("clc"))[:800, :800]   # 20 x 20 km
+landcover = tf.load_raster(tf.example_data("clc"))[:800, :800]   # 20 x 20 km
 
-resistance = ls.reclassify(landcover, [(1, 12, 50.0),     # artificial surfaces
+resistance = tf.reclassify(landcover, [(1, 12, 50.0),     # artificial surfaces
                                        (12, 23, 10.0),    # agricultural areas
                                        (23, 35, 1.0),     # forest and semi-natural areas
                                        (35, 45, 100.0)],  # wetlands and water
@@ -125,7 +125,7 @@ resistance = ls.reclassify(landcover, [(1, 12, 50.0),     # artificial surfaces
 
 forest = np.isin(landcover.values, [23, 24, 25])
 euclidean_m = ndimage.distance_transform_edt(~forest) * 25          # metres
-cost_m = np.asarray(ls.cost_distance(resistance, forest)) * 25      # metres x resistance
+cost_m = np.asarray(tf.cost_distance(resistance, forest)) * 25      # metres x resistance
 ```
 
 `cost_distance` accumulates, along the cheapest route from the sources,

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.download without the network (Terraflux's tests of data.download and data.environment90m): the sources'
+"""tf.download without the network (Terraflux's tests of data.download and data.environment90m): the sources'
 paths, rasters warped onto a grid, tiles mosaicked, the cache, a STAC catalogue and Environment90m's tables served by
 fakes from local files. The downloads themselves with LANDSCHAFT_ONLINE_TESTS=1 (they read the servers)."""
 
@@ -14,8 +14,8 @@ import rasterio
 import xarray as xr
 from affine import Affine
 
-import landschaft as ls
-from landschaft import download as D
+import terraflux as tf
+from terraflux import download as D
 
 ONLINE = pytest.mark.skipif(os.environ.get("LANDSCHAFT_ONLINE_TESTS") != "1",
                             reason="downloads from the servers (LANDSCHAFT_ONLINE_TESTS=1)")
@@ -81,14 +81,14 @@ def test_the_sources_paths():
 def test_a_raster_warped_onto_a_grid(tmp_path, cache):
     # 20 x 10 cells of 1 degree, the value the column, onto cells of 2 degrees: the mean of two columns
     path = write(tmp_path / "columns.tif", np.tile(np.arange(20.0), (10, 1)), Affine(1, 0, -10, 0, -1, 5))
-    r = ls.download.raster(path, extent=(-10, -5, 10, 5), cellsize=2, resampling="average")
+    r = tf.download.raster(path, extent=(-10, -5, 10, 5), cellsize=2, resampling="average")
     assert r.shape == (5, 10) and r.name == "layer"
     assert r.values[0].tolist() == [0.5, 2.5, 4.5, 6.5, 8.5, 10.5, 12.5, 14.5, 16.5, 18.5]
     assert r.rio.crs.to_epsg() == 4326 and float(r.x[0]) == -9.0 and float(r.y[0]) == 4.0
     # onto a map's grid: its coordinates
     like = xr.DataArray(np.zeros((2, 4)), dims=("y", "x"), coords={"y": [2.5, -2.5], "x": [-7.5, -2.5, 2.5, 7.5]})
     like = like.rio.write_crs("EPSG:4326")
-    r = ls.download.raster(path, like, resampling="near")
+    r = tf.download.raster(path, like, resampling="near")
     assert r.shape == (2, 4) and (r.x == like.x).all() and (r.y == like.y).all()
     # in the cache: read again from it, not warped
     assert len(list(cache.glob("data/*/*.tif"))) == 2
@@ -97,22 +97,22 @@ def test_a_raster_warped_onto_a_grid(tmp_path, cache):
     D_warp = lambda *a, **k: calls.append(1) or real(*a, **k)
     try:
         D._warp = D_warp
-        again = ls.download.raster(path, like, resampling="near")
+        again = tf.download.raster(path, like, resampling="near")
         np.testing.assert_array_equal(again.values, r.values)
         assert not calls
         # a file changed: warped again
         write(path, np.tile(np.arange(20.0) * 2, (10, 1)), Affine(1, 0, -10, 0, -1, 5))
-        changed = ls.download.raster(path, like, resampling="near")
+        changed = tf.download.raster(path, like, resampling="near")
         assert calls and changed.values[0, 0] == 2 * r.values[0, 0]
     finally:
         D._warp = real
     # several: a band each
-    two = ls.download.raster([path, path], like, resampling="near")
+    two = tf.download.raster([path, path], like, resampling="near")
     assert two.dims == ("band", "y", "x") and list(two.band.values) == ["layer01", "layer02"]
     with pytest.raises(ValueError, match="extent and cellsize"):
-        ls.download.raster(path)
+        tf.download.raster(path)
     with pytest.raises(ValueError, match="resampling"):
-        ls.download.raster(path, like, resampling="nearest-ish")
+        tf.download.raster(path, like, resampling="nearest-ish")
 
 
 def test_tiles_are_mosaicked(tmp_path, monkeypatch):
@@ -126,12 +126,12 @@ def test_tiles_are_mosaicked(tmp_path, monkeypatch):
         return [a, b, str(tmp_path / "missing.tif")]
 
     monkeypatch.setattr(D, "_copernicus_tiles", tiles)
-    dem = ls.download.copernicus_dem(extent=(0.5, 0.5, 2.5, 1.0), cellsize=0.25, resampling="near")
+    dem = tf.download.copernicus_dem(extent=(0.5, 0.5, 2.5, 1.0), cellsize=0.25, resampling="near")
     assert seen["box"][0] == [0.5, 2.5] and seen["box"][1] == [0.5, 1.0]
     np.testing.assert_array_equal(dem.values[0], [100, 100, 200, 200, 200, 200, np.nan, np.nan])
     monkeypatch.setattr(D, "_copernicus_tiles", lambda *a: [str(tmp_path / "missing.tif")])
     with pytest.raises(ValueError, match="no tile"):
-        ls.download.copernicus_dem(extent=(0.5, 0.5, 2.5, 1.0), cellsize=0.25)
+        tf.download.copernicus_dem(extent=(0.5, 0.5, 2.5, 1.0), cellsize=0.25)
 
 
 def test_a_stac_catalogue(tmp_path, monkeypatch):
@@ -150,7 +150,7 @@ def test_a_stac_catalogue(tmp_path, monkeypatch):
     monkeypatch.setattr(D, "_post", post)
     monkeypatch.setattr(D, "_get", lambda url: {"features": items[2:], "links": []})
     kw = {"extent": (0, 0, 2, 2), "cellsize": 0.5, "resampling": "near"}
-    r = ls.download.stac("https://stac.example/v1", "s2", assets="red", datetime="2024-01-01/2024-12-31",
+    r = tf.download.stac("https://stac.example/v1", "s2", assets="red", datetime="2024-01-01/2024-12-31",
                          query={"eo:cloud_cover": {"lt": 20}}, **kw)
     url, body = bodies[0]
     assert url == "https://stac.example/v1/search"
@@ -163,14 +163,14 @@ def test_a_stac_catalogue(tmp_path, monkeypatch):
     assert r.attrs["items"] == ["i0", "i1", "i2", "i3"]
     # the median of 1, 2, 3 (and 4 where not clouded)
     assert r.values[0, 0] == 2.0 and r.values[3, 0] == 2.5
-    first = ls.download.stac("https://stac.example/v1", "s2", assets=["red"], composite="first", **kw)
+    first = tf.download.stac("https://stac.example/v1", "s2", assets=["red"], composite="first", **kw)
     assert (first.values == 1).all()
     signed = []
-    ls.download.stac("https://stac.example/v1", "s2", assets="red", composite="max", limit=3,
+    tf.download.stac("https://stac.example/v1", "s2", assets="red", composite="max", limit=3,
                      sign=lambda h: signed.append(h) or h, **kw)
     assert len(signed) == 3
     with pytest.raises(ValueError, match="asset"):
-        ls.download.stac("https://stac.example/v1", "s2", assets="nir", **kw)
+        tf.download.stac("https://stac.example/v1", "s2", assets="nir", **kw)
 
 
 def test_environment90m_tables(tmp_path, monkeypatch):
@@ -195,7 +195,7 @@ def test_environment90m_tables(tmp_path, monkeypatch):
         return z
 
     monkeypatch.setattr(D, "_env90m_file", fetch)
-    out = ls.download.environment90m(sub, "elev", stats=["mean", "sd"])
+    out = tf.download.environment90m(sub, "elev", stats=["mean", "sd"])
     t = out.table
     assert list(t.columns) == ["subcID", "elev_mean", "elev_sd"]
     assert t["subcID"].tolist() == [476322246, 476322247, 476322248]
@@ -204,9 +204,9 @@ def test_environment90m_tables(tmp_path, monkeypatch):
     assert m[0, 0] == 650.5 and m[0, 1] == 655.0 and np.isnan(m[1, 0]) and np.isnan(m[1, 1])
     assert out.map.name == "elev_mean"
     with pytest.raises(ValueError, match="not one of"):
-        ls.download.environment90m(sub, "elevation")
+        tf.download.environment90m(sub, "elevation")
     with pytest.raises(ValueError, match="statistic"):
-        ls.download.environment90m(sub, "elev", stats="median")
+        tf.download.environment90m(sub, "elev", stats="median")
 
 
 CAMPINAS = {"extent": (-47.2, -23.0, -46.8, -22.7), "cellsize": 0.01}
@@ -214,28 +214,28 @@ CAMPINAS = {"extent": (-47.2, -23.0, -46.8, -22.7), "cellsize": 0.01}
 
 @ONLINE
 def test_downloads_worldclim_and_chelsa():
-    w = ls.download.worldclim(layers=[1], **CAMPINAS)
+    w = tf.download.worldclim(layers=[1], **CAMPINAS)
     assert ((w.values > 10) & (w.values < 30)).all()
-    c = ls.download.chelsa(layers=[1, 12], **CAMPINAS)
+    c = tf.download.chelsa(layers=[1, 12], **CAMPINAS)
     assert list(c.band.values) == ["bio01", "bio12"] and np.isfinite(c.values).all()
 
 
 @ONLINE
 def test_downloads_copernicus_dem_soilgrids_mapbiomas():
-    d = ls.download.copernicus_dem(**CAMPINAS)
+    d = tf.download.copernicus_dem(**CAMPINAS)
     assert ((d.values > 400) & (d.values < 1300)).all()
-    s = ls.download.soilgrids(property="clay", depth=["0-5cm", "5-15cm"], **CAMPINAS)
+    s = tf.download.soilgrids(property="clay", depth=["0-5cm", "5-15cm"], **CAMPINAS)
     assert s.shape[0] == 2 and (s.values[0] > 0).any()
-    m = ls.download.mapbiomas(years=[2000, 2023], **CAMPINAS).values
+    m = tf.download.mapbiomas(years=[2000, 2023], **CAMPINAS).values
     ok = np.isfinite(m)
     assert ((m[ok] >= 0) & (m[ok] <= 75) & (m[ok] == np.round(m[ok]))).all()
 
 
 @ONLINE
 def test_downloads_hydrography90m_and_environment90m():
-    sub = ls.download.hydrography90m(**CAMPINAS)
+    sub = tf.download.hydrography90m(**CAMPINAS)
     v = sub.values[np.isfinite(sub.values)]
     assert (v > 0).all() and (v == np.round(v)).all() and len(np.unique(v)) > 20
-    out = ls.download.environment90m(sub, ["bio01_1981-2010_observed", "elev"], stats=["mean", "sd"])
+    out = tf.download.environment90m(sub, ["bio01_1981-2010_observed", "elev"], stats=["mean", "sd"])
     elev = out.table["elev_mean"].to_numpy()
     assert ((elev[np.isfinite(elev)] > 400) & (elev[np.isfinite(elev)] < 1300)).all()

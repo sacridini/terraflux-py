@@ -10,7 +10,7 @@ lateral flow, residue and nutrient cycling with the static carbon model, plant
 growth, scheduled operations and decision tables), routing units, 1-D aquifers
 and SWAT-DEG channels with variable storage or Muskingum routing, and the
 tables SWAT+ prints (by day, month, year and average annual). They live in the
-`ls.hydro.swat` module.
+`tf.hydro.swat` module.
 
 A model is a `SwatProject`: the files of a SWAT+ TxtInOut folder, read with
 `load_txtinout`, or made from the landscape. `watershed` divides a DEM with
@@ -33,58 +33,58 @@ infiltration, the CENTURY carbon model, water allocation...).
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-project = ls.hydro.swat.load_txtinout("my_model/TxtInOut")
-result = ls.hydro.swat.run(project, tables={"hru_ls": "aa", "channel_sd": "day"})
+project = tf.hydro.swat.load_txtinout("my_model/TxtInOut")
+result = tf.hydro.swat.run(project, tables={"hru_ls": "aa", "channel_sd": "day"})
 result.table("hru_ls", "aa")["sedyld"]          # t/ha per year of each HRU
 result.table("channel_sd", "day")["flo_out"]    # m3/s leaving each channel
 
-wx = ls.hydro.swat.climate(stations, pcp=pcp, tmax=tmax, tmin=tmin,
+wx = tf.hydro.swat.climate(stations, pcp=pcp, tmax=tmax, tmin=tmin,
                            monthly={"pcp_hhr": 15.0, "slr_ave": 14.0, "dew_ave": 5.0, "wnd_ave": 3.0})
-project = ls.hydro.swat.from_rasters(dem, landuse, soils, landuse_lookup=lu_codes, soil_lookup=soil_codes,
+project = tf.hydro.swat.from_rasters(dem, landuse, soils, landuse_lookup=lu_codes, soil_lookup=soil_codes,
                                      soil_table=usersoil, climate=wx, stream_threshold=2.0)
-erosion = ls.hydro.swat.hru_map(project, "sedyld")    # t/ha per year, on the DEM's grid
+erosion = tf.hydro.swat.hru_map(project, "sedyld")    # t/ha per year, on the DEM's grid
 ```
 
 ## Projects
 
-::: landschaft.hydro.swat.load_txtinout
+::: terraflux.hydro.swat.load_txtinout
 
-::: landschaft.hydro.swat.SwatProject
+::: terraflux.hydro.swat.SwatProject
 
 ## Simulation
 
-::: landschaft.hydro.swat.run
+::: terraflux.hydro.swat.run
 
-::: landschaft.hydro.swat.SwatResult
+::: terraflux.hydro.swat.SwatResult
 
 ## From the landscape
 
-::: landschaft.hydro.swat.watershed
+::: terraflux.hydro.swat.watershed
 
-::: landschaft.hydro.swat.SwatWatershed
+::: terraflux.hydro.swat.SwatWatershed
 
-::: landschaft.hydro.swat.from_tables
+::: terraflux.hydro.swat.from_tables
 
-::: landschaft.hydro.swat.from_rasters
+::: terraflux.hydro.swat.from_rasters
 
-::: landschaft.hydro.swat.load_qswat_project
+::: terraflux.hydro.swat.load_qswat_project
 
-::: landschaft.hydro.swat.example_landscape
+::: terraflux.hydro.swat.example_landscape
 
 ## Weather
 
-::: landschaft.hydro.swat.climate
+::: terraflux.hydro.swat.climate
 
-::: landschaft.hydro.swat.SwatClimate
+::: terraflux.hydro.swat.SwatClimate
 
-::: landschaft.hydro.swat.wgn_from_series
+::: terraflux.hydro.swat.wgn_from_series
 
 ## Results on the map
 
-::: landschaft.hydro.swat.hru_map
+::: terraflux.hydro.swat.hru_map
 
-::: landschaft.hydro.swat.channel_map
+::: terraflux.hydro.swat.channel_map
 
-::: landschaft.hydro.swat.reach_discharge
+::: terraflux.hydro.swat.reach_discharge

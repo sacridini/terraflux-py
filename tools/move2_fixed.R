@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# move2 0.5.0 with its errors corrected, the references ls.move is tested against.
+# move2 0.5.0 with its errors corrected, the references tf.move is tested against.
 #
 # mt_aeqd_crs: the centroid is transformed to EPSG:4236 (the Hu Tzu Shan 1950
 # datum, a typo for 4326), which moves the centre of the projection by about

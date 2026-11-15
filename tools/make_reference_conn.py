@@ -68,7 +68,7 @@ to add) (``LANDSCHAFT_CONEFOR_SRC``, default
 ``../Conefor Sensinode 2.2/src`` next to the repository) with g++ (Rtools:
 ``LANDSCHAFT_GXX_PATH``, default ``C:/rtools44``) and stores its indices and
 node importances for the synthetic scenes in ``conefor.csv.gz``. The
-test-suite compares landschaft against these files, so it runs without R or
+test-suite compares terraflux against these files, so it runs without R or
 Conefor.
 """
 

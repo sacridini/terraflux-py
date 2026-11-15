@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Allocation (ls.simulate phase 3): demand, rules, CLUE-S and the ordered procedure against lulcc."""
+"""Allocation (tf.simulate phase 3): demand, rules, CLUE-S and the ordered procedure against lulcc."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
-from landschaft.simulate._demand import _approx_extrap, _round_sum
-from landschaft.simulate._rules import allow_matrix, auto_convert
+import terraflux as tf
+from terraflux.simulate._demand import _approx_extrap, _round_sum
+from terraflux.simulate._rules import allow_matrix, auto_convert
 
 
 @pytest.mark.parametrize("case", simulate_reference.case_ids("allocation"))
@@ -44,20 +44,20 @@ def test_round_sum_keeps_the_total():
 
 
 def test_area_demand_table_and_array():
-    d = ls.simulate.AreaDemand(np.array([[5, 5], [4, 6], [3, 7]]), classes=[1, 2])
+    d = tf.simulate.AreaDemand(np.array([[5, 5], [4, 6], [3, 7]]), classes=[1, 2])
     assert d.steps == 2 and d.classes == [1, 2]
     np.testing.assert_array_equal(d.at(2, [2, 1]), [7, 3])
     np.testing.assert_array_equal(d.at(1, [1, 2, 9]), [4, 6, 0])
     assert repr(d) == "AreaDemand(2 steps, 2 classes)"
     with pytest.raises(ValueError, match="class of each column"):
-        ls.simulate.AreaDemand(np.ones((3, 2)))
+        tf.simulate.AreaDemand(np.ones((3, 2)))
     with pytest.raises(ValueError, match="at least"):
-        ls.simulate.AreaDemand(pd.DataFrame({1: [5]}))
+        tf.simulate.AreaDemand(pd.DataFrame({1: [5]}))
 
 
 def test_area_demand_from_maps_extrapolates():
     lu = simulate_cases.pie()
-    d = ls.simulate.AreaDemand.from_maps(lu, times=[0, 6, 14], out_times=range(21))
+    d = tf.simulate.AreaDemand.from_maps(lu, times=[0, 6, 14], out_times=range(21))
     assert d.steps == 20
     tab = d.table.to_numpy()
     n = int(np.sum(~np.isnan(lu[0].values)))
@@ -94,7 +94,7 @@ def test_auto_convert():
 
 def test_neighbourhood_threshold():
     land = np.array([[1, 1, 2], [1, 2, 2], [2, 2, 2]], dtype=float)
-    nb = ls.simulate.Neighbourhood({1: 0.5})
+    nb = tf.simulate.Neighbourhood({1: 0.5})
     a = nb.allow(land, [1, 2])
     frac = np.array([3 / 4, 3 / 6, 1 / 4, 3 / 6, 3 / 9, 0, 1 / 4, 0, 0])
     np.testing.assert_array_equal(a[:, 0], np.where(frac >= 0.5, 1, np.nan))
@@ -103,13 +103,13 @@ def test_neighbourhood_threshold():
 
 def test_rules_matrix_from_frame_and_checks():
     df = pd.DataFrame([[1, 0], [1, 1]], index=["2", "1"], columns=["2", "1"])
-    r = ls.simulate.Rules(allowed=df, elasticity={2: 0.5})
+    r = tf.simulate.Rules(allowed=df, elasticity={2: 0.5})
     np.testing.assert_array_equal(r.matrix([1, 2]), [[1, 1], [0, 1]])
     np.testing.assert_array_equal(r.elasticities([1, 2]), [0, 0.5])
     with pytest.raises(ValueError, match="square"):
-        ls.simulate.Rules(allowed=np.ones((2, 3))).matrix([1, 2])
+        tf.simulate.Rules(allowed=np.ones((2, 3))).matrix([1, 2])
     with pytest.raises(ValueError, match="one elasticity"):
-        ls.simulate.Rules(elasticity=[0.1]).elasticities([1, 2])
+        tf.simulate.Rules(elasticity=[0.1]).elasticities([1, 2])
 
 
 # ----------------------------------------------------------------------------- model
@@ -118,18 +118,18 @@ def _toy():
     rng = np.random.default_rng(3)
     land = np.where(rng.random((20, 30)) < 0.6, 1.0, 2.0)
     land[0, :3] = np.nan
-    pot = ls.simulate.RasterPotential({1: rng.random((20, 30)), 2: rng.random((20, 30))})
+    pot = tf.simulate.RasterPotential({1: rng.random((20, 30)), 2: rng.random((20, 30))})
     n1 = int(np.nansum(land == 1))
     n = int(np.sum(~np.isnan(land)))
-    demand = ls.simulate.AreaDemand(np.array([[n1, n - n1], [n1 - 40, n - n1 + 40], [n1 - 80, n - n1 + 80]]),
+    demand = tf.simulate.AreaDemand(np.array([[n1, n - n1], [n1 - 40, n - n1 + 40], [n1 - 80, n - n1 + 80]]),
                                     classes=[1, 2])
     return land, pot, demand
 
 
 def test_model_meets_demand_and_reproduces():
     land, pot, demand = _toy()
-    model = ls.simulate.Model(pot, demand, ls.simulate.CLUE(scale=0.0005, max_diff=3, mean_diff=2),
-                              ls.simulate.Rules(elasticity=[0.3, 0.1]))
+    model = tf.simulate.Model(pot, demand, tf.simulate.CLUE(scale=0.0005, max_diff=3, mean_diff=2),
+                              tf.simulate.Rules(elasticity=[0.3, 0.1]))
     sim = model.run(land, seed=4)
     assert sim.maps.shape == (3, 20, 30)
     assert np.isnan(sim.maps.values[:, 0, :3]).all()
@@ -149,8 +149,8 @@ def test_restricted_cells_and_history():
     land, pot, demand = _toy()
     restricted = np.zeros(land.shape, dtype=bool)
     restricted[5:15, 5:20] = True
-    model = ls.simulate.Model(pot, demand, ls.simulate.Ordered([1, 2], stochastic=False),
-                              ls.simulate.Rules(restrictions=restricted))
+    model = tf.simulate.Model(pot, demand, tf.simulate.Ordered([1, 2], stochastic=False),
+                              tf.simulate.Rules(restrictions=restricted))
     sim = model.run(land, seed=1)
     final = sim.maps.values[-1]
     np.testing.assert_array_equal(final[restricted], land[restricted])
@@ -162,7 +162,7 @@ def test_restricted_cells_and_history():
 def test_ordered_unmet_demand_warns():
     land, pot, demand = _toy()
     allowed = np.array([[1, 0], [1, 1]])  # nothing may become class 2
-    model = ls.simulate.Model(pot, demand, ls.simulate.Ordered([1, 2]), ls.simulate.Rules(allowed=allowed))
+    model = tf.simulate.Model(pot, demand, tf.simulate.Ordered([1, 2]), tf.simulate.Rules(allowed=allowed))
     with pytest.warns(UserWarning, match="not met"):
         sim = model.run(land, seed=2)
     assert not sim.steps["converged"].any()
@@ -171,7 +171,7 @@ def test_ordered_unmet_demand_warns():
 
 def test_clue_max_iter_warns():
     land, pot, demand = _toy()
-    model = ls.simulate.Model(pot, demand, ls.simulate.CLUE(scale=1e-9, max_iter=5, max_diff=0, mean_diff=0))
+    model = tf.simulate.Model(pot, demand, tf.simulate.CLUE(scale=1e-9, max_iter=5, max_diff=0, mean_diff=0))
     with pytest.warns(UserWarning, match="did not meet the demand"):
         sim = model.run(land, seed=2)
     assert (sim.steps["iterations"] == 6).all()
@@ -179,11 +179,11 @@ def test_clue_max_iter_warns():
 
 def test_model_errors():
     land, pot, demand = _toy()
-    small = ls.simulate.AreaDemand(np.array([[10], [10]]), classes=[1])
+    small = tf.simulate.AreaDemand(np.array([[10], [10]]), classes=[1])
     with pytest.raises(ValueError, match="without demand"):
-        ls.simulate.Model(pot, small, ls.simulate.CLUE()).run(land, seed=1)
-    one = ls.simulate.RasterPotential({1: np.ones(land.shape)})
+        tf.simulate.Model(pot, small, tf.simulate.CLUE()).run(land, seed=1)
+    one = tf.simulate.RasterPotential({1: np.ones(land.shape)})
     with pytest.raises(ValueError, match="no suitability"):
-        ls.simulate.Model(one, demand, ls.simulate.CLUE()).run(land, seed=1)
+        tf.simulate.Model(one, demand, tf.simulate.CLUE()).run(land, seed=1)
     with pytest.raises(ValueError, match="each once"):
-        ls.simulate.Model(pot, demand, ls.simulate.Ordered([1])).run(land, seed=1)
+        tf.simulate.Model(pot, demand, tf.simulate.Ordered([1])).run(land, seed=1)

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Speed of ls.surface.geomorphons against GRASS GIS's r.geomorphon (8.4, single-threaded).
+"""Speed of tf.surface.geomorphons against GRASS GIS's r.geomorphon (8.4, single-threaded).
 
 Usage::
 
@@ -7,7 +7,7 @@ Usage::
 
 A DEM of ``size`` x ``size`` cells (the SRTM example tiled, plus a gentle trend) is
 written as a GeoTIFF; GRASS times r.geomorphon alone (forms output, no import or export),
-inside ``grass84.bat --exec``; landschaft times geomorphons() on the same cells with
+inside ``grass84.bat --exec``; terraflux times geomorphons() on the same cells with
 ``--threads`` threads, pinned to ``--cpus``. Both outputs are compared.
 """
 
@@ -37,7 +37,7 @@ gs.run_command("r.out.gdal", input="f", output=sys.argv[3], type="Int32", nodata
 
 
 def main() -> None:
-    import landschaft as ls
+    import terraflux as tf
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--size", type=int, default=2000)
@@ -52,7 +52,7 @@ def main() -> None:
         psutil.Process().cpu_affinity(list(range(lo, hi + 1)))
     except Exception:  # noqa: BLE001
         pass
-    srtm = ls.load_raster(ls.surface.example_data("orelevation")).values.astype(np.float32)
+    srtm = tf.load_raster(tf.surface.example_data("orelevation")).values.astype(np.float32)
     srtm = srtm[0] if srtm.ndim == 3 else srtm
     reps = -(-a.size // srtm.shape[0])
     z = np.tile(srtm, (reps, reps))[:a.size, :a.size]
@@ -72,15 +72,15 @@ def main() -> None:
             ref = s.read(1).astype(float)[:a.size]
         ref[ref == -9999] = np.nan
     ext = (0, a.size * 30.0, 30.0, a.size * 30.0 + 30)
-    ls.surface.geomorphons(z[:200, :200], search=a.search)   # warm up
+    tf.surface.geomorphons(z[:200, :200], search=a.search)   # warm up
     best = np.inf
     for _ in range(3):
         t = time.perf_counter()
-        g = ls.surface.geomorphons(z, search=a.search, extent=ext, n_threads=a.threads)
+        g = tf.surface.geomorphons(z, search=a.search, extent=ext, n_threads=a.threads)
         best = min(best, time.perf_counter() - t)
     m = ~np.isnan(g.forms.values) & ~np.isnan(ref)
     same = np.mean(g.forms.values[m] == ref[m])
-    print(f"{a.size} x {a.size}, search {a.search}: GRASS r.geomorphon {grass_s:.2f} s; landschaft {best:.2f} s "
+    print(f"{a.size} x {a.size}, search {a.search}: GRASS r.geomorphon {grass_s:.2f} s; terraflux {best:.2f} s "
           f"({a.threads} threads, cpus {a.cpus}); {grass_s / best:.1f}x; forms identical on {same:.4%} of cells")
 
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What MigClim (1.6.2, CRAN's archive) gives, for landschaft's tests (tests/test_dispersal.py), written to
+"""What MigClim (1.6.2, CRAN's archive) gives, for terraflux's tests (tests/test_dispersal.py), written to
 tests/data/reference/dispersal/dispersal.npz:
 
     python tools/make_reference_dispersal.py

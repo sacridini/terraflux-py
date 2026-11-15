@@ -1,7 +1,7 @@
 # Optimized conservation plans
 
 Which set of places meets a conservation goal at the least cost, or achieves the most with a fixed budget?
-`ls.prioritize` answers it with exact optimization, as the R package prioritizr does (the same models, row
+`tf.prioritize` answers it with exact optimization, as the R package prioritizr does (the same models, row
 by row), with engines of its own that solve large and spatial problems much faster. This tutorial builds a
 complete plan for Serra Verde, the example region of the course chapters
 [12.1 to 12.10](../learn/prioritization.md), which explain the ideas behind every step.
@@ -19,19 +19,19 @@ complete plan for Serra Verde, the example region of the course chapters
 
 ## The data
 
-Serra Verde ships with Landschaft: 60 x 90 cells of 1 km, with a land cost, eight features, three protected
+Serra Verde ships with Terraflux: 60 x 90 cells of 1 km, with a land cost, eight features, three protected
 areas, three cities and two threats. The cost raster defines the planning units: its 4825 cells with a value.
 
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))            # thousand USD per km²
-features = ls.load_raster(P.example_data("features"))    # habitat suitability, 8 bands
-protected = ls.load_raster(P.example_data("protected"))  # existing reserves (1)
-urban = ls.load_raster(P.example_data("urban"))          # cities (1)
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))            # thousand USD per km²
+features = tf.load_raster(P.example_data("features"))    # habitat suitability, 8 bands
+protected = tf.load_raster(P.example_data("protected"))  # existing reserves (1)
+urban = tf.load_raster(P.example_data("urban"))          # cities (1)
 [str(b) for b in features.band.values]
 ```
 
@@ -67,7 +67,7 @@ print(plan.status, f"cost {plan.cost / 1000:.1f} million USD, {int(plan.values.s
 plan.coverage[["feature", "relative_target", "relative_held", "met"]].round(3)
 ```
 
-`plan.selection` is the plan as a raster, `ls.plot(plan)` draws it, and `plan.save("plan.tif")` writes it.
+`plan.selection` is the plan as a raster, `tf.plot(plan)` draws it, and `plan.save("plan.tif")` writes it.
 The solver proves the plan is within 0.1 % of the cheapest possible (the **gap**,
 [chapter 12.4](../learn/prioritization/optimization.md#the-optimality-gap)).
 
@@ -94,7 +94,7 @@ for name, s in (("first plan", plan), ("compact plan", compact)):
 ![Boundary penalties](../assets/figures/prio_boundary.png)
 
 The knee of the curve buys a much shorter boundary, in fewer patches, for a small part of the cost.
-`ls.plot(cal)` draws the curve.
+`tf.plot(cal)` draws the curve.
 
 ## What each budget buys
 
@@ -134,7 +134,7 @@ Deforestation and fire threaten the features. A **multi-action** plan decides wh
 where to act against each threat ([chapter 12.8](../learn/prioritization/actions.md)):
 
 ```python
-threats = ls.load_raster(P.example_data("threats"))
+threats = tf.load_raster(P.example_data("threats"))
 d = P.actions_raster_data(cost, features, threats, action_cost=[30, 10],
                           target_recovery=0.3, target_conservation=0.1)
 acts = d.problem("minimizeCosts").add_highs_solver(gap=0.01).solve()
@@ -153,7 +153,7 @@ zones, and 10 % of every feature must be under strict protection
 ([chapter 12.8](../learn/prioritization/actions.md#zones-actions-or-restoration)):
 
 ```python
-lc = ls.load_raster(P.example_data("land_cover"))
+lc = tf.load_raster(P.example_data("land_cover"))
 anthropic = lc.sel(band="pasture") + lc.sel(band="cropland")      # restorable share of every cell
 costs = {"protect": cost,
          "use": cost * 0.45,
@@ -192,11 +192,11 @@ comp.table[["feature", "milp", "zonation"]].round(2)
 
 ## Sharing the results
 
-`report` gathers the summaries, representation, targets and importance; `ls.plot` makes a web page of them:
+`report` gathers the summaries, representation, targets and importance; `tf.plot` makes a web page of them:
 
 ```python
 r = P.report(p1, plan, extinction_z=0.25)
-page = ls.plot(r, show=False).save("serra_verde_plan.html")
+page = tf.plot(r, show=False).save("serra_verde_plan.html")
 ```
 
 ## Going further

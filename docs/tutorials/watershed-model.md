@@ -3,7 +3,7 @@
 How much of the rain becomes streamflow, how much the vegetation returns to the
 air, and how much soil the runoff carries away? A watershed model answers it
 day by day, from the terrain, the land use, the soils and the weather. The one
-in Landschaft is the core of SWAT+ (the Soil and Water Assessment Tool of
+in Terraflux is the core of SWAT+ (the Soil and Water Assessment Tool of
 USDA-ARS and Texas A&M AgriLife), ported to C++: for the part of SWAT+ it
 covers, it gives SWAT+'s own results, value for value, which is checked against
 SWAT+ itself on official examples and on projects made here.
@@ -18,7 +18,7 @@ SWAT+ itself on official examples and on projects made here.
 - choose the cover factor of the erosion equation;
 - compare a land use scenario with today's.
 
-Everything lives in `ls.hydro.swat`.
+Everything lives in `tf.hydro.swat`.
 
 ## The landscape
 
@@ -30,9 +30,9 @@ one station with four years of daily rain and temperature.
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-ex = ls.hydro.swat.example_landscape()
+ex = tf.hydro.swat.example_landscape()
 dem, landuse, soils = ex["dem"], ex["landuse"], ex["soils"]
 print(dem.shape, dem.rio.crs, dem.rio.resolution())
 print(ex["landuse_lookup"], ex["soil_lookup"])
@@ -92,7 +92,7 @@ each cover at least 10 % of the subbasin (the area of the others goes to
 them).
 
 ```python
-w = ls.hydro.swat.watershed(dem, landuse, soils, landuse_lookup=ex["landuse_lookup"],
+w = tf.hydro.swat.watershed(dem, landuse, soils, landuse_lookup=ex["landuse_lookup"],
                             soil_lookup=ex["soil_lookup"], soil_table=ex["soil_table"],
                             stream_threshold=1.0, slope_bands=(15, 35),
                             hru_method="filter", thresholds=(10, 10, 10))
@@ -122,7 +122,7 @@ weather generator, which SWAT+ uses for the days and the variables without
 measurements (here radiation, humidity and wind, from the monthly means given):
 
 ```python
-wx = ls.hydro.swat.climate(ex["stations"], pcp=ex["pcp"], tmax=ex["tmax"], tmin=ex["tmin"],
+wx = tf.hydro.swat.climate(ex["stations"], pcp=ex["pcp"], tmax=ex["tmax"], tmin=ex["tmin"],
                            monthly=ex["monthly"])
 print(wx, wx.period())
 print(wx.wgn.loc["valley", ["tmp_max_ave", "tmp_min_ave", "pcp_ave", "wet_dry", "wet_wet"]].round(2).head(4))
@@ -150,7 +150,7 @@ fertilizers, its default parameters). The project runs here, and in SWAT+ 62
 itself once written to a folder:
 
 ```python
-project = ls.hydro.swat.from_tables(w, wx)
+project = tf.hydro.swat.from_tables(w, wx)
 project.watershed = w            # what hru_map and channel_map need
 print(project)
 print(project.text("time.sim").splitlines()[2])
@@ -164,7 +164,7 @@ SwatProject(62 files)
 62
 ```
 
-`ls.hydro.swat.from_rasters` does `watershed` and `from_tables` in one call,
+`tf.hydro.swat.from_rasters` does `watershed` and `from_tables` in one call,
 and `load_txtinout` reads a TxtInOut folder made by QSWAT+ and the editor (or
 `load_qswat_project` a QSWAT+ database).
 
@@ -172,13 +172,13 @@ and `load_txtinout` reads a TxtInOut folder made by QSWAT+ and the editor (or
 
 `run` simulates every day of the period and returns what SWAT+ prints, the
 tables of its `print.prt`, chosen with `tables`: water (`wb`), nutrients
-(`nb`), losses (`ls`) and plants and weather (`pw`) of each HRU and of the
+(`nb`), losses (`tf`) and plants and weather (`pw`) of each HRU and of the
 basin, the channels and the aquifers, by day, month, year or average annual
 (`aa`). The editor's project skips the first year, a warm-up for the soil
 water and the aquifers:
 
 ```python
-result = ls.hydro.swat.run(project, tables={"basin_wb": ["year", "aa"], "hru_wb": "aa",
+result = tf.hydro.swat.run(project, tables={"basin_wb": ["year", "aa"], "hru_wb": "aa",
                                             "hru_ls": "aa", "channel_sd": "day"})
 print(result)
 cols = ["precip", "snofall", "et", "surq_gen", "latq", "perc", "wateryld"]
@@ -241,7 +241,7 @@ some 430 mm over the surface.
 outlet is the channel with the most water:
 
 ```python
-q = ls.hydro.swat.reach_discharge(project, result=result)
+q = tf.hydro.swat.reach_discharge(project, result=result)
 outlet = int(q.mean().idxmax())
 flow = q[outlet]
 print(outlet, round(float(flow.mean()), 2), round(float(flow.max()), 1), flow.idxmax().date())
@@ -278,7 +278,7 @@ for a forest, 0.005 for a pasture), raised as the cover thins:
 
 ```python
 swatplus = result.table("hru_ls", "aa")["sedyld"].droplevel("date")
-plant = ls.hydro.swat.run(project, tables={"hru_ls": "aa"}, c_factor="plant")
+plant = tf.hydro.swat.run(project, tables={"hru_ls": "aa"}, c_factor="plant")
 classic = plant.table("hru_ls", "aa")["sedyld"].droplevel("date")
 loss = pd.DataFrame({"landuse": hrus["landuse"].values, "soil": hrus["soil"].values,
                      "swatplus": swatplus.values, "plant": classic.values})
@@ -302,7 +302,7 @@ same with both; only the sediment and what travels with it change. The
 results of either method are SWAT+'s with that method.
 
 ```python
-erosion = ls.hydro.swat.hru_map(project, "sedyld", result=plant)     # t/ha per year
+erosion = tf.hydro.swat.hru_map(project, "sedyld", result=plant)     # t/ha per year
 print(erosion.shape, round(float(erosion.mean()), 2), round(float(erosion.quantile(0.95)), 2))
 ```
 
@@ -325,11 +325,11 @@ projects at once, one per thread:
 ```python
 cleared = landuse.where(~((landuse == 1) & (soils == 20)), 2)   # the valley forests become pasture
 print(cleared.to_series().value_counts(normalize=True).round(2).to_dict())
-scenario = ls.hydro.swat.from_rasters(dem, cleared, soils, landuse_lookup=ex["landuse_lookup"],
+scenario = tf.hydro.swat.from_rasters(dem, cleared, soils, landuse_lookup=ex["landuse_lookup"],
                                       soil_lookup=ex["soil_lookup"], soil_table=ex["soil_table"],
                                       climate=wx, stream_threshold=1.0, slope_bands=(15, 35),
                                       hru_method="filter", thresholds=(10, 10, 10))
-now, then = ls.hydro.swat.run_many([project, scenario],
+now, then = tf.hydro.swat.run_many([project, scenario],
                                    tables={"basin_wb": "aa", "basin_ls": "aa"}, c_factor="plant")
 for name, r in (("today", now), ("valleys cleared", then)):
     wb = r.table("basin_wb", "aa").iloc[0]
@@ -357,8 +357,8 @@ TxtInOut folder (or a zip of it). The package carries one of the official
 examples of SWAT+, the forested Hubbard Brook watershed:
 
 ```python
-hb = ls.hydro.swat.load_txtinout(ls.example_data("swat_hubbard_brook"))
-res = ls.hydro.swat.run(hb, tables={"hru_wb": "year"}, nyskip=1)
+hb = tf.hydro.swat.load_txtinout(tf.example_data("swat_hubbard_brook"))
+res = tf.hydro.swat.run(hb, tables={"hru_wb": "year"}, nyskip=1)
 print(res.table("hru_wb", "year")[["precip", "snofall", "snomlt", "et", "wateryld"]].astype(float).round(0).head(3))
 ```
 

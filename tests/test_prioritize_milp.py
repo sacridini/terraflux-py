@@ -3,7 +3,7 @@
 
 - the compiled model is prioritizr's ``compile()``, bit for bit;
 - the optimum (gap 0) is prioritizr's on Gurobi;
-- HiGHS built into landschaft solves every stored reference model to the same optimum.
+- HiGHS built into terraflux solves every stored reference model to the same optimum.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ import optimize_cases
 import pytest
 from optimize_reference import case_ids, model, result
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 
 PY_CASES = [(g, c) for g in ("core", "objectives", "spatial", "bounds") for c in case_ids(g) if optimize_cases.CASES[c].py is not None]
 ALL = [(g, c) for g in ("core", "objectives", "spatial", "bounds", "actions") for c in case_ids(g)]
@@ -109,7 +109,7 @@ def test_solution_maps_back_to_the_raster():
 
 
 def test_problem_is_immutable_and_order_free():
-    base = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
+    base = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
     a = base.add_relative_targets(0.3).add_min_set_objective().add_binary_decisions()
     b = base.add_binary_decisions().add_min_set_objective().add_relative_targets(0.3)
     assert base.objective is None and base.targets is None
@@ -118,7 +118,7 @@ def test_problem_is_immutable_and_order_free():
 
 
 def test_prioritizr_9_names_are_aliases():
-    base = (ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
+    base = (tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
             .add_relative_targets(0.3).add_binary_decisions())
     budget = float(np.nansum(optimize_cases.pu_cost().values)) * 0.2
     pairs = [(base.add_max_wtd_sum_objective(budget), base.add_max_utility_objective(budget)),
@@ -131,7 +131,7 @@ def test_prioritizr_9_names_are_aliases():
 
 
 def test_errors():
-    base = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
+    base = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
     with pytest.raises(ValueError, match="no objective"):
         base.add_relative_targets(0.3).compile()
     with pytest.raises(ValueError, match="needs targets"):
@@ -145,7 +145,7 @@ def test_errors():
 
 
 def test_infeasible_is_reported():
-    p = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
+    p = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
         .add_relative_targets(1.0)  # cells without cost hold part of the features: 100% cannot be met
     with pytest.raises(RuntimeError, match="infeasible"):
         p.solve()
@@ -296,31 +296,31 @@ def test_polygon_units():
     assert list(sol.selection.columns) == [*gdf.columns, "solution"]
     assert sol.selection.crs == gdf.crs and set(np.unique(sol.values)) <= {0.0, 1.0}
     feats = optimize_cases.features()
-    a = ls.prioritize.problem(gdf, feats, cost_column="cost").units.rij
-    b = ls.prioritize.problem(gdf.to_crs("EPSG:4326"), feats, cost_column="cost").units.rij
+    a = tf.prioritize.problem(gdf, feats, cost_column="cost").units.rij
+    b = tf.prioritize.problem(gdf.to_crs("EPSG:4326"), feats, cost_column="cost").units.rij
     np.testing.assert_allclose(b.toarray(), a.toarray(), rtol=1e-5, atol=1e-6)
     with pytest.raises(ValueError, match="no cost column"):
-        ls.prioritize.problem(gdf, feats, cost_column="price")
+        tf.prioritize.problem(gdf, feats, cost_column="price")
 
 
 def test_h3_units():
     """H3 hexagons over the cost raster: they tile it, so their costs add up to the raster's."""
     cost = optimize_cases.pu_cost()
-    hexes = ls.prioritize.h3_units(cost, 9)
+    hexes = tf.prioritize.h3_units(cost, 9)
     assert hexes.crs == cost.rio.crs and list(hexes.columns) == ["h3", "cost", "geometry"]
     assert hexes["h3"].is_unique and (hexes["cost"] > 0).all()
     assert hexes["cost"].sum() == pytest.approx(float(np.nansum(cost.values)), rel=1e-5)
-    sol = ls.prioritize.problem(hexes, optimize_cases.features(), cost_column="cost").add_min_set_objective() \
+    sol = tf.prioritize.problem(hexes, optimize_cases.features(), cost_column="cost").add_min_set_objective() \
         .add_relative_targets(0.2).add_binary_decisions().add_highs_solver(gap=0).solve()
     assert sol.status == "optimal" and sol.coverage["met"].all()
     assert list(sol.selection["h3"]) == list(hexes["h3"])
     with pytest.raises(ValueError, match="from 0 to 15"):
-        ls.prioritize.h3_units(cost, 16)
+        tf.prioritize.h3_units(cost, 16)
 
 
 def test_raster_features_by_blocks(monkeypatch):
     """The features are read in blocks of rows: block size, dask chunks and threads give the same bits."""
-    from landschaft.prioritize import _milp
+    from terraflux.prioritize import _milp
 
     cost, feats = optimize_cases.pu_cost(), optimize_cases.features()
     ref = _milp._raster_units(cost, feats, n_threads=1)
@@ -359,12 +359,12 @@ def _minset(p, target=0.3):
 
 def test_zonation_start():
     """Starts from Zonation's ranking: feasible, and the same optimum."""
-    from landschaft.prioritize import _milp
+    from terraflux.prioritize import _milp
 
     cost, feats = optimize_cases.pu_cost(), optimize_cases.features()
-    p = _minset(ls.prioritize.problem(cost, feats)).add_highs_solver(gap=0)
+    p = _minset(tf.prioritize.problem(cost, feats)).add_highs_solver(gap=0)
     best = p.solve()
-    res = ls.prioritize.zonation([feats[k] for k in range(feats.shape[0])], cost=cost)
+    res = tf.prioritize.zonation([feats[k] for k in range(feats.shape[0])], cost=cost)
     m = p.compile()
     x = _milp._start_from_rank(m, _milp._unit_ranks(p.units, res.rank))
     assert set(np.unique(x)) <= {0.0, 1.0} and (m.A @ x >= m.rhs).all()
@@ -384,8 +384,8 @@ def test_zonation_start():
 
 
 def test_zonation_start_polygons_and_errors():
-    hexes = ls.prioritize.h3_units(optimize_cases.pu_cost(), 9)
-    p = _minset(ls.prioritize.problem(hexes, optimize_cases.features(), cost_column="cost"), 0.2)
+    hexes = tf.prioritize.h3_units(optimize_cases.pu_cost(), 9)
+    p = _minset(tf.prioritize.problem(hexes, optimize_cases.features(), cost_column="cost"), 0.2)
     p = p.add_highs_solver(gap=0)
     assert p.solve(start="zonation").objective == pytest.approx(p.solve().objective, rel=1e-9)
     t = _minset(optimize_cases.CASES["minset_table"].py().add_relative_targets(0.3))
@@ -411,7 +411,7 @@ def test_covering_keeps_the_time_limit_on_wide_models():
 # ----------------------------------------------------------------------------- objectives, targets, weights
 
 def test_ignored_targets_and_weights_warn():
-    p = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
+    p = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
     with pytest.warns(UserWarning, match="targets are ignored"):
         p.add_max_utility_objective(2500).add_relative_targets(0.3).compile()
     with pytest.warns(UserWarning, match="weights are ignored"):
@@ -419,7 +419,7 @@ def test_ignored_targets_and_weights_warn():
 
 
 def test_objective_and_target_errors():
-    p = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
+    p = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features())
     for bad in (0, -1, np.inf, [1, 2]):
         with pytest.raises(ValueError, match="budget"):
             p.add_min_shortfall_objective(bad)
@@ -467,7 +467,7 @@ def _wide_problem(n=200, nf=12, seed=4):
     f[f < 0.05] = 0
     cost = optimize_cases.grid(rng.uniform(1, 10, (n, n)))
     feats = optimize_cases.grid(f, names=[f"s{k}" for k in range(nf)])
-    return ls.prioritize.problem(cost, feats), float(np.sum(cost.values))
+    return tf.prioritize.problem(cost, feats), float(np.sum(cost.values))
 
 
 @pytest.mark.parametrize("objective", ["min_shortfall", "min_largest_shortfall", "max_utility", "max_features",
@@ -518,7 +518,7 @@ def _tree(names, seed=7):
 
 
 def test_subset_model_recognises_target_rewards():
-    from landschaft.prioritize._milp_subset import subset_model
+    from terraflux.prioritize._milp_subset import subset_model
 
     p, total = _wide_problem(n=40, nf=6)
     q = p.add_relative_targets(0.3)
@@ -534,8 +534,8 @@ def test_subset_model_recognises_target_rewards():
 
 def test_subset_search_raises_the_objective():
     """The local search over the targets met improves on the wide engine, and keeps every row."""
-    from landschaft.prioritize._milp_solve import _highs
-    from landschaft.prioritize._milp_subset import improve_subset, subset_model
+    from terraflux.prioritize._milp_solve import _highs
+    from terraflux.prioritize._milp_subset import improve_subset, subset_model
 
     p, total = _wide_problem(n=150, nf=20, seed=11)
     p = p.add_relative_targets(0.3).add_max_phylo_div_objective(0.1 * total, _tree([f"s{k}" for k in range(20)]))
@@ -583,15 +583,15 @@ def test_subregional_targets_are_features_split_by_region():
     shares = {1.0: 0.3, 2.0: 0.4, 3.0: 0.25}
     rows = [(r, f, s) for r, s in shares.items() for f in ("f1", "f4")]
     t = {"region": [r for r, _, _ in rows], "feature": [f for _, f, _ in rows], "target": [s for _, _, s in rows]}
-    ours = ls.prioritize.problem(cost, feats).add_min_set_objective().add_subregional_targets(reg, t) \
+    ours = tf.prioritize.problem(cost, feats).add_min_set_objective().add_subregional_targets(reg, t) \
         .add_binary_decisions().compile()
     rv = reg.values
     split = np.stack([np.where(rv == r, feats.sel(band=f).values, np.nan) for r, f, _ in rows])
-    want = ls.prioritize.problem(cost, optimize_cases.grid(split, names=[f"s{k}" for k in range(len(rows))])) \
+    want = tf.prioritize.problem(cost, optimize_cases.grid(split, names=[f"s{k}" for k in range(len(rows))])) \
         .add_min_set_objective().add_relative_targets([s for _, _, s in rows]).add_binary_decisions().compile()
     assert (ours.A != want.A).nnz == 0 and np.array_equal(ours.A.data, want.A.data)
     np.testing.assert_array_equal(ours.rhs, want.rhs)
-    sol = ls.prioritize.problem(cost, feats).add_min_set_objective().add_subregional_targets(reg, t) \
+    sol = tf.prioritize.problem(cost, feats).add_min_set_objective().add_subregional_targets(reg, t) \
         .add_highs_solver(gap=0).solve()
     c = sol.coverage
     assert list(c["region"]) == [r for r, _, _ in rows] and c["met"].all()
@@ -601,7 +601,7 @@ def test_subregional_targets_with_tables_and_other_targets():
     """Tables: a column of regions; sub-regional targets add to the others; absolute and senses."""
     t = optimize_cases.pu_table()
     t["zone"] = np.where(np.arange(len(t)) % 3 == 0, "north", "south")
-    p = ls.prioritize.problem(t, optimize_cases.FEATURES, cost_column="cost").add_min_set_objective() \
+    p = tf.prioritize.problem(t, optimize_cases.FEATURES, cost_column="cost").add_min_set_objective() \
         .add_relative_targets(0.2).add_subregional_targets(
             "zone", {"region": ["north", "south"], "feature": ["f2", "f2"], "type": ["absolute", "relative"],
                      "target": [0.4, 0.3], "sense": [">=", ">="]})
@@ -625,7 +625,7 @@ def test_subregional_targets_with_tables_and_other_targets():
 def test_spatial_errors():
     import scipy.sparse as sp
 
-    p = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
+    p = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
         .add_relative_targets(0.3)
     with pytest.raises(ValueError, match="edge_factor"):
         p.add_boundary_penalties(1, edge_factor=1.5)
@@ -638,7 +638,7 @@ def test_spatial_errors():
         p.add_connectivity_penalties(1, asym).compile()
     with pytest.raises(TypeError, match="column name"):
         p.add_linear_penalties(1, "cost").compile()
-    t = ls.prioritize.problem(optimize_cases.pu_table(), optimize_cases.FEATURES, cost_column="cost") \
+    t = tf.prioritize.problem(optimize_cases.pu_table(), optimize_cases.FEATURES, cost_column="cost") \
         .add_min_set_objective().add_relative_targets(0.3)
     with pytest.raises(ValueError, match="need data"):
         t.add_boundary_penalties(1).compile()
@@ -649,7 +649,7 @@ def test_penalties_follow_the_order_added():
     p = optimize_cases.CASES["boundary_raster"].py()
     m = p.compile()
     assert m.col_ids.count("b") > 0 and set(m.row_ids[-3:]) <= {"b1", "b2", "b3"}
-    z = ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
+    z = tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_min_set_objective() \
         .add_relative_targets(0.3).add_boundary_penalties(0.0).compile()
     assert "b" not in z.col_ids
 
@@ -661,11 +661,11 @@ def test_neighbor_penalties_are_connectivity_penalties_of_the_adjacency():
     import scipy.sparse as sp
     from scipy.sparse.csgraph import connected_components
 
-    from landschaft.prioritize._milp_solve import _highs
+    from terraflux.prioritize._milp_solve import _highs
 
     cost, feats = optimize_cases.pu_cost(), optimize_cases.features()
-    base = ls.prioritize.problem(cost, feats).add_relative_targets(0.3).add_binary_decisions()
-    adj = ls.prioritize.adjacency_matrix(cost)
+    base = tf.prioritize.problem(cost, feats).add_relative_targets(0.3).add_binary_decisions()
+    adj = tf.prioritize.adjacency_matrix(cost)
     for p in (base.add_min_set_objective(), base.add_max_utility_objective(3000.0)):
         a = p.add_neighbor_penalties(2.0).compile()
         b = p.add_connectivity_penalties(2.0, adj).compile()
@@ -685,7 +685,7 @@ def test_neighbor_penalties_are_connectivity_penalties_of_the_adjacency():
     sol = q.add_highs_solver(gap=0.0).solve()
     alone = _highs(q.compile(), 0.0, math.inf, 1, "choose", False, None)
     assert sol.status == "optimal" and sol.objective == pytest.approx(alone["objective"], rel=1e-9)
-    from landschaft.prioritize._milp_spatial import adjacency_matrix
+    from terraflux.prioritize._milp_spatial import adjacency_matrix
 
     cut = adjacency_matrix(p.units)
 
@@ -695,7 +695,7 @@ def test_neighbor_penalties_are_connectivity_penalties_of_the_adjacency():
 
     assert patches(sol) < patches(p.add_highs_solver(gap=0.0).solve())
     # calibration: the pairs of selected neighbours grow with the penalty
-    cal = ls.prioritize.calibrate_penalty(p.add_highs_solver(gap=0.0), "neighbor", values=[0.1, 10.0])
+    cal = tf.prioritize.calibrate_penalty(p.add_highs_solver(gap=0.0), "neighbor", values=[0.1, 10.0])
     crit = cal.table["neighbor"].to_numpy()
     assert (cal.table["status"] == "optimal").all() and crit[1] > crit[0]
 
@@ -704,8 +704,8 @@ def test_neighbor_penalties_are_connectivity_penalties_of_the_adjacency():
 def test_contiguity_restriction_is_prioritizr(group, name):
     """Our exact model with the arcs from a lower unit to a higher one fixed at 0 is prioritizr's
     formulation: the same optimum on HiGHS's MIP alone."""
-    from landschaft.prioritize._milp_connect import _restricted_bounds
-    from landschaft.prioritize._milp_solve import _highs
+    from terraflux.prioritize._milp_connect import _restricted_bounds
+    from terraflux.prioritize._milp_solve import _highs
 
     m = optimize_cases.CASES[name].py().compile()
     r = _highs(dataclasses.replace(m, ub=_restricted_bounds(m), connected=()), 0.0, math.inf, 1, "choose", False,
@@ -723,12 +723,12 @@ def test_contiguity_is_exact():
     import scipy.sparse as sp
     from scipy.sparse.csgraph import connected_components
 
-    from landschaft.prioritize._milp_connect import _restricted_bounds
-    from landschaft.prioritize._milp_solve import _highs
+    from terraflux.prioritize._milp_connect import _restricted_bounds
+    from terraflux.prioritize._milp_solve import _highs
 
     pu = pd.DataFrame({"id": [1, 2, 3], "cost": 1.0, "a": [1.0, 0, 0], "b": [0, 1.0, 0], "c": [0, 0, 1.0]})
     line = sp.csc_matrix(np.array([[0, 1, 1], [1, 0, 0], [1, 0, 0]], dtype=float))
-    p = (ls.prioritize.problem(pu, ["a", "b", "c"], cost_column="cost").add_min_set_objective()
+    p = (tf.prioritize.problem(pu, ["a", "b", "c"], cost_column="cost").add_min_set_objective()
          .add_relative_targets(1.0).add_binary_decisions().add_contiguity_constraints(line))
     assert p.solve().objective == 3.0
     m = p.compile()
@@ -748,7 +748,7 @@ def test_contiguity_is_exact():
             if rr < side and cc < side:
                 adj[i, rr * side + cc] = adj[rr * side + cc, i] = 1.0
     table = pd.DataFrame({"id": np.arange(1, n + 1), "cost": cost, **{f"f{k}": feats[k] for k in range(3)}})
-    p = (ls.prioritize.problem(table, ["f0", "f1", "f2"], cost_column="cost").add_min_set_objective()
+    p = (tf.prioritize.problem(table, ["f0", "f1", "f2"], cost_column="cost").add_min_set_objective()
          .add_relative_targets(0.5).add_binary_decisions().add_contiguity_constraints(sp.csc_matrix(adj)))
     best = math.inf
     need = 0.5 * feats.sum(axis=1)
@@ -784,14 +784,14 @@ def _grid_contiguity(side=6, nf=3, seed=3, target=0.4):
             if rr < side and cc < side:
                 adj[i, rr * side + cc] = adj[rr * side + cc, i] = 1.0
     table = pd.DataFrame({"id": np.arange(1, n + 1), "cost": cost, **{f"f{k}": feats[k] for k in range(nf)}})
-    return (ls.prioritize.problem(table, [f"f{k}" for k in range(nf)], cost_column="cost").add_min_set_objective()
+    return (tf.prioritize.problem(table, [f"f{k}" for k in range(nf)], cost_column="cost").add_min_set_objective()
             .add_relative_targets(target).add_binary_decisions().add_contiguity_constraints(sp.csc_matrix(adj))), adj
 
 
 def test_directed_cuts_cut_off_disconnected_selections():
     """The separator (opt/connect.cpp) finds no violated directed cut in a patch with its tree, and one in a
     second patch reached by no arc from the root (a cycle-free piece without a root of its own)."""
-    from landschaft.prioritize._milp_connect import patch_columns, separate
+    from terraflux.prioritize._milp_connect import patch_columns, separate
 
     p, adj = _grid_contiguity()
     m = p.compile()
@@ -815,8 +815,8 @@ def test_patch_heuristic_gives_feasible_patches():
     than the exact optimum; a locked-out cut of the grid is respected."""
     from scipy.sparse.csgraph import connected_components
 
-    from landschaft import _core
-    from landschaft.prioritize._milp_connect import _patch_problem
+    from terraflux import _core
+    from terraflux.prioritize._milp_connect import _patch_problem
 
     for seed in (1, 2, 3):
         p, adj = _grid_contiguity(seed=seed)
@@ -845,8 +845,8 @@ def test_patch_heuristic_gives_feasible_patches():
 
 def test_root_cuts_raise_the_relaxation():
     """The root's directed cuts (opt::separate_root): a bound between the plain relaxation and the optimum."""
-    from landschaft.prioritize._milp_connect import root_cuts, structures
-    from landschaft.prioritize._milp_solve import _highs
+    from terraflux.prioritize._milp_connect import root_cuts, structures
+    from terraflux.prioritize._milp_solve import _highs
 
     p, _ = _grid_contiguity(side=7, seed=4)
     m = p.compile()
@@ -861,7 +861,7 @@ def test_root_cuts_raise_the_relaxation():
 def test_contiguity_gives_one_patch():
     from scipy.sparse.csgraph import connected_components
 
-    from landschaft.prioritize._milp_spatial import adjacency_matrix
+    from terraflux.prioritize._milp_spatial import adjacency_matrix
 
     for name in ("contiguity_raster", "contiguity_polygons"):
         p = optimize_cases.CASES[name].py()
@@ -879,11 +879,11 @@ def test_contiguity_gives_one_patch():
 def test_matrices_raster_are_prioritizr(name):
     ref = result("matrices", "matrices_raster")[name]
     cost, pr = optimize_cases.pu_cost(), optimize_cases.penalty_raster()
-    m = {"boundary": lambda: ls.prioritize.boundary_matrix(cost),
-         "adjacency": lambda: ls.prioritize.adjacency_matrix(cost),
-         "adjacency8": lambda: ls.prioritize.adjacency_matrix(cost, directions=8),
-         "connectivity": lambda: ls.prioritize.connectivity_matrix(cost, pr),
-         "proximity": lambda: ls.prioritize.proximity_matrix(cost, 150)}[name]()
+    m = {"boundary": lambda: tf.prioritize.boundary_matrix(cost),
+         "adjacency": lambda: tf.prioritize.adjacency_matrix(cost),
+         "adjacency8": lambda: tf.prioritize.adjacency_matrix(cost, directions=8),
+         "connectivity": lambda: tf.prioritize.connectivity_matrix(cost, pr),
+         "proximity": lambda: tf.prioritize.proximity_matrix(cost, 150)}[name]()
     np.testing.assert_array_equal(m.toarray(), ref)
 
 
@@ -892,13 +892,13 @@ def test_matrices_raster_are_prioritizr(name):
 def test_matrices_polygons_are_prioritizr(name):
     ref = result("matrices", "matrices_polygons")[name]
     g, shapes = optimize_cases.pu_polygons_partial(), optimize_cases.shapes()
-    m = {"boundary": lambda: ls.prioritize.boundary_matrix(g),
-         "adjacency": lambda: ls.prioritize.adjacency_matrix(g),
-         "connectivity": lambda: ls.prioritize.connectivity_matrix(g, "cost"),
-         "connectivity_raster": lambda: ls.prioritize.connectivity_matrix(g, optimize_cases.penalty_raster()),
-         "proximity": lambda: ls.prioritize.proximity_matrix(g, 120),
-         "shapes_boundary": lambda: ls.prioritize.boundary_matrix(shapes),
-         "shapes_adjacency": lambda: ls.prioritize.adjacency_matrix(shapes)}[name]()
+    m = {"boundary": lambda: tf.prioritize.boundary_matrix(g),
+         "adjacency": lambda: tf.prioritize.adjacency_matrix(g),
+         "connectivity": lambda: tf.prioritize.connectivity_matrix(g, "cost"),
+         "connectivity_raster": lambda: tf.prioritize.connectivity_matrix(g, optimize_cases.penalty_raster()),
+         "proximity": lambda: tf.prioritize.proximity_matrix(g, 120),
+         "shapes_boundary": lambda: tf.prioritize.boundary_matrix(shapes),
+         "shapes_adjacency": lambda: tf.prioritize.adjacency_matrix(shapes)}[name]()
     np.testing.assert_array_equal(m.toarray(), ref)
 
 
@@ -914,7 +914,7 @@ def _terminals(cells):
 def _joined(p, sol, cells, directions=4) -> bool:
     from scipy.sparse.csgraph import connected_components
 
-    adj = ls.prioritize.adjacency_matrix(p.units.template, directions=directions)
+    adj = tf.prioritize.adjacency_matrix(p.units.template, directions=directions)
     adj = adj[p.units.index][:, p.units.index]
     sel = np.flatnonzero(sol.values > 0.5)
     _, lab = connected_components(adj[sel][:, sel], directed=False)
@@ -927,12 +927,12 @@ def _joined(p, sol, cells, directions=4) -> bool:
 def test_corridors_join_the_terminals():
     cost, feats = optimize_cases.pu_cost(), optimize_cases.features()
     a, b, c = (3, 0), (11, 14), (5, 13)
-    p = ls.prioritize.problem(cost, feats).add_min_set_objective().add_relative_targets(0.1)
+    p = tf.prioritize.problem(cost, feats).add_min_set_objective().add_relative_targets(0.1)
     # any feasible solution joins them: a loose gap, a time limit
     sol = p.add_corridor_constraints(_terminals([a, b])).add_highs_solver(gap=0.1, time_limit=20).solve()
     assert _joined(p, sol, [a, b])
-    # two networks; resistance from an ls.cost Transition (its 8-direction connections are the edges)
-    tr = ls.cost.transition(optimize_cases.penalty_raster().values, "mean", 8, extent=(0, 1500, 0, 1200))
+    # two networks; resistance from an tf.cost Transition (its 8-direction connections are the edges)
+    tr = tf.cost.transition(optimize_cases.penalty_raster().values, "mean", 8, extent=(0, 1500, 0, 1200))
     q = p.add_corridor_constraints([_terminals([a, b]), _terminals([c, (11, 5)])], resistance=tr, penalty=0.5)
     sol2 = q.add_highs_solver(gap=0.1, time_limit=20).solve()
     assert _joined(q, sol2, [a, b], 8) and _joined(q, sol2, [c, (11, 5)], 8)
@@ -951,16 +951,16 @@ def test_corridors_join_the_terminals():
 
 def test_decay_connectivity_from_cost_distances():
     g = optimize_cases.pu_polygons()
-    pts = ls.prioritize.unit_points(g)
+    pts = tf.prioritize.unit_points(g)
     r = np.ones((12, 15))
-    tr = ls.cost.geo_correction(ls.cost.transition(r, "mean", 8, extent=(0, 1500, 0, 1200)))
-    d = ls.cost.cost_distance(tr, pts)
-    c = ls.prioritize.decay_connectivity(d, median=300.0, min_probability=0.01)
+    tr = tf.cost.geo_correction(tf.cost.transition(r, "mean", 8, extent=(0, 1500, 0, 1200)))
+    d = tf.cost.cost_distance(tr, pts)
+    c = tf.prioritize.decay_connectivity(d, median=300.0, min_probability=0.01)
     assert c.shape == (len(g), len(g)) and (c.diagonal() == 0).all()
     k = np.unravel_index(np.argmin(np.where(np.eye(len(g)) > 0, np.inf, d)), d.shape)
     assert c[k] == pytest.approx(np.exp(-np.log(2) * d[k] / 300.0))
     assert abs(c - c.T).max() == 0
-    sol = ls.prioritize.problem(g, optimize_cases.features(), cost_column="cost").add_min_set_objective() \
+    sol = tf.prioritize.problem(g, optimize_cases.features(), cost_column="cost").add_min_set_objective() \
         .add_relative_targets(0.3).add_connectivity_penalties(10.0, c).add_highs_solver(gap=0.01, time_limit=30).solve()
     assert sol.coverage["met"].all()
 
@@ -968,7 +968,7 @@ def test_decay_connectivity_from_cost_distances():
 # ----------------------------------------------------------------------------- portfolios
 
 def _table_minset():
-    return ls.prioritize.problem(optimize_cases.pu_table(), optimize_cases.FEATURES, cost_column="cost") \
+    return tf.prioritize.problem(optimize_cases.pu_table(), optimize_cases.FEATURES, cost_column="cost") \
         .add_min_set_objective().add_relative_targets(0.3).add_highs_solver(gap=0)
 
 

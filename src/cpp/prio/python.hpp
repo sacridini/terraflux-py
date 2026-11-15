@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The spatial prioritization's Python classes and functions (prio_*),
-// registered into landschaft._core.
+// registered into terraflux._core.
 #pragma once
 
 #include <pybind11/pybind11.h>

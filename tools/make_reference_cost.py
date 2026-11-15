@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of the R package gdistance for ls.cost.
+"""Generate golden outputs of the R package gdistance for tf.cost.
 
 Usage::
 

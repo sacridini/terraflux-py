@@ -11,9 +11,9 @@ import pandas as pd
 import pytest
 from optimize_reference import result
 
-import landschaft as ls
-from landschaft.prioritize._milp_anneal import marxan_model
-from landschaft.prioritize._milp_spatial import boundary_matrix
+import terraflux as tf
+from terraflux.prioritize._milp_anneal import marxan_model
+from terraflux.prioritize._milp_spatial import boundary_matrix
 
 ANNEALED = ("boundary_raster", "boundary_polygons", "boundary_matrix", "connectivity", "asym_connectivity",
             "linear_penalties")
@@ -46,7 +46,7 @@ def test_conversion_is_exact(name):
 
 def test_boundary_penalty_is_marxan_blm():
     """prioritizr's boundary penalty is Marxan's: BLM = penalty, fixed boundary = exposed edge x edge
-    factor, scored by ls.prioritize.marxan on the optimum (every unit locked to it)."""
+    factor, scored by tf.prioritize.marxan on the optimum (every unit locked to it)."""
     p = optimize_cases.CASES["boundary_polygons"].py()
     penalty, edge_factor = 0.2, 0.75
     sol = p.add_highs_solver(gap=0).solve()
@@ -62,7 +62,7 @@ def test_boundary_penalty_is_marxan_blm():
                        "status": np.where(sol.values > 0.5, 2, 3)})
     spec = pd.DataFrame({"id": [1], "target": [0.0]})
     puvspr = pd.DataFrame({"species": [1], "pu": [0], "amount": [1.0]})
-    r = ls.prioritize.marxan(pu, spec, puvspr, bound, blm=penalty, num_reps=1, num_iters=0, start_temp=1)
+    r = tf.prioritize.marxan(pu, spec, puvspr, bound, blm=penalty, num_reps=1, num_iters=0, start_temp=1)
     assert r.summary["Score"].iloc[0] == pytest.approx(sol.objective, rel=1e-12)
 
 

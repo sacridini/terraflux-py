@@ -2,7 +2,7 @@
 
 Species (labels) counted in groups (grid cells, sites or other units): the
 data behind analyses of diversity, endemism and phylogenetic patterns. They
-live in the `ls.bio` module, a port of Biodiverse (Laffan, Lubarsky and
+live in the `tf.bio` module, a port of Biodiverse (Laffan, Lubarsky and
 Rosauer 2010).
 
 Reading data gives the same groups, labels and sample counts as Biodiverse
@@ -14,28 +14,28 @@ study.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-bd = ls.bio.BaseData.from_table("sites.csv", group_columns=["x", "y"],
+bd = tf.bio.BaseData.from_table("sites.csv", group_columns=["x", "y"],
                                 label_columns=["genus", "species"],
                                 cell_sizes=[100000, 100000])
-tree = ls.bio.read_tree("tree.nex")
+tree = tf.bio.read_tree("tree.nex")
 bd.to_raster(bd.group_richness)       # species richness map
 
 # a GBIF download, in 50 km cells of an equal-area projection
-bd = ls.bio.BaseData.from_occurrences("0012345-260928.zip", [50_000, 50_000],
+bd = tf.bio.BaseData.from_occurrences("0012345-260928.zip", [50_000, 50_000],
                                       to_crs="EPSG:6933", max_uncertainty=10_000)
 # a stack of species distribution models, presence above 0.5
-bd = ls.bio.BaseData.from_raster("sdm_stack.tif", threshold=0.5)
+bd = tf.bio.BaseData.from_raster("sdm_stack.tif", threshold=0.5)
 ```
 
 ## Sample counts per group
 
-::: landschaft.bio.BaseData
+::: terraflux.bio.BaseData
 
-::: landschaft.bio.snap_coordinates
+::: terraflux.bio.snap_coordinates
 
-::: landschaft.bio.example_data
+::: terraflux.bio.example_data
 
 ## Occurrence records
 
@@ -44,7 +44,7 @@ chunks and cleaned (absences, missing coordinates, uncertainty, basis of
 record, GBIF issues, duplicates) before they become sample counts per cell
 with `BaseData.from_occurrences`.
 
-::: landschaft.bio.read_occurrences
+::: terraflux.bio.read_occurrences
 
 ## Neighbourhoods
 
@@ -56,13 +56,13 @@ leaving out the first), optionally only for the groups passing a definition
 query. The neighbour lists are the ones Biodiverse uses, including its reuse
 of lists between groups for non-overlapping conditions.
 
-::: landschaft.bio.neighbours
+::: terraflux.bio.neighbours
 
-::: landschaft.bio.definition_query
+::: terraflux.bio.definition_query
 
-::: landschaft.bio.SpatialCondition
+::: terraflux.bio.SpatialCondition
 
-::: landschaft.bio.Neighbourhoods
+::: terraflux.bio.Neighbourhoods
 
 ## Spatial analysis
 
@@ -92,11 +92,11 @@ comparison of two neighbour sets. Values are identical to Biodiverse's.
 `SpatialResult.to_biodiverse_csv` writes the results as Biodiverse's
 "Delimited text" export does, the same text byte for byte.
 
-::: landschaft.bio.spatial_analysis
+::: terraflux.bio.spatial_analysis
 
-::: landschaft.bio.list_calculations
+::: terraflux.bio.list_calculations
 
-::: landschaft.bio.SpatialResult
+::: terraflux.bio.SpatialResult
 
 ## Randomisations
 
@@ -106,9 +106,9 @@ and, with PE and RPE, the CANAPE categories. The randomisations follow
 Biodiverse's (its Mersenne Twister, seeded with `seed`), so the same seed
 gives Biodiverse's results.
 
-::: landschaft.bio.randomise
+::: terraflux.bio.randomise
 
-::: landschaft.bio.Randomisation
+::: terraflux.bio.Randomisation
 
 ## Cluster analyses
 
@@ -118,25 +118,25 @@ as Biodiverse does, including its tie handling (seeded by `prng_seed`),
 spatially constrained clustering and the indices of each node's groups.
 `ClusterResult.cut` splits the dendrogram into a number of clusters.
 
-::: landschaft.bio.cluster
+::: terraflux.bio.cluster
 
-::: landschaft.bio.region_grower
+::: terraflux.bio.region_grower
 
-::: landschaft.bio.ClusterResult
+::: terraflux.bio.ClusterResult
 
 ## Phylogenies
 
-::: landschaft.bio.Tree
+::: terraflux.bio.Tree
 
-::: landschaft.bio.read_tree
+::: terraflux.bio.read_tree
 
-::: landschaft.bio.read_trees
+::: terraflux.bio.read_trees
 
 ## Dissimilarity matrices
 
-::: landschaft.bio.Matrix
+::: terraflux.bio.Matrix
 
-::: landschaft.bio.read_matrix
+::: terraflux.bio.read_matrix
 
 ## Grids and files
 
@@ -147,13 +147,13 @@ whole studies (basedatas, trees, matrices and results) with `save_session`,
 as zips of Parquet tables. Trees convert to and from Bio.Phylo, DendroPy and
 ete (`Tree.from_biopython`, `Tree.to_dendropy`...).
 
-::: landschaft.bio.hex_centres
+::: terraflux.bio.hex_centres
 
-::: landschaft.bio.h3_cells
+::: terraflux.bio.h3_cells
 
-::: landschaft.bio.save_session
+::: terraflux.bio.save_session
 
-::: landschaft.bio.load_session
+::: terraflux.bio.load_session
 
 ## Element properties
 
@@ -161,4 +161,4 @@ Label and group properties (Biodiverse's element properties files) are
 assigned with `BaseData.set_label_properties` and
 `BaseData.set_group_properties`.
 
-::: landschaft.bio.read_properties
+::: terraflux.bio.read_properties

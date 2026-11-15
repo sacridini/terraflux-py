@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The C++ kernels of the simulation steps (rules, ordered allocation, demands, Markov chains, WoE ranges).
 
-Each kernel replaced numpy code of landschaft's: that code is kept here as
+Each kernel replaced numpy code of terraflux's: that code is kept here as
 the reference, and the kernels must give the same bits on random inputs
 (the numbers are drawn so that ties, NaN and edge cases happen often).
 """
@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from landschaft import _core
+from terraflux import _core
 
 # ----------------------------------------------------------------------------- the numpy references
 
@@ -470,7 +470,7 @@ def ref_molusce_prediction_classes(s, given, classes):
 
 
 def ref_molusce_ca_step(state, pred, conf, counts, rng):
-    """landschaft's numpy step, with the cells of equal value taken in a stable order (the later first)."""
+    """terraflux's numpy step, with the cells of equal value taken in a stable order (the later first)."""
     conf_filled = np.nan_to_num(conf, nan=0.0)
     new = state.copy()
     present = sorted(set(np.unique(state[~np.isnan(state)]).tolist()))

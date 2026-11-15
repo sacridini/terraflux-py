@@ -1,27 +1,27 @@
 cmake_minimum_required(VERSION 3.20)
-project(landschaft LANGUAGES CXX)
+project(terraflux LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(LANDSCHAFT_OPENMP "Build with OpenMP" ON)
+option(TERRAFLUX_OPENMP "Build with OpenMP" ON)
 # OFF: only the static C++ libraries (and their headers) are built and installed, without Python, for
-# native programs that link them (Terraflux); the MILP prioritization (HiGHS) only with LANDSCHAFT_MILP.
-option(LANDSCHAFT_PYTHON "Build the Python module landschaft._core" ON)
+# native programs that link them (Terraflux); the MILP prioritization (HiGHS) only with TERRAFLUX_MILP.
+option(TERRAFLUX_PYTHON "Build the Python module terraflux._core" ON)
 # The MILP prioritization (optcore, with HiGHS fetched and built): always with Python, on demand without it.
 include(CMakeDependentOption)
-cmake_dependent_option(LANDSCHAFT_MILP "Build the MILP prioritization (optcore and HiGHS)" OFF
-                       "NOT LANDSCHAFT_PYTHON" ON)
+cmake_dependent_option(TERRAFLUX_MILP "Build the MILP prioritization (optcore and HiGHS)" OFF
+                       "NOT TERRAFLUX_PYTHON" ON)
 
 # On Windows the modules are built with MSVC (the results are checked against the UCRT's maths);
 # a MinGW gcc found on PATH would make modules that need its runtime DLLs and fail to import.
 if(WIN32 AND NOT MSVC)
-    message(FATAL_ERROR "landschaft is built with MSVC on Windows: install Visual Studio (or its Build Tools) "
+    message(FATAL_ERROR "terraflux is built with MSVC on Windows: install Visual Studio (or its Build Tools) "
                         "with the C++ workload. The compiler found was ${CMAKE_CXX_COMPILER}.")
 endif()
 
-if(LANDSCHAFT_PYTHON)
+if(TERRAFLUX_PYTHON)
     find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
     find_package(pybind11 CONFIG REQUIRED)
 endif()
@@ -174,7 +174,7 @@ add_library(hydrocore STATIC
 )
 target_include_directories(hydrocore PUBLIC src/cpp)
 set_target_properties(hydrocore PROPERTIES POSITION_INDEPENDENT_CODE ON)
-# SWAT+ 62.0.1 (the ls.hydro.swat subset): float arithmetic as the Fortran reference.
+# SWAT+ 62.0.1 (the tf.hydro.swat subset): float arithmetic as the Fortran reference.
 add_library(swatcore STATIC
     src/cpp/swat/aquifer.cpp
     src/cpp/swat/calibration.cpp
@@ -204,7 +204,7 @@ target_include_directories(priocore PUBLIC src/cpp)
 target_link_libraries(priocore PRIVATE eigen_headers)
 set_target_properties(priocore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(LANDSCHAFT_MILP)
+if(TERRAFLUX_MILP)
     # HiGHS 1.15.1 (MIT), the MILP / LP solver of the MILP prioritization, built
     # here as a static library linked into _core (no executable, tests or zlib).
     # FETCHCONTENT_SOURCE_DIR_HIGHS=<path> uses a local copy (offline builds).
@@ -314,7 +314,7 @@ add_library(statscore STATIC
 target_include_directories(statscore PUBLIC src/cpp)
 set_target_properties(statscore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Movement ecology (ls.move): steps of tracks as move2 and amt compute them (s2, lwgeom's PROJ geodesics,
+# Movement ecology (tf.move): steps of tracks as move2 and amt compute them (s2, lwgeom's PROJ geodesics,
 # R's nmath, optim and circular's von Mises).
 add_library(movecore STATIC
     src/cpp/move/amt.cpp
@@ -328,7 +328,7 @@ target_include_directories(movecore PUBLIC src/cpp)
 set_target_properties(movecore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # sdmcore: geosphere's geodesics (amt's bearings)
 target_link_libraries(movecore PUBLIC lsmcore nlmcore costcore sdmcore)
-# Land use change (ls.simulate): cross-tabulation and change counts.
+# Land use change (tf.simulate): cross-tabulation and change counts.
 add_library(simcore STATIC
     src/cpp/sim/change.cpp
     src/cpp/sim/woe.cpp
@@ -353,8 +353,8 @@ target_link_libraries(simcore PUBLIC lsmcore nlmcore)
 # the matrix logarithm and exponential of the Markov chains (unsupported/Eigen/MatrixFunctions)
 target_link_libraries(simcore PRIVATE eigen_headers)
 set_target_properties(simcore PROPERTIES POSITION_INDEPENDENT_CODE ON)
-# Raster values by zone and at points (ls.zonal_stats, ls.extract), ls.reclassify, GDAL's warp
-# kernel (ls.reproject); GDAL's polygon rasterizer (lsm/rasterize.cpp); exactextract's exact cell
+# Raster values by zone and at points (tf.zonal_stats, tf.extract), tf.reclassify, GDAL's warp
+# kernel (tf.reproject); GDAL's polygon rasterizer (lsm/rasterize.cpp); exactextract's exact cell
 # coverage of polygons (src/cpp/io/exact, Apache-2.0).
 add_library(iocore STATIC
     src/cpp/io/exact.cpp
@@ -386,7 +386,7 @@ endif()
 set_target_properties(lsmcore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(gtbcore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(LANDSCHAFT_OPENMP)
+if(TERRAFLUX_OPENMP)
     # Apple's clang has no OpenMP runtime of its own and only conda's CMake
     # looks in the environment for one: when building for a conda Python,
     # take its environment's (llvm-openmp), else Homebrew's libomp, unless
@@ -401,9 +401,9 @@ if(LANDSCHAFT_OPENMP)
         if(_conda_python)
             set(OpenMP_ROOT "$ENV{CONDA_PREFIX}")
         else()
-            find_program(LANDSCHAFT_BREW brew)
-            if(LANDSCHAFT_BREW)
-                execute_process(COMMAND "${LANDSCHAFT_BREW}" --prefix libomp
+            find_program(TERRAFLUX_BREW brew)
+            if(TERRAFLUX_BREW)
+                execute_process(COMMAND "${TERRAFLUX_BREW}" --prefix libomp
                                 OUTPUT_VARIABLE _libomp_prefix OUTPUT_STRIP_TRAILING_WHITESPACE
                                 RESULT_VARIABLE _brew_result ERROR_QUIET)
                 if(_brew_result EQUAL 0 AND EXISTS "${_libomp_prefix}/include/omp.h")
@@ -497,10 +497,10 @@ else()
     target_compile_options(swatcore PRIVATE -ffp-contract=off -fno-fast-math -Wall -Wextra -Wdouble-promotion)
 endif()
 
-if(LANDSCHAFT_PYTHON)
+if(TERRAFLUX_PYTHON)
     # pybind11 compiles a module's files with /MP, one cl.exe per logical core:
     # capped, so two modules building at once (msbuild /m:2) stay within 8 processes
-    set(LANDSCHAFT_MSVC_MP 4 CACHE STRING "Most cl.exe processes /MP starts for each Python module (MSVC)")
+    set(TERRAFLUX_MSVC_MP 4 CACHE STRING "Most cl.exe processes /MP starts for each Python module (MSVC)")
     pybind11_add_module(_core MODULE src/cpp/bindings.cpp src/cpp/circuit/python.cpp src/cpp/nlm/python.cpp
                         src/cpp/bio/python.cpp src/cpp/cost/python.cpp src/cpp/surf/python.cpp
                         src/cpp/prio/python.cpp src/cpp/io/python.cpp src/cpp/sdm/python.cpp src/cpp/sdm/maxnet_python.cpp
@@ -511,34 +511,34 @@ if(LANDSCHAFT_PYTHON)
     target_link_libraries(_core PRIVATE gtbcore lsmcore conncore circuitcore nlmcore biocore costcore surfcore priocore
                           iocore sdmcore simcore optcore restcore hydrocore servcore swatcore statscore movecore)
     if(MSVC)
-        target_compile_options(_core PRIVATE /fp:precise /MP${LANDSCHAFT_MSVC_MP})
+        target_compile_options(_core PRIVATE /fp:precise /MP${TERRAFLUX_MSVC_MP})
     else()
         target_compile_options(_core PRIVATE -ffp-contract=off -fno-fast-math)
     endif()
 
     # Only this component goes into the wheel (not the headers and library HiGHS installs).
-    install(TARGETS _core DESTINATION landschaft COMPONENT landschaft)
+    install(TARGETS _core DESTINATION terraflux COMPONENT terraflux)
 
     # The circuit module again, built for AVX2 and FMA, as a module of its own
-    # (landschaft._circuit_avx2): Python loads it only when the CPU has them
+    # (terraflux._circuit_avx2): Python loads it only when the CPU has them
     # (_core.cpu_supports_avx2_fma), which makes the dense kernels of the
     # factorisations 1.2-1.5x faster. Same IEEE rules for the scalar code.
-    option(LANDSCHAFT_CIRCUIT_AVX2 "Build the AVX2 circuit module on x86-64" ON)
-    if(LANDSCHAFT_CIRCUIT_AVX2 AND CMAKE_SIZEOF_VOID_P EQUAL 8
+    option(TERRAFLUX_CIRCUIT_AVX2 "Build the AVX2 circuit module on x86-64" ON)
+    if(TERRAFLUX_CIRCUIT_AVX2 AND CMAKE_SIZEOF_VOID_P EQUAL 8
        AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64|X86_64)$" AND NOT CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
         pybind11_add_module(_circuit_avx2 MODULE src/cpp/circuit/python.cpp ${CIRCUIT_SOURCES})
         target_include_directories(_circuit_avx2 PRIVATE src/cpp)
         target_link_libraries(_circuit_avx2 PRIVATE eigen_headers)
-        target_compile_definitions(_circuit_avx2 PRIVATE LANDSCHAFT_CIRCUIT_AVX2_MODULE)
+        target_compile_definitions(_circuit_avx2 PRIVATE TERRAFLUX_CIRCUIT_AVX2_MODULE)
         if(TARGET OpenMP::OpenMP_CXX)
             target_link_libraries(_circuit_avx2 PRIVATE OpenMP::OpenMP_CXX)
         endif()
         if(MSVC)
-            target_compile_options(_circuit_avx2 PRIVATE /arch:AVX2 /fp:precise /MP${LANDSCHAFT_MSVC_MP})
+            target_compile_options(_circuit_avx2 PRIVATE /arch:AVX2 /fp:precise /MP${TERRAFLUX_MSVC_MP})
         else()
             target_compile_options(_circuit_avx2 PRIVATE -mavx2 -mfma -ffp-contract=off -fno-fast-math)
         endif()
-        install(TARGETS _circuit_avx2 DESTINATION landschaft COMPONENT landschaft)
+        install(TARGETS _circuit_avx2 DESTINATION terraflux COMPONENT terraflux)
     endif()
 else()
     # The static libraries and their headers, for native programs (Terraflux links simcore and what it needs).
@@ -546,7 +546,7 @@ else()
                     simcore restcore hydrocore servcore swatcore statscore movecore
             ARCHIVE DESTINATION lib)
     # with HiGHS's library, which its own rules install
-    if(LANDSCHAFT_MILP)
+    if(TERRAFLUX_MILP)
         install(TARGETS optcore ARCHIVE DESTINATION lib)
     endif()
     install(DIRECTORY src/cpp/ DESTINATION include FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h" PATTERN "*.inc")

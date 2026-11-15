@@ -113,7 +113,7 @@ def assert_same(ours, ref, key: str = "", rtol: float = 0.0, atol: float = 0.0) 
 
 
 # ----------------------------------------------------------------------------- solving a stored model
-# Development checks only: highspy and gurobipy are not dependencies of landschaft.
+# Development checks only: highspy and gurobipy are not dependencies of terraflux.
 
 def _row_bounds(m: Model) -> tuple[np.ndarray, np.ndarray]:
     lo = np.full(m.rhs.size, -np.inf)

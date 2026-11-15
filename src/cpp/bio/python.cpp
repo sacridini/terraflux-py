@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the biodiversity module (landschaft._core.bio_*).
+// Python bindings of the biodiversity module (terraflux._core.bio_*).
 
 #include "bio/python.hpp"
 

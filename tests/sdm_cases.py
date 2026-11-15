@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cases shared by tools/make_reference_sdm.py and the ls.sdm tests.
+"""Cases shared by tools/make_reference_sdm.py and the tf.sdm tests.
 
 Every input is built in Python (a DataFrame, a GeoDataFrame or a raster
 DataArray) and handed to R unchanged: tables as raw float64 / JSON columns,
@@ -37,12 +37,12 @@ class Case:
 
 @lru_cache(maxsize=None)
 def _example(name: str):
-    import landschaft as ls
+    import terraflux as tf
 
-    path = ls.sdm.example_data(name)
+    path = tf.sdm.example_data(name)
     if path.suffix == ".tif":
-        return ls.load_raster(path)
-    return ls.load_table(path)
+        return tf.load_raster(path)
+    return tf.load_table(path)
 
 
 def bradypus() -> pd.DataFrame:
@@ -67,7 +67,7 @@ def edge_points() -> pd.DataFrame:
 
 def _r_runif_points(seed: int, n: int, lo=(0.0, 0.0), hi=(1.0, 1.0)) -> pd.DataFrame:
     """lon = runif(n, ...), lat = runif(n, ...) after set.seed(seed), as in R."""
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(seed)
     lon = r.runif(n, lo[0], hi[0])
@@ -104,7 +104,7 @@ def cc_synthetic() -> pd.DataFrame:
     """Records near each kind of reference CoordinateCleaner tests against, and controls."""
     from pyproj import Geod
 
-    from landschaft.sdm._refdata import reference_data
+    from terraflux.sdm._refdata import reference_data
 
     g = Geod(ellps="WGS84")
     cref = reference_data("countryref")
@@ -142,8 +142,8 @@ def cc_synthetic() -> pd.DataFrame:
 
 def cc_edges() -> pd.DataFrame:
     """Records on the vertices of the circles, near the antimeridian and near the south pole."""
-    from landschaft import _core
-    from landschaft.sdm._refdata import reference_data
+    from terraflux import _core
+    from terraflux.sdm._refdata import reference_data
 
     cref = reference_data("countryref")
     cap = cref[cref["capital"] == "Brasilia"].iloc[0]
@@ -165,7 +165,7 @@ def acaule_valid() -> pd.DataFrame:
 
 def vif_table() -> pd.DataFrame:
     """usdm's test table: set.seed(1); a, b = a + noise, c, d = b + c + noise (n = 200)."""
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(1)
     n = 200
@@ -183,7 +183,7 @@ def vif_collinear() -> pd.DataFrame:
 
 def vif_big() -> pd.DataFrame:
     """8000 rows (sampled: 5000) with a missing value."""
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(5)
     n = 8000
@@ -199,7 +199,7 @@ def planar_stack(ny: int, nx: int, seed: int, na: int = 0):
     """Three correlated layers on a projected grid (UTM 23S), some cells missing."""
     import xarray as xr
 
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(seed)
     n = ny * nx
@@ -218,9 +218,9 @@ def planar_stack(ny: int, nx: int, seed: int, na: int = 0):
 
 def bradypus_area():
     """The accessible area of the Bradypus records: 500 km around them."""
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.sdm.accessible_area(bradypus(), distance=500_000)
+    return tf.sdm.accessible_area(bradypus(), distance=500_000)
 
 
 def bias_bio12():
@@ -230,7 +230,7 @@ def bias_bio12():
 
 def bias_points() -> pd.DataFrame:
     """Records on the grid of stack_80: a cluster, a uniform spread, duplicates and a few outside the grid."""
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(21)
     x = np.concatenate([r.rnorm(120, 330_000, 6_000), r.runif(80, 300_000, 380_000), [310_500.0] * 5,
@@ -244,7 +244,7 @@ def blk_points():
     """150 points in 10 x 7 km (UTM 22S), 40 % presences: blockCV's typical input."""
     import geopandas as gpd
 
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(21)
     n = 150
@@ -266,12 +266,12 @@ def blk_grid():
 
 
 def _bradypus_data():
-    import landschaft as ls
+    import terraflux as tf
 
     env = bioclim()
     occ = bradypus()
-    bg = ls.sdm.background(env, 600, occ=occ, seed=1)
-    return ls.sdm.dataset(occ, bg, env)
+    bg = tf.sdm.background(env, 600, occ=occ, seed=1)
+    return tf.sdm.dataset(occ, bg, env)
 
 
 def brad_occs() -> pd.DataFrame:
@@ -303,7 +303,7 @@ def eval_small() -> pd.DataFrame:
 
 def eval_beta() -> pd.DataFrame:
     """200 uniform background predictions (3 decimals) and 30 presences skewed high (Beta(4, 1.5)-like)."""
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(1)
     fit = np.round(r.runif(200, 0.0, 1.0), 3)
@@ -314,7 +314,7 @@ def eval_beta() -> pd.DataFrame:
 
 def eval_big() -> pd.DataFrame:
     """1500 presences and 1200 background predictions: quantile thresholds."""
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(7)
     p = np.round(r.runif(1500, 0.2, 1.0), 4)
@@ -357,7 +357,7 @@ def smooth_field():
     import xarray as xr
     from scipy.ndimage import uniform_filter
 
-    from landschaft import _core
+    from terraflux import _core
 
     r = _core.RRandom(12)
     layers = []
@@ -440,14 +440,14 @@ _DROP_NA_R = " & !is.na(cells) & {{ v <- extract(bioclim, ifelse(is.na(cells), 1
 
 def _one_per_cell_py(points: str, drop: bool):
     def run(**kw):
-        import landschaft as ls
-        from landschaft.sdm import _points
+        import terraflux as tf
+        from terraflux.sdm import _points
 
         occ, env = kw[points], kw["bioclim"]
         xs, ys, _ = _points.coordinates(occ)
         cells = _points.grid_cells(xs, ys, env).astype(float)
         cells[cells < 0] = np.nan
-        kept = ls.sdm.one_per_cell(occ, env, drop_missing=drop)
+        kept = tf.sdm.one_per_cell(occ, env, drop_missing=drop)
         return {"cell": cells, "keep": occ.index.get_indexer(kept.index) + 1}
     return run
 
@@ -469,10 +469,10 @@ _THIN_R = (
 
 def _thin_py(points: str, distance: float, reps: int, seed: int):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
         occ = kw[points]
-        out = ls.sdm.thin(occ, distance, reps=reps, seed=seed, return_all=True)
+        out = tf.sdm.thin(occ, distance, reps=reps, seed=seed, return_all=True)
         return {f"rep{i + 1}": occ.index.get_indexer(o.index) + 1 for i, o in enumerate(out)}
     return run
 
@@ -520,15 +520,15 @@ _CC_EXTRA_SYNTH = """,
 
 def _cc_py(points: str, synthetic: bool):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
         occ = kw[points]
         extra = dict(urban=True, countries="iso3", duplicates=True, aohi=True) if synthetic else {}
-        f = ls.sdm.clean_occurrences(occ, action="flag", **extra)
+        f = tf.sdm.clean_occurrences(occ, action="flag", **extra)
         out = {k[5:]: f[k].to_numpy(float) for k in f.columns if k.startswith("flag_") and k != "flag_invalid"}
         for name, opts in (("outliers_mad", {"method": "mad"}), ("outliers_distance", {"method": "distance", "tdi": 500}),
                            ("outliers_thin", {"thinning": True})):
-            g = ls.sdm.clean_occurrences(occ, action="flag", equal=False, zeros=False, capitals=False, centroids=False,
+            g = tf.sdm.clean_occurrences(occ, action="flag", equal=False, zeros=False, capitals=False, centroids=False,
                                          seas=False, gbif=False, institutions=False, outliers=opts)
             out[name] = g["flag_outliers"].to_numpy(float)
         return out
@@ -546,18 +546,18 @@ _USDM_LIB = "suppressMessages(library(usdm)); "
 
 def _usdm_vif_py(name: str, seed=None, size=5000):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
-        v = ls.sdm.vif(kw[name], seed=seed, size=size)
+        v = tf.sdm.vif(kw[name], seed=seed, size=size)
         return {"vif": v["vif"].to_numpy(), "names": v["variable"].tolist()}
     return run
 
 
 def _usdm_select_py(name: str, seed=None, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
-        out = ls.sdm.select_predictors(kw[name], seed=seed, **opts)
+        out = tf.sdm.select_predictors(kw[name], seed=seed, **opts)
         sel = out.attrs["selection"]
         return {"excluded": sel["excluded"], "kept": sel["kept"], "vif": list(sel["vif"].values())}
     return run
@@ -598,7 +598,7 @@ for _name, _fn, _data, _args, _seed, _opts in [
 
 
 # dismo::randomPoints on a mask with NA where some predictor is missing (and outside the area / the
-# distance band / inside the envelope): the cells ls.sdm.background draws for the same seed.
+# distance band / inside the envelope): the cells tf.sdm.background draws for the same seed.
 _BG_MASK = "m <- ifel(any(is.na({env})), NA, 1); "
 
 
@@ -633,11 +633,11 @@ def _bg_py(env: str, n: int, seed: int, p: bool = True, area: bool = False, prob
     def run(**kw):
         import warnings
 
-        import landschaft as ls
+        import terraflux as tf
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            bg = ls.sdm.background(kw[env], n, occ=kw["bradypus"] if p or distance or envelope else None,
+            bg = tf.sdm.background(kw[env], n, occ=kw["bradypus"] if p or distance or envelope else None,
                                    exclude_occurrences=p, area=kw["bradypus_area"] if area else None,
                                    bias=kw[prob] if prob else None, distance=distance, envelope=envelope,
                                    seed=seed)
@@ -671,9 +671,9 @@ _CV = ("{{ suppressMessages({{ library(blockCV); library(sf) }}); sf_use_s2(FALS
 
 def _cv_py(points: str, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
-        return {"folds": ls.sdm.spatial_blocks(kw[points], column="occ", **opts)}
+        return {"folds": tf.sdm.spatial_blocks(kw[points], column="occ", **opts)}
     return run
 
 
@@ -712,11 +712,11 @@ _ENM = "{{ suppressMessages(library(ENMeval)); {seed}g <- {call}; list(occs = g$
 
 def _enm_py(fn: str, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
         data = _bradypus_data()
-        f = getattr(ls.sdm, fn)(data, **opts) if fn != "checkerboard_folds" else \
-            ls.sdm.checkerboard_folds(data, kw["bioclim"], **opts)
+        f = getattr(tf.sdm, fn)(data, **opts) if fn != "checkerboard_folds" else \
+            tf.sdm.checkerboard_folds(data, kw["bioclim"], **opts)
         return {"occs": f.folds[data.y == 1], "bg": f.folds[data.y == 0]}
     return run
 
@@ -748,7 +748,7 @@ list(cap_geod = !cc_cap_fixed(x, buffer = 10000, value = "flagged"),
 
 
 def _cc_edges_py(**kw):
-    import landschaft as ls
+    import terraflux as tf
 
     occ = kw["cc_edges"]
     off = dict(equal=False, zeros=False, capitals=False, centroids=False, seas=False, outliers=False, gbif=False,
@@ -756,7 +756,7 @@ def _cc_edges_py(**kw):
     dateline = pd.DataFrame({"lon": [179.995], "lat": [-16.5]})
 
     def flag(test, **opts):
-        f = ls.sdm.clean_occurrences(occ, action="flag", **{**off, **opts})
+        f = tf.sdm.clean_occurrences(occ, action="flag", **{**off, **opts})
         return f[f"flag_{test}"].to_numpy(float)
 
     return {"cap_geod": flag("capitals", capitals=10_000),
@@ -778,12 +778,12 @@ _BOYCE_R = ("{{ source(file.path(TOOLS, 'ecospat_fixed.R')); d <- {d}; obs <- d$
 
 def _boyce_py(d: str, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
         x = kw[d]
         obs = x["pred"][x["y"] == 1].to_numpy()
         fit = x["pred"][x["y"] == 0].to_numpy()
-        b = ls.sdm.boyce(obs, np.concatenate([fit, obs]), **opts)
+        b = tf.sdm.boyce(obs, np.concatenate([fit, obs]), **opts)
         return {"cor": [b["cor"]], "f": b["f_ratio"], "hs": b["hs"], "used": b["used"]}
     return run
 
@@ -811,10 +811,10 @@ _PA_R = ("{{ suppressMessages(library(predicts)); d <- {d}; e <- pa_evaluate(d$p
 
 def _pa_py(d: str):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
         x = kw[d]
-        e = ls.sdm.evaluate(x["pred"][x["y"] == 1].to_numpy(), x["pred"][x["y"] == 0].to_numpy())
+        e = tf.sdm.evaluate(x["pred"][x["y"] == 1].to_numpy(), x["pred"][x["y"] == 0].to_numpy())
         tb = e.table
         th = e.thresholds
         out = {"auc": [e.stats["auc"]], "cor": [e.stats["cor"]], "pcor": [e.stats["pcor"]],
@@ -838,15 +838,15 @@ _OR_R = ("{{ suppressMessages(library(ENMeval)); d <- {d}; p <- d$pred[d$y == 1]
 
 def _or_py(d: str):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
         x = kw[d]
         p = x["pred"][x["y"] == 1].to_numpy()
         out = {}
         for n in (1, 2, 5, 9, 10, 11, 29):
             tr, te = p[:n], p[n:]
-            out[f"mtp{n}"] = [ls.sdm.omission_rate(tr, te, "mtp")]
-            out[f"p10{n}"] = [ls.sdm.omission_rate(tr, te, "p10")]
+            out[f"mtp{n}"] = [tf.sdm.omission_rate(tr, te, "mtp")]
+            out[f"p10{n}"] = [tf.sdm.omission_rate(tr, te, "p10")]
         return out
     return run
 
@@ -859,9 +859,9 @@ _MESS_R = ("{ suppressMessages(library(predicts)); m <- mess(env_warm, ref_x, fu
 
 
 def _mess_py(**kw):
-    import landschaft as ls
+    import terraflux as tf
 
-    m = ls.sdm.mess(kw["ref_x"], kw["env_warm"], full=True)
+    m = tf.sdm.mess(kw["ref_x"], kw["env_warm"], full=True)
     return {str(b): m.sel(band=b).values.ravel() for b in m.band.values}
 
 
@@ -878,9 +878,9 @@ _MOP_R = ("{{ suppressMessages({{ library(mop); library(terra) }}); "
 
 def _mop_py(env: str, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
-        o = ls.sdm.mop(kw["ref_x"], kw[env], **opts)
+        o = tf.sdm.mop(kw["ref_x"], kw[env], **opts)
         return {str(b): o.sel(band=b).values.ravel() for b in o.band.values}
     return run
 
@@ -903,9 +903,9 @@ list(mop = d) }"""
 
 
 def _mop_mahal_py(**kw):
-    import landschaft as ls
+    import terraflux as tf
 
-    o = ls.sdm.mop(kw["ref_x"], kw["env_small"].sel(band=["bio1", "bio12", "bio16"]), distance="mahalanobis",
+    o = tf.sdm.mop(kw["ref_x"], kw["env_small"].sel(band=["bio1", "bio12", "bio16"]), distance="mahalanobis",
                    where="all", percentage=5)
     return {"mop": o.sel(band="mop").values.ravel()}
 
@@ -921,9 +921,9 @@ list(exdet = e$ExDet, mic = mic) }"""
 
 
 def _exdet_py(**kw):
-    import landschaft as ls
+    import terraflux as tf
 
-    e = ls.sdm.exdet(kw["ref_x"], kw["tg_small"])
+    e = tf.sdm.exdet(kw["ref_x"], kw["tg_small"])
     return {"exdet": e["exdet"].to_numpy(), "mic": e["mic"].to_numpy()}
 
 
@@ -944,18 +944,18 @@ out }}"""
 
 def _autocor_py(env: str, bands, n: int, seed: int):
     def run(**kw):
-        import landschaft as ls
-        from landschaft import _core
-        from landschaft.sdm import _autocorrelation as A
+        import terraflux as tf
+        from terraflux import _core
+        from terraflux.sdm import _autocorrelation as A
 
         e = kw[env]
         if bands is not None:
             e = e.sel(band=bands)
-        res = ls.sdm.autocorrelation_range(e, n=n, seed=seed)
+        res = tf.sdm.autocorrelation_range(e, n=n, seed=seed)
         out = {"range": [res["range"]]}
         rng = _core.RRandom(seed)
         lonlat = A._could_be_lonlat(e) if hasattr(A, "_could_be_lonlat") else False
-        from landschaft.sdm._background import _could_be_lonlat
+        from terraflux.sdm._background import _could_be_lonlat
 
         for b in e.band.values:
             x, y, z = A._sample_points(e.sel(band=b), n, rng)
@@ -982,9 +982,9 @@ _CLUSTER_R = ("{{ suppressMessages({{ library(blockCV); library(sf); library(ter
 
 def _cluster_py(k: int, seed: int, env: bool = False, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
-        folds = ls.sdm.spatial_clusters(kw["brad_points"], k, env=kw["bioclim"] if env else None, seed=seed, **opts)
+        folds = tf.sdm.spatial_clusters(kw["brad_points"], k, env=kw["bioclim"] if env else None, seed=seed, **opts)
         return {"folds": folds}
     return run
 
@@ -1012,10 +1012,10 @@ _KDE_R = ("{{ g <- {env}; cx <- xFromCol(g, 1:ncol(g)); cy <- yFromRow(g, nrow(g
 
 def _kde_py(env: str, points: str, cols: tuple, **opts):
     def run(**kw):
-        import landschaft as ls
+        import terraflux as tf
 
-        b = ls.sdm.bias_surface(kw[points], kw[env], mask=False, **opts)
-        bw = [ls.sdm._bias._bw_nrd(kw[points][c].to_numpy(dtype=float)) for c in cols]
+        b = tf.sdm.bias_surface(kw[points], kw[env], mask=False, **opts)
+        bw = [tf.sdm._bias._bw_nrd(kw[points][c].to_numpy(dtype=float)) for c in cols]
         return {"z": b.values.reshape(-1), "bw": bw}
     return run
 

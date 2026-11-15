@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of InVEST's seasonal water yield model for ls.services.
+"""Generate golden outputs of InVEST's seasonal water yield model for tf.services.
 
 Usage::
 

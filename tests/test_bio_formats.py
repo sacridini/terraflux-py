@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.bio readers for modern data: GBIF / Darwin Core, SDM stacks read in blocks."""
+"""tf.bio readers for modern data: GBIF / Darwin Core, SDM stacks read in blocks."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from bio_cases import DATA
 
 GBIF_COLUMNS = [
@@ -61,44 +61,44 @@ def _write_dwca(path):
 def test_read_occurrences_filters(tmp_path, writer):
     path = tmp_path / "download.zip"
     writer(path)
-    occ = ls.bio.read_occurrences(path, chunksize=3)
+    occ = tf.bio.read_occurrences(path, chunksize=3)
     # absent (3), no species (6), no latitude (7) dropped; duplicate 2 of 1 dropped
     assert occ["label"].tolist() == ["Acacia a", "Acacia b", "Acacia b", "Eucalyptus c"]
     assert occ["count"].tolist() == [1.0, 1.0, 1.0, 1.0]
-    occ = ls.bio.read_occurrences(path, count="individualCount", drop_duplicates=False,
+    occ = tf.bio.read_occurrences(path, count="individualCount", drop_duplicates=False,
                                   max_uncertainty=1000, exclude_issues=["ZERO_COORDINATE"],
                                   basis_of_record=["human_observation", "PRESERVED_SPECIMEN"])
     assert occ.index.tolist() == [0, 1]
     assert occ["count"].tolist() == [1.0, 3.0]
-    occ = ls.bio.read_occurrences(path, label=["taxonKey"])
+    occ = tf.bio.read_occurrences(path, label=["taxonKey"])
     assert occ["label"].tolist() == ["11", "12", "12", "10", "13"]
 
 
 def test_from_occurrences_matches_table_import(tmp_path):
     path = tmp_path / "download.zip"
     _write_simple_csv(path)
-    bd = ls.bio.BaseData.from_occurrences(path, [0.5, 0.5])
-    occ = ls.bio.read_occurrences(path)
-    ref = ls.bio.BaseData.from_dataframe(occ, ["decimalLongitude", "decimalLatitude"], "label", "count",
+    bd = tf.bio.BaseData.from_occurrences(path, [0.5, 0.5])
+    occ = tf.bio.read_occurrences(path)
+    ref = tf.bio.BaseData.from_dataframe(occ, ["decimalLongitude", "decimalLatitude"], "label", "count",
                                          cell_sizes=[0.5, 0.5])
     # the table import quotes names with spaces, as Biodiverse does; occurrences keep them plain
     assert bd.groups == ref.groups and bd.labels == [lb.strip("'") for lb in ref.labels]
     assert (bd.counts != ref.counts).nnz == 0
     assert str(bd.crs) == "EPSG:4326"
-    assert ls.bio.BaseData.from_file(path, cell_sizes=[0.5, 0.5]).groups == bd.groups
+    assert tf.bio.BaseData.from_file(path, cell_sizes=[0.5, 0.5]).groups == bd.groups
 
 
 def test_from_occurrences_reprojects():
     occ = pd.DataFrame({"species": ["a", "b"], "decimalLongitude": [0.0, 1.0], "decimalLatitude": [0.0, 0.0]})
-    bd = ls.bio.BaseData.from_occurrences(occ, [100_000, 100_000], to_crs="EPSG:3857")
+    bd = tf.bio.BaseData.from_occurrences(occ, [100_000, 100_000], to_crs="EPSG:3857")
     # 1 degree of longitude at the equator is 111 319.49 m in Web Mercator
     assert bd.groups == ["150000:50000", "50000:50000"]
 
 
 def test_raster_blocks_give_the_same_basedata():
     for f, lab in [("raster_multi.tif", True), ("raster_values.tif", False)]:
-        whole = ls.bio.BaseData.from_raster(DATA / f, labels_as_bands=lab, cell_sizes=[20, 20])
-        blocks = ls.bio.BaseData.from_raster(DATA / f, labels_as_bands=lab, cell_sizes=[20, 20], block_rows=5)
+        whole = tf.bio.BaseData.from_raster(DATA / f, labels_as_bands=lab, cell_sizes=[20, 20])
+        blocks = tf.bio.BaseData.from_raster(DATA / f, labels_as_bands=lab, cell_sizes=[20, 20], block_rows=5)
         assert whole.groups == blocks.groups and whole.labels == blocks.labels
         assert (whole.counts != blocks.counts).nnz == 0
 
@@ -115,8 +115,8 @@ def test_sdm_stack_from_lazy_xarray(tmp_path):
     )
     path = tmp_path / "sdm.nc"
     ds.to_netcdf(path)
-    eager = ls.bio.BaseData.from_xarray(ds, threshold=0.7, cell_sizes=[50, 50])
-    lazy = ls.bio.BaseData.from_xarray(xr.open_dataset(path, chunks={"y": 7}), threshold=0.7, cell_sizes=[50, 50],
+    eager = tf.bio.BaseData.from_xarray(ds, threshold=0.7, cell_sizes=[50, 50])
+    lazy = tf.bio.BaseData.from_xarray(xr.open_dataset(path, chunks={"y": 7}), threshold=0.7, cell_sizes=[50, 50],
                                        block_rows=4)
     assert eager.labels == ["sp0", "sp1", "sp2", "sp3"]
     assert eager.groups == lazy.groups
@@ -124,5 +124,5 @@ def test_sdm_stack_from_lazy_xarray(tmp_path):
     # presence counts per 5x5 block of pixels
     got = eager.to_dataframe().loc["25:975", "sp0"]
     assert got == float((z[0, 0:5, 0:5] >= 0.7).sum())
-    weighted = ls.bio.BaseData.from_xarray(ds, cell_sizes=[50, 50])
+    weighted = tf.bio.BaseData.from_xarray(ds, cell_sizes=[50, 50])
     assert weighted.to_dataframe().loc["25:975", "sp0"] == pytest.approx(z[0, 0:5, 0:5].sum())

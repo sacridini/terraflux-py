@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
 gpd = pytest.importorskip("geopandas")
 shapely = pytest.importorskip("shapely")
@@ -32,7 +32,7 @@ def _num(col: pd.Series) -> np.ndarray:
 @pytest.mark.parametrize("kind,hexagonal", [("hex", True), ("square", False)])
 def test_make_grid_same_coordinates(kind, hexagonal):
     ref = shapely.from_wkt(_ref(f"grid_{kind}")["wkt"].to_numpy())
-    ours = ls.conn.make_grid(REGION, 2.5e7, hexagonal=hexagonal)
+    ours = tf.conn.make_grid(REGION, 2.5e7, hexagonal=hexagonal)
     assert len(ours) == len(ref)
     for a, b in zip(ours.geometry.values, ref):
         np.testing.assert_array_equal(shapely.get_coordinates(a), shapely.get_coordinates(b))
@@ -45,7 +45,7 @@ def test_make_grid_same_coordinates(kind, hexagonal):
 ])
 def test_connectivity_grid(name, protconn, pij_min):
     ref = _ref(name).rename(columns={"Protected.surface": "Protected_surface", "ECA.Normalized": "ECA_Normalized"})
-    ours = ls.conn.connectivity_grid(PAS, REGION, distance=3000, cell_area=2.5e7, protconn_index=protconn,
+    ours = tf.conn.connectivity_grid(PAS, REGION, distance=3000, cell_area=2.5e7, protconn_index=protconn,
                                      probability=0.5, transboundary=2000, area_unit="ha", pij_min=pij_min)
     for col in ref.columns[1:]:
         a, b = ours[col].to_numpy(float), _num(ref[col])
@@ -63,7 +63,7 @@ def test_connectivity_grid(name, protconn, pij_min):
 def test_protconn_raster(case, ttype, tb, bound):
     ref = _ref("protconn_raster")
     ref = ref[ref["case"] == case]
-    ours = ls.conn.protconn_raster(REF / "protconn_areas.tif", REGION, distance=[2000.0, 6000.0], transboundary=tb,
+    ours = tf.conn.protconn_raster(REF / "protconn_areas.tif", REGION, distance=[2000.0, 6000.0], transboundary=tb,
                                    transboundary_type=ttype, bound=bound, area_unit="ha")
     for _, row in ref.iterrows():
         v = np.nan if row["value"] == "NA" else float(row["value"])
@@ -81,7 +81,7 @@ def test_eca_change_grid():
     times = [poly[poly["id"].isin(steps[(steps["kind"] == "vector") & (steps["time"] == t)]["id"])]
              .reset_index(drop=True) for t in (1, 2, 3)]
     region = gpd.GeoDataFrame(geometry=[shapely.box(*poly.total_bounds)], crs=poly.crs)
-    ours = ls.conn.eca_change_grid(times, region, distance=3000, metric="PC", cell_area=6e7, probability=0.5,
+    ours = tf.conn.eca_change_grid(times, region, distance=3000, metric="PC", cell_area=6e7, probability=0.5,
                                    area_unit="km2")
     assert list(ours["OBJECTID"]) == list(ref["OBJECTID"].astype(int))
     assert list(ours["time"]) == list(ref["Time"])
@@ -95,14 +95,14 @@ def test_eca_change_grid():
 
 
 def test_grid_options_and_errors():
-    clipped = ls.conn.make_grid(REGION, 2.5e7, clip=True)
+    clipped = tf.conn.make_grid(REGION, 2.5e7, clip=True)
     union = shapely.union_all(REGION.geometry.values)
     assert all(shapely.covers(shapely.buffer(union, 1e-6), g) for g in clipped.geometry.values)
-    whole = ls.conn.make_grid(REGION, 2.5e7, grid_boundary=True)
-    assert 0 < len(whole) < len(ls.conn.make_grid(REGION, 2.5e7))
+    whole = tf.conn.make_grid(REGION, 2.5e7, grid_boundary=True)
+    assert 0 < len(whole) < len(tf.conn.make_grid(REGION, 2.5e7))
     with pytest.raises(ValueError, match="clip or grid_boundary"):
-        ls.conn.make_grid(REGION, 2.5e7, clip=True, grid_boundary=True)
+        tf.conn.make_grid(REGION, 2.5e7, clip=True, grid_boundary=True)
     with pytest.raises(ValueError, match="grid or a cell_area"):
-        ls.conn.connectivity_grid(PAS, REGION, distance=3000)
+        tf.conn.connectivity_grid(PAS, REGION, distance=3000)
     with pytest.raises(ValueError, match="two or more"):
-        ls.conn.eca_change_grid([PAS], REGION, distance=3000, cell_area=2.5e7)
+        tf.conn.eca_change_grid([PAS], REGION, distance=3000, cell_area=2.5e7)

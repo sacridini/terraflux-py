@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 
-import landschaft as ls
+import terraflux as tf
 from bio_cases import BASEDATA_CASES, DATA, MATRIX_CASES, NEWICK_CASES, RASTER_CASES, REFERENCE, TREE_FILES, VECTOR_CASES
 
 pytestmark = pytest.mark.reference
@@ -20,7 +20,7 @@ def _load(name: str) -> dict:
     return json.loads((REFERENCE / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def _check_basedata(bd: ls.bio.BaseData, ref: dict, text_axes=()) -> None:
+def _check_basedata(bd: tf.bio.BaseData, ref: dict, text_axes=()) -> None:
     assert bd.groups == sorted(ref["groups"])
     assert bd.labels == sorted(ref["labels"])
     for g, info in ref["groups"].items():
@@ -42,8 +42,8 @@ def _check_basedata(bd: ls.bio.BaseData, ref: dict, text_axes=()) -> None:
 def test_basedata_import_matches_biodiverse(name):
     case = BASEDATA_CASES[name]
     ref = _load("basedata")[name]
-    kw = {k: v for k, v in case["landschaft"].items() if v is not None}
-    bd = ls.bio.BaseData.from_table(DATA / case["file"], **kw)
+    kw = {k: v for k, v in case["terraflux"].items() if v is not None}
+    bd = tf.bio.BaseData.from_table(DATA / case["file"], **kw)
     text_axes = [k for k, c in enumerate(kw["cell_sizes"]) if c < 0]
     _check_basedata(bd, ref, text_axes)
     assert list(bd.cell_sizes) == [float(c) for c in ref["cell_sizes"]]
@@ -53,7 +53,7 @@ def test_basedata_import_matches_biodiverse(name):
 def test_raster_import_matches_biodiverse(name):
     case = RASTER_CASES[name]
     ref = _load("rasters")[name]
-    bd = ls.bio.BaseData.from_raster(
+    bd = tf.bio.BaseData.from_raster(
         [DATA / f for f in case["files"]],
         labels_as_bands=bool(case["labels_as_bands"]),
         cell_sizes=case["cell_sizes"],
@@ -62,7 +62,7 @@ def test_raster_import_matches_biodiverse(name):
     _check_basedata(bd, ref)
 
 
-def _check_tree(t: ls.bio.Tree, ref: dict) -> None:
+def _check_tree(t: tf.bio.Tree, ref: dict) -> None:
     assert sorted(t.names) == sorted(ref["nodes"])
     for name, info in ref["nodes"].items():
         i = t.index(name)
@@ -77,7 +77,7 @@ def _check_tree(t: ls.bio.Tree, ref: dict) -> None:
 @pytest.mark.parametrize("fname", TREE_FILES)
 def test_tree_files_match_biodiverse(fname):
     refs = _load("trees")["files"][fname]
-    trees = ls.bio.read_trees(DATA / fname)
+    trees = tf.bio.read_trees(DATA / fname)
     assert [t.name for t in trees] == [r["name"] for r in refs]
     for t, r in zip(trees, refs):
         _check_tree(t, r)
@@ -86,7 +86,7 @@ def test_tree_files_match_biodiverse(fname):
 @pytest.mark.parametrize("name", list(NEWICK_CASES))
 def test_newick_matches_biodiverse(name):
     refs = _load("trees")["newick"][name]
-    trees = ls.bio.read_trees(NEWICK_CASES[name])
+    trees = tf.bio.read_trees(NEWICK_CASES[name])
     assert len(trees) == len(refs)
     for t, r in zip(trees, refs):
         _check_tree(t, r)
@@ -96,7 +96,7 @@ def test_newick_matches_biodiverse(name):
 def test_matrix_matches_biodiverse(name):
     case = MATRIX_CASES[name]
     ref = _load("matrices")[name]
-    m = ls.bio.read_matrix(DATA / case["file"], **case["landschaft"])
+    m = tf.bio.read_matrix(DATA / case["file"], **case["terraflux"])
     assert m.elements == ref["elements"]
     n_ref = 0
     for a, row in ref["pairs"].items():
@@ -111,15 +111,15 @@ def test_matrix_matches_biodiverse(name):
 
 def test_snap_coordinates_matches_formula():
     x = np.array([-0.05, 0.0, 0.049999999999, 0.05, 0.1, 0.15, 1.25, -1.25])
-    got = ls.bio.snap_coordinates(x, 0.1)
+    got = tf.bio.snap_coordinates(x, 0.1)
     assert np.allclose(got, [-0.05, 0.05, 0.05, 0.05, 0.15, 0.15, 1.25, -1.25])
 
 
 def test_from_dataframe_long_and_wide_agree():
     long = pd.DataFrame({"sp": ["a", "b", "a", "c"], "x": [1.0, 1.2, 5.5, 5.1], "y": [0.1, 0.2, 0.3, 0.4], "n": [2, 1, 3, 1]})
-    bd1 = ls.bio.BaseData.from_dataframe(long, ["x", "y"], "sp", "n", cell_sizes=[2, 2])
+    bd1 = tf.bio.BaseData.from_dataframe(long, ["x", "y"], "sp", "n", cell_sizes=[2, 2])
     wide = long.pivot_table(index=["x", "y"], columns="sp", values="n", fill_value=0).reset_index()
-    bd2 = ls.bio.BaseData.from_dataframe(wide, ["x", "y"], label_columns=["a", "b", "c"], cell_sizes=[2, 2])
+    bd2 = tf.bio.BaseData.from_dataframe(wide, ["x", "y"], label_columns=["a", "b", "c"], cell_sizes=[2, 2])
     assert bd1.groups == bd2.groups == ["1:1", "5:1"]
     assert (bd1.counts != bd2.counts).nnz == 0
     assert bd1.labels_in_group("1:1") == {"a": 2.0, "b": 1.0}
@@ -127,7 +127,7 @@ def test_from_dataframe_long_and_wide_agree():
 
 def test_from_sparse_merges_sites():
     m = sp.csr_matrix(np.array([[1, 0, 2], [0, 4, 1], [3, 0, 0]]))
-    bd = ls.bio.BaseData.from_sparse(m, [[0.2, 0.2], [0.7, 0.4], [1.5, 0.5]], ["x", "y", "z"], cell_sizes=[1, 1])
+    bd = tf.bio.BaseData.from_sparse(m, [[0.2, 0.2], [0.7, 0.4], [1.5, 0.5]], ["x", "y", "z"], cell_sizes=[1, 1])
     assert bd.groups == ["0.5:0.5", "1.5:0.5"]
     assert bd.labels_in_group("0.5:0.5") == {"x": 1.0, "y": 4.0, "z": 3.0}
     assert bd.label_range.to_dict() == {"x": 2, "y": 1, "z": 1}
@@ -138,7 +138,7 @@ def test_from_xarray_threshold_and_to_raster_roundtrip():
     rng = np.random.default_rng(1)
     z = rng.random((3, 4, 5))
     da = xr.DataArray(z, dims=("sp", "y", "x"), coords={"sp": ["a", "b", "c"], "y": 35.0 - 10 * np.arange(4), "x": 5.0 + 10 * np.arange(5)})
-    bd = ls.bio.BaseData.from_xarray(da, "sp", threshold=0.5)
+    bd = tf.bio.BaseData.from_xarray(da, "sp", threshold=0.5)
     assert bd.cell_sizes == (10.0, 10.0)
     rich = bd.to_raster(bd.group_richness)
     expected = (z >= 0.5).sum(axis=0).astype(float)
@@ -159,7 +159,7 @@ def test_points_from_geodataframe(tmp_path):
     gdf = gpd.GeoDataFrame({"sp": ["a", "a", "b"]}, geometry=[Point(10, 10), Point(12, 15), Point(35, 5)], crs="EPSG:3857")
     path = tmp_path / "pts.parquet"
     gdf.to_parquet(path)
-    bd = ls.bio.BaseData.from_points(path, "sp", cell_sizes=[20, 20])
+    bd = tf.bio.BaseData.from_points(path, "sp", cell_sizes=[20, 20])
     assert bd.groups == ["10:10", "30:10"]
     assert bd.labels_in_group("10:10") == {"a": 2.0}
     assert bd.crs == gdf.crs
@@ -168,18 +168,18 @@ def test_points_from_geodataframe(tmp_path):
 
 
 def test_tree_helpers():
-    t = ls.bio.read_tree("((a:1,b:2)ab:1,c:3)root:0.5;")
+    t = tf.bio.read_tree("((a:1,b:2)ab:1,c:3)root:0.5;")
     assert t.terminal_names == ["a", "b", "c"]
     assert t.total_length == 7.5
     assert [t.names[i] for i in t.postorder()] == ["a", "b", "ab", "c", "root"]
-    assert ls.bio.read_tree(t.to_newick()).names == t.names
+    assert tf.bio.read_tree(t.to_newick()).names == t.names
 
 
 @pytest.mark.parametrize("name", list(VECTOR_CASES))
 def test_vector_import_matches_biodiverse(name):
     case = VECTOR_CASES[name]
     ref = _load("vectors")[name]
-    bd = ls.bio.BaseData.from_vector(
+    bd = tf.bio.BaseData.from_vector(
         DATA / case["files"][0], case["labels"], case["cell_sizes"], case.get("cell_origins"),
         count_columns=case.get("counts"), measure=case.get("measure"),
     )

@@ -6,13 +6,13 @@ parcellation and boundary contortion. Tutorial:
 
 ## MSPA
 
-::: landschaft.mspa
+::: terraflux.mspa
 
-::: landschaft.mspa_stats
+::: terraflux.mspa_stats
 
 ### MSPA class codes
 
-`ls.MSPA_CLASSES` maps each code of an MSPA map to its class:
+`tf.MSPA_CLASSES` maps each code of an MSPA map to its class:
 
 | Code | Class | Code | Class |
 |---|---|---|---|
@@ -27,20 +27,20 @@ parcellation and boundary contortion. Tutorial:
 
 ## SPA
 
-::: landschaft.spa
+::: terraflux.spa
 
-::: landschaft.SPAResult
+::: terraflux.SPAResult
 
 ## Objects by size
 
-::: landschaft.accounting
+::: terraflux.accounting
 
-::: landschaft.AccountingResult
+::: terraflux.AccountingResult
 
 ## Parcels and shape
 
-::: landschaft.parcellation
+::: terraflux.parcellation
 
-::: landschaft.ParcellationResult
+::: terraflux.ParcellationResult
 
-::: landschaft.contortion
+::: terraflux.contortion

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Terrain hydrology (ls.hydro) against WhiteboxTools 2.4 and its own properties."""
+"""Terrain hydrology (tf.hydro) against WhiteboxTools 2.4 and its own properties."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from conftest import assert_ucrt_close
 
-H = ls.hydro
+H = tf.hydro
 REF = Path(__file__).parent / "data" / "reference" / "hydro" / "whitebox.npz"
 CASES = ["oregon", "holes", "walk", "terraces"]
 
@@ -204,8 +204,8 @@ def test_indices_match_whitebox_given_the_same_area_and_slope(ref, name):
 
 
 def test_horn_gradient_of_a_plane():
-    from landschaft.hydro._indices import _tan_slope
-    from landschaft.surface._grid import read_surface
+    from terraflux.hydro._indices import _tan_slope
+    from terraflux.surface._grid import read_surface
 
     y, x = np.mgrid[0:6, 0:7]
     dem = 0.3 * x * 10.0 - 0.2 * (5 - y) * 20.0                  # cells 10 wide, 20 high
@@ -283,7 +283,7 @@ def test_mfd_shares_sum_to_about_fifteen(ref):
 
 @pytest.mark.parametrize("name", CASES)
 def test_pygeoprocessing_streams_and_d8(ref, name):
-    from landschaft import _core
+    from terraflux import _core
 
     pgp = np.load(PGP)
     filled = pgp[f"{name}/filled"]

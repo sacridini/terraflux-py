@@ -5,7 +5,7 @@ Every input is built in Python (numpy's generator, fixed seeds): rasters as
 DataArrays, planning-unit polygons as a GeoDataFrame, tables as DataFrames.
 A case is R code that sees the inputs it names as variables and gives a
 named list; ``py`` (optional) builds the same problem with
-``ls.prioritize.problem``. ``tools/optimize_reference.R`` adds helpers:
+``tf.prioritize.problem``. ``tools/optimize_reference.R`` adds helpers:
 
 - ``reference(p)``: a prioritizr problem's compiled model (``model``) and
   its optimum on Gurobi with gap 0 on one thread (``objective``,
@@ -1204,28 +1204,28 @@ ABSOLUTE = [1.2, 0.9, 1, 120, 4]
 
 
 def _raster():
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(pu_cost(), features()).add_min_set_objective()
+    return tf.prioritize.problem(pu_cost(), features()).add_min_set_objective()
 
 
 def _table(t=None):
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(pu_table() if t is None else t, FEATURES, cost_column="cost").add_min_set_objective()
+    return tf.prioritize.problem(pu_table() if t is None else t, FEATURES, cost_column="cost").add_min_set_objective()
 
 
 def _rij():
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(pu_table()[["id", "cost"]], spec_table(), cost_column="cost",
+    return tf.prioritize.problem(pu_table()[["id", "cost"]], spec_table(), cost_column="cost",
                                  rij=rij_table()).add_min_set_objective()
 
 
 def _polygon_problem(gdf):
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(gdf, features(), cost_column="cost").add_min_set_objective()
+    return tf.prioritize.problem(gdf, features(), cost_column="cost").add_min_set_objective()
 
 
 def _table_na_cost():
@@ -1260,7 +1260,7 @@ for _name, _fn in PY.items():
 
 # ----------------------------------------------------------------------------- management zones (R)
 # prioritizr 8.0.6's zones: the zone problems of the 12 x 15 grid (protect, use, restore). ``sum_targets``
-# is landschaft's default target with zones: a share of the feature's total (the base layer: protection
+# is terraflux's default target with zones: a share of the feature's total (the base layer: protection
 # counts it all) met by the sum over the zones, i.e. prioritizr's manual absolute target with a list of zones.
 
 ZONE_RASTER = ("zone_cost", "zf_protect", "zf_use", "zf_restore", "features")
@@ -1485,7 +1485,7 @@ def _zone_matrix_targets() -> np.ndarray:
 
 def _zone_easy(cost=None):
     """The easy form: the base features with every zone's contribution (protect 1, use 0.5, restore the gain)."""
-    from landschaft.prioritize import problem as ls_problem
+    from terraflux.prioritize import problem as ls_problem
 
     _, half, gain = zone_contributions()
     cost = zone_cost() if cost is None else cost
@@ -1496,7 +1496,7 @@ def _zone_easy(cost=None):
 
 def _zone_general():
     """The general form: every zone's own features (prioritizr's zones())."""
-    from landschaft.prioritize import problem as ls_problem
+    from terraflux.prioritize import problem as ls_problem
 
     return ls_problem(zone_cost(), features={"protect": zf_protect(), "use": zf_use(), "restore": zf_restore()})
 
@@ -1513,7 +1513,7 @@ def _zone_manual_table():
 
 
 def _zone_table_problem():
-    from landschaft.prioritize import problem as ls_problem
+    from terraflux.prioritize import problem as ls_problem
 
     return ls_problem(zone_table(), features={z: [f"{z[0]}_f{k}" for k in range(1, 6)] for z in ZONES},
                       cost_column={z: f"cost_{z}" for z in ZONES})
@@ -1522,7 +1522,7 @@ def _zone_table_problem():
 def _zone_rij_problem():
     import pandas as pd
 
-    from landschaft.prioritize import problem as ls_problem
+    from terraflux.prioritize import problem as ls_problem
 
     t = zone_table()[["id", *[f"cost_{z}" for z in ZONES]]]
     p = ls_problem(t, spec_table(), rij=zone_rij(), zones=zone_ids(), cost_column=[f"cost_{z}" for z in ZONES])
@@ -1555,7 +1555,7 @@ PY_ZONES: dict[str, Callable] = {
     .add_locked_in_constraints([f"locked_in_{z}" for z in ZONES])
     .add_locked_out_constraints([f"locked_out_{z}" for z in ZONES]).add_binary_decisions(),
     "zones_rij": lambda: _zone_rij_problem().add_min_set_objective().add_binary_decisions(),
-    "zones_polygons": lambda: __import__("landschaft").prioritize.problem(
+    "zones_polygons": lambda: __import__("terraflux").prioritize.problem(
         zone_polygons(), features={"protect": zf_protect(), "use": zf_use(), "restore": zf_restore()},
         cost_column={z: f"cost_{z}" for z in ZONES}).add_min_set_objective()
     .add_relative_targets(_zone_matrix_targets()).add_binary_decisions(),
@@ -1628,9 +1628,9 @@ def case_ids(group: str) -> list[str]:
 
 
 def _rp():
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(pu_cost(), features())
+    return tf.prioritize.problem(pu_cost(), features())
 
 
 MANUAL = {"feature": ["f1", "f2", "f4", "f4", "f5"], "type": ["relative", "absolute", "relative", "absolute", "relative"],
@@ -1640,11 +1640,11 @@ MANUAL_EQ = {"feature": ["f1", "f3", "f5"], "type": ["relative", "absolute", "re
 
 
 def _negative_table():
-    import landschaft as ls
+    import terraflux as tf
 
     t = pu_table()
     t["f3"] = t["f3"] - 0.01
-    return ls.prioritize.problem(t, FEATURES, cost_column="cost")
+    return tf.prioritize.problem(t, FEATURES, cost_column="cost")
 
 
 PY_OBJECTIVES: dict[str, Callable] = {
@@ -1697,15 +1697,15 @@ def _matrix(t, n):
 
 
 def ls_problem(*args, **kw):
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(*args, **kw)
+    return tf.prioritize.problem(*args, **kw)
 
 
 def _tp():
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.prioritize.problem(pu_table(), FEATURES, cost_column="cost")
+    return tf.prioritize.problem(pu_table(), FEATURES, cost_column="cost")
 
 
 PY_SPATIAL: dict[str, Callable] = {
@@ -1789,7 +1789,7 @@ for _name, _fn in PY_BOUNDS.items():
 # ----------------------------------------------------------------------------- prioriactions in Python
 
 def pa_python_data(**tables):
-    from landschaft.prioritize import actions_data
+    from terraflux.prioritize import actions_data
 
     t = {"pu": pa_pu(), "features": pa_features(), "dist_features": pa_dist_features(), "threats": pa_threats(),
          "dist_threats": pa_dist_threats(), "sensitivity": pa_sensitivity(), "boundary": pa_boundary()}

@@ -9,34 +9,34 @@ the area, the user's, producer's and overall accuracies and each class's area
 estimated from the sample instead of counted on the map, with standard errors
 and confidence intervals. The estimates are those of R's mapaccuracy
 (`olofsson`, `stehman2014`) to 1e-12, and the points those numpy's
-`default_rng(seed).choice` draws. The `ls.accuracy` module.
+`default_rng(seed).choice` draws. The `tf.accuracy` module.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-lulc = ls.load_raster("map_2020.tif")
-design = ls.accuracy.sample_size(lulc, user_accuracy={3: 0.7, 4: 0.6}, minimum=75)
-points = ls.accuracy.sample(lulc, design, seed=1)
-ls.write_vector(points, "to_label.gpkg")                   # fill the column "reference"
-acc = ls.accuracy.assess(lulc, ls.load_vector("labelled.gpkg"))
+lulc = tf.load_raster("map_2020.tif")
+design = tf.accuracy.sample_size(lulc, user_accuracy={3: 0.7, 4: 0.6}, minimum=75)
+points = tf.accuracy.sample(lulc, design, seed=1)
+tf.write_vector(points, "to_label.gpkg")                   # fill the column "reference"
+acc = tf.accuracy.assess(lulc, tf.load_vector("labelled.gpkg"))
 acc.table[["class", "area_ha", "area_ha_ci", "user_accuracy", "producer_accuracy"]]
 ```
 
 ## Designing the sample
 
-::: landschaft.accuracy.sample_size
+::: terraflux.accuracy.sample_size
 
-::: landschaft.accuracy.SampleSize
+::: terraflux.accuracy.SampleSize
 
-::: landschaft.accuracy.allocate
+::: terraflux.accuracy.allocate
 
-::: landschaft.accuracy.sample
+::: terraflux.accuracy.sample
 
 ## Accuracy and area
 
-::: landschaft.accuracy.assess
+::: terraflux.accuracy.assess
 
-::: landschaft.accuracy.Accuracy
+::: terraflux.accuracy.Accuracy
 
-::: landschaft.accuracy.qnorm
+::: terraflux.accuracy.qnorm

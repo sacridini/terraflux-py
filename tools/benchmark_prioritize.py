@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Time ls.prioritize.zonation against Zonation 5 (z5.exe, z5_16bit.exe).
+"""Time tf.prioritize.zonation against Zonation 5 (z5.exe, z5_16bit.exe).
 
 Usage::
 
@@ -7,9 +7,9 @@ Usage::
 
 For every case, writes synthetic features (Gaussian random fields above a
 threshold: species-like distributions, seeded) as one-strip GeoTIFFs and a z5
-project, then times z5 on one thread and on ``--threads``, and landschaft on
+project, then times z5 on one thread and on ``--threads``, and terraflux on
 one thread and on ``--threads`` (the fastest of ``reps`` runs; the z5 runs
-once each, as they are long). Checks that landschaft's rank map is the same, bit
+once each, as they are long). Checks that terraflux's rank map is the same, bit
 for bit, as z5's on one thread (z5 on several threads may differ: it adds up
 the layers per thread). Prints a Markdown table. The z5 binaries are looked for
 in ``LANDSCHAFT_Z5_DIR`` (as ``tools/make_reference_prioritize.py``). ``--cpus``
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-import landschaft as ls  # noqa: E402
+import terraflux as tf  # noqa: E402
 import prioritize_cases  # noqa: E402
 from make_reference_prioritize import Z5_DIR, write_raster  # noqa: E402
 
@@ -50,7 +50,7 @@ def features(work: Path, side: int, n: int, occupied: float) -> list[Path]:
     for i in range(n):
         f = work / f"f{side}_{n}_{occupied:g}_{i}.tif"
         if not f.exists():
-            field = ls.nlm.gaussian_field(side, side, autocorr_range=side / 25, seed=1000 + i).values
+            field = tf.nlm.gaussian_field(side, side, autocorr_range=side / 25, seed=1000 + i).values
             cut = np.quantile(field, 1 - occupied)
             v = np.where(field > cut, field - cut, 0.0)
             write_raster(f, prioritize_cases.RasterSpec(v, "float32", -9999.0))
@@ -71,7 +71,7 @@ def run_ours(files: list[Path], rule: str, param: float | None, bits: int, threa
     best, res = np.inf, None
     for _ in range(reps):
         t = time.perf_counter()
-        res = ls.prioritize.zonation([str(f) for f in files], rule=rule, rule_param=param, bits=bits,
+        res = tf.prioritize.zonation([str(f) for f in files], rule=rule, rule_param=param, bits=bits,
                                      n_threads=threads)
         best = min(best, time.perf_counter() - t)
     return best, res
@@ -84,7 +84,7 @@ def main() -> None:
     ap.add_argument("--cases", default=",".join(CASES))
     ap.add_argument("--work", default=str(ROOT / "build" / "benchmark_prioritize"))
     ap.add_argument("--reps", type=int, default=3)
-    ap.add_argument("--threads", type=int, default=ls.default_threads())
+    ap.add_argument("--threads", type=int, default=tf.default_threads())
     ap.add_argument("--cpus", default=None, help="processors to run on, as 0-11 or 0,2,4")
     args = ap.parse_args()
     if args.cpus:
@@ -117,11 +117,11 @@ def main() -> None:
         same = bool(((ours == ref) | (np.isnan(ours) & ~np.isfinite(ref))).all())
         cells = int(np.isfinite(ours).sum())
         rows.append((name, side, n, cells, mode, bits, res.iterations, z1, zt, o1, ot, same))
-        print(f"{name}: z5 {z1:.1f} s / {zt:.1f} s, landschaft {o1:.1f} s / {ot:.2f} s, "
+        print(f"{name}: z5 {z1:.1f} s / {zt:.1f} s, terraflux {o1:.1f} s / {ot:.2f} s, "
               f"{res.iterations} iterations, identical: {same}", flush=True)
     print()
     print(f"| Case | Cells with data | Features | Rule | Iterations | z5, 1 thread | z5, {args.threads} threads "
-          f"| Landschaft, 1 thread | Landschaft, {args.threads} threads | Same rank map |")
+          f"| Terraflux, 1 thread | Terraflux, {args.threads} threads | Same rank map |")
     print("|---|---|---|---|---|---|---|---|---|---|")
     for name, side, n, cells, mode, bits, it, z1, zt, o1, ot, same in rows:
         rule = mode.split()[0] + (", 16 bits" if bits == 16 else "")

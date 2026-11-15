@@ -3,7 +3,7 @@
 # Spatial design
 
 A plan that meets every target on paper can still fail on the ground if it is a scatter of tiny, isolated
-cells. This chapter explains why the shape of a plan matters, and the tools `ls.prioritize` offers to control
+cells. This chapter explains why the shape of a plan matters, and the tools `tf.prioritize` offers to control
 it: penalties that make plans compact or connected, and constraints that force neighbours, contiguity or
 corridors.
 
@@ -42,11 +42,11 @@ solver is pulled towards them.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 p = P.problem(cost, features).add_min_set_objective().add_relative_targets(0.3).add_binary_decisions()
 
 for penalty in (0, 0.002, 0.01, 0.05):
@@ -91,7 +91,7 @@ Three things to notice:
 ## Rules on the shape of the plan
 
 Penalties are preferences: the plan may stay fragmented if compactness would be too dear. Sometimes the
-shape is a rule. `ls.prioritize` has three kinds of spatial constraints:
+shape is a rule. `tf.prioritize` has three kinds of spatial constraints:
 
 | Constraint | What it requires |
 |---|---|
@@ -158,7 +158,7 @@ The matrices come from simple helpers, or from the connectivity tools of earlier
 | `boundary_matrix(x)` | the length of the boundary they share (what the boundary penalty uses) |
 | `connectivity_matrix(x, y)` | shared boundary times the mean of a raster `y`, such as habitat quality |
 | `proximity_matrix(x, distance)` | 1 between units closer than a distance |
-| `decay_connectivity(distances, median)` | a dispersal probability that halves every `median` metres, from any distances: Euclidean, least-cost (`ls.cost`, [chapter 9](../restoration.md)) or resistance distances (`ls.circuit`, [chapter 8](../circuits.md)) |
+| `decay_connectivity(distances, median)` | a dispersal probability that halves every `median` metres, from any distances: Euclidean, least-cost (`tf.cost`, [chapter 9](../restoration.md)) or resistance distances (`tf.circuit`, [chapter 8](../circuits.md)) |
 
 For example, connectivity through the habitat of the lowland tapir, which follows the rivers:
 
@@ -187,7 +187,7 @@ calibration.
 |---|---|---|
 | **What they guarantee** | nothing: a preference, paid for in the objective | the shape, exactly |
 | **What they need** | a value to calibrate | no value, but a clear rule |
-| **Cost to solve** | moderate: Landschaft's engines handle them on large maps | high: practical on hundreds to a few thousand units |
+| **Cost to solve** | moderate: Terraflux's engines handle them on large maps | high: practical on hundreds to a few thousand units |
 | **When** | almost always, to avoid salt and pepper | when the rule is a requirement: a corridor between parks, no isolated cells |
 
 A good practice is to start without spatial rules, look at the plan, then add a boundary penalty calibrated

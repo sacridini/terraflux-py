@@ -50,48 +50,48 @@ and a checklist of what to report.
 | **Amount and composition** | | |
 | how much habitat, and of which kinds | `pland`, `ca` (landscape metrics) | [5](metrics.md) |
 | how diverse the land cover is | `pr`, `shdi`, `shei` | [5](metrics.md) |
-| how much habitat surrounds every point, at one or many scales | `ls.fad`, `ls.fad_multiscale` | [3](fragmentation.md) |
-| what land uses surround the habitat | `ls.landscape_mosaic` | [3](fragmentation.md) |
+| how much habitat surrounds every point, at one or many scales | `tf.fad`, `tf.fad_multiscale` | [3](fragmentation.md) |
+| what land uses surround the habitat | `tf.landscape_mosaic` | [3](fragmentation.md) |
 | **Configuration and fragmentation** | | |
 | how many patches, how large, how isolated | `np`, `area_mn`/`area_am`, `lpi`, `enn` | [5](metrics.md) |
-| how divided the habitat is | `mesh`, `division`, `ls.parcellation` | [4](morphology.md) |
-| how aggregated or edge-exposed it is | `ai`, `ed`, `ls.fos`, `ls.contagion_pff` | [3](fragmentation.md), [5](metrics.md) |
+| how divided the habitat is | `mesh`, `division`, `tf.parcellation` | [4](morphology.md) |
+| how aggregated or edge-exposed it is | `ai`, `ed`, `tf.fos`, `tf.contagion_pff` | [3](fragmentation.md), [5](metrics.md) |
 | how much interior habitat there is | MSPA core, core-area metrics | [4](morphology.md), [5](metrics.md) |
-| which pixels are corridors, edges or fragments | `ls.mspa`, `ls.spa` | [4](morphology.md) |
-| how habitat is shared among small and large objects | `ls.accounting` | [4](morphology.md) |
+| which pixels are corridors, edges or fragments | `tf.mspa`, `tf.spa` | [4](morphology.md) |
+| how habitat is shared among small and large objects | `tf.accounting` | [4](morphology.md) |
 | **Connectivity** | | |
 | how much habitat is reachable for a species | `HabitatGraph.overall` (PC, EC) | [7](networks.md) |
 | which patches and links matter most | `node_importance`, `link_importance` | [7](networks.md) |
-| how well protected areas are connected | `ls.conn.protconn` | [7](networks.md) |
-| where movement concentrates; pinch points and barriers | `ls.omniscape`, `circuit.circuitscape_pairwise` | [8](circuits.md) |
+| how well protected areas are connected | `tf.conn.protconn` | [7](networks.md) |
+| where movement concentrates; pinch points and barriers | `tf.omniscape`, `circuit.circuitscape_pairwise` | [8](circuits.md) |
 | how isolated populations are from each other | effective resistances (pairwise) | [8](circuits.md) |
 | **Planning** | | |
-| the best route between two areas | `ls.least_cost_path`, least-cost corridors | [9](restoration.md) |
-| what restoring a corridor or a patch would gain | `ls.restoration_corridor`, `HabitatGraph(restoration=...)` | [9](restoration.md), [7](networks.md) |
-| where natural regeneration is likely | `ls.euclidean_distance` | [9](restoration.md) |
-| which places matter most for many species at once | `ls.prioritize.zonation` | [12](prioritization.md) |
+| the best route between two areas | `tf.least_cost_path`, least-cost corridors | [9](restoration.md) |
+| what restoring a corridor or a patch would gain | `tf.restoration_corridor`, `HabitatGraph(restoration=...)` | [9](restoration.md), [7](networks.md) |
+| where natural regeneration is likely | `tf.euclidean_distance` | [9](restoration.md) |
+| which places matter most for many species at once | `tf.prioritize.zonation` | [12](prioritization.md) |
 | how much of every species a share of the land would protect | performance curves (`feature_curves`) | [12](prioritization.md) |
 | what existing reserves miss, and how to complete them | hierarchic mask, gap analysis | [12](prioritization.md) |
 | **Species distributions** | | |
-| where a species could live, from records and environmental maps | `ls.sdm.prepare`, `ls.sdm.fit`, `ls.sdm.predict` | [13](sdm.md) |
-| how well a distribution model predicts new places | spatial folds, `ls.sdm.evaluate` (AUC, TSS, Boyce, omission) | [13](sdm.md) |
-| where a projection to another climate or region extrapolates | `ls.sdm.mess`, `ls.sdm.mop`, `ls.sdm.exdet` | [13](sdm.md) |
+| where a species could live, from records and environmental maps | `tf.sdm.prepare`, `tf.sdm.fit`, `tf.sdm.predict` | [13](sdm.md) |
+| how well a distribution model predicts new places | spatial folds, `tf.sdm.evaluate` (AUC, TSS, Boyce, omission) | [13](sdm.md) |
+| where a projection to another climate or region extrapolates | `tf.sdm.mess`, `tf.sdm.mop`, `tf.sdm.exdet` | [13](sdm.md) |
 | **Animal movement** | | |
-| how far, how fast and how tortuously tracked animals move | `ls.move.steps`, `speed`, `turn_angle`, `sinuosity`, `nsd` | [15](movement.md) |
-| which places animals choose as they move, as data for a step selection function | `ls.move.resample`, `random_steps`, `extract_covariates` | [15](movement.md) |
+| how far, how fast and how tortuously tracked animals move | `tf.move.steps`, `speed`, `turn_angle`, `sinuosity`, `nsd` | [15](movement.md) |
+| which places animals choose as they move, as data for a step selection function | `tf.move.resample`, `random_steps`, `extract_covariates` | [15](movement.md) |
 | **Change** | | |
-| what was gained and lost, and whether it is real | `ls.simple_change`, `ls.morphological_change` | [10](change.md) |
-| how fragmentation classes shifted | `ls.fos_change`, `ls.fad_multiscale_change` | [10](change.md) |
-| whether connectivity fell faster than habitat | `ls.conn.eca_change` | [10](change.md) |
+| what was gained and lost, and whether it is real | `tf.simple_change`, `tf.morphological_change` | [10](change.md) |
+| how fragmentation classes shifted | `tf.fos_change`, `tf.fad_multiscale_change` | [10](change.md) |
+| whether connectivity fell faster than habitat | `tf.conn.eca_change` | [10](change.md) |
 | **Many places or dates** | | |
-| how landscapes around sites relate to field data | `ls.sample_metrics`, `ls.scale_sample` | [2](scale.md), [5](metrics.md) |
-| how structure varies across a region | `ls.window_metrics`, `ls.zonal_metrics` | [5](metrics.md) |
-| which types of landscape exist | `ls.SpatialSignatureAnalysis` | [5](metrics.md) |
-| how metrics evolve over a time series | `ls.SpatioTemporalAnalysis` | [10](change.md) |
+| how landscapes around sites relate to field data | `tf.sample_metrics`, `tf.scale_sample` | [2](scale.md), [5](metrics.md) |
+| how structure varies across a region | `tf.window_metrics`, `tf.zonal_metrics` | [5](metrics.md) |
+| which types of landscape exist | `tf.SpatialSignatureAnalysis` | [5](metrics.md) |
+| how metrics evolve over a time series | `tf.SpatioTemporalAnalysis` | [10](change.md) |
 | **Future landscapes** | | |
-| where land use is heading if the observed trend continues | `ls.simulate.run` (Markov demand, potential, allocation) | [14](simulation.md) |
-| how scenarios (demands, protected areas, policies) differ in space | `ls.simulate.scenarios`, `Ensemble.probability` | [14](simulation.md) |
-| whether a simulation reproduces the observed change | `ls.simulate.validate` (figure of merit, three maps, fuzzy similarity) | [14](simulation.md) |
+| where land use is heading if the observed trend continues | `tf.simulate.run` (Markov demand, potential, allocation) | [14](simulation.md) |
+| how scenarios (demands, protected areas, policies) differ in space | `tf.simulate.scenarios`, `Ensemble.probability` | [14](simulation.md) |
+| whether a simulation reproduces the observed change | `tf.simulate.validate` (figure of merit, three maps, fuzzy similarity) | [14](simulation.md) |
 
 ## How the main approaches compare
 
@@ -125,12 +125,12 @@ Habitat: broad-leaved, coniferous and mixed forest (classes 23–25).
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-landcover = ls.load_raster(ls.example_data("clc"))
-forest = ls.reclassify(landcover, foreground=[23, 24, 25])
+landcover = tf.load_raster(tf.example_data("clc"))
+forest = tf.reclassify(landcover, foreground=[23, 24, 25])
 
-structure = ls.Landscape(forest).class_metrics(["pland", "np", "area_mn", "lpi", "ed", "enn_mn"])
+structure = tf.Landscape(forest).class_metrics(["pland", "np", "area_mn", "lpi", "ed", "enn_mn"])
 structure.set_index("class").loc[2].round(1)
 ```
 
@@ -142,8 +142,8 @@ the nearest patch is on average about 540 m away.
 ```python
 interior = {}
 for depth_m in (50, 100, 200):
-    morph = ls.mspa(forest, edge_width=depth_m // 25)
-    interior[f"edge effects {depth_m} m"] = ls.mspa_stats(morph).loc["Core", "pct_foreground"]
+    morph = tf.mspa(forest, edge_width=depth_m // 25)
+    interior[f"edge effects {depth_m} m"] = tf.mspa_stats(morph).loc["Core", "pct_foreground"]
 pd.Series(interior).round(1)
 ```
 
@@ -154,7 +154,7 @@ conclusion "most of the forest is interior habitat" holds for all three.
 **Connectivity, with the dispersal distance varied:**
 
 ```python
-network = ls.HabitatGraph.from_raster(
+network = tf.HabitatGraph.from_raster(
     landcover, habitat=[23, 24, 25], area_unit="ha", distance="edge",
     max_distance=10_000, landscape_area=landcover.size * 25 * 25 / 1e4,
 )
@@ -203,12 +203,12 @@ parameters, say so.
 - **Metric choices**: which metrics, why, and how redundancy was handled.
 - **Border treatment**: whether the map border counts as edge, how patches
   cut by the border were handled.
-- **Software and version**: e.g. `landschaft.__version__`, with the
+- **Software and version**: e.g. `terraflux.__version__`, with the
   reference implementation it reproduces where relevant.
 - **Sensitivity**: which parameters were varied and whether conclusions held.
 
 ```python
-ls.__version__
+tf.__version__
 ```
 
 ## Common mistakes

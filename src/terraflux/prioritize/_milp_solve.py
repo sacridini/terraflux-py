@@ -1,0 +1,488 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Solving compiled models: HiGHS (built in) and Gurobi (gurobipy), and the solution."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+from .._save import Saveable
+from ._milp import OptimizationProblem, Units
+
+__all__ = ["Solution", "solve_model"]
+
+
+def _is_covering(m: OptimizationProblem) -> bool:
+    """A minimisation with only >= rows and finite bounds (prioritizr's minimum set and its kin)."""
+    return (m.modelsense == "min" and all(s == ">=" for s in m.sense) and bool(np.isfinite(m.lb).all())
+            and bool(np.isfinite(m.ub).all()))
+
+
+def _integer(vtype) -> np.ndarray:
+    """1 for the integer (and binary) columns: no array of strings when all are continuous."""
+    if isinstance(vtype, tuple) and vtype.count("C") == len(vtype):
+        return np.zeros(len(vtype), dtype=np.uint8)
+    return np.isin(np.asarray(vtype), ("B", "I")).astype(np.uint8)
+
+
+def _method(m: OptimizationProblem, n_units: int | None) -> str:
+    if _is_covering(m):
+        return "covering"
+    if n_units is not None and n_units > 0 and m.ncol - n_units <= 20000 and bool(
+            np.isfinite(m.lb[:n_units]).all() and np.isfinite(m.ub[:n_units]).all()):
+        return "wide"
+    return "highs"
+
+
+# the most columns besides the units' that the zones wide engine takes (opt/zones_wide.cpp, kMaxOther)
+ZONE_WIDE_OTHER = 20000
+# ... and the most rows besides the units' (a few per target and the budgets: the engine prices with their duals)
+ZONE_WIDE_ROWS = 5000
+
+
+def _is_zone_covering(m: OptimizationProblem, n_units: int) -> bool:
+    """A minimum set with zones: target rows (>=) and one row per unit (pu_zone) over the units' columns only."""
+    if m.modelsense != "min" or n_units <= 0 or m.ncol % n_units:
+        return False
+    ids = set(m.row_ids)
+    if not ids <= {"spp_target", "pu_zone"} or m.col_ids.count("pu") != m.ncol:
+        return False
+    return all(s == ">=" for s, r in zip(m.sense, m.row_ids) if r == "spp_target")
+
+
+def _highs(m: OptimizationProblem, gap: float, time_limit: float, threads: int, presolve: str, verbose: bool,
+           start: np.ndarray | None, relaxation: bool = False, n_units: int | None = None,
+           method: str | None = None, structures: tuple[list, list] | None = None,
+           max_candidates: int = 200) -> dict:
+    """HiGHS, behind terraflux's own engines: covering models (min set) and wide models with a budget
+    (min shortfall, max utility, ...) get a sifted LP, rounding and a greedy step, and HiGHS's MIP only
+    if the gap is still too wide and the model narrow enough for it to keep the time limit.
+    ``structures``: the patches and corridor networks whose cuts HiGHS's MIP separates at its nodes
+    (:func:`._milp_connect.structures`; presolve off)."""
+    from .. import _core
+
+    lo, hi = m.row_bounds()
+    a = m.A
+    return _core.opt_solve_highs(
+        start=a.indptr.astype(np.int64), index=a.indices.astype(np.int64), value=a.data, obj=m.obj, lb=m.lb,
+        ub=m.ub, row_lo=lo, row_hi=hi, integer=_integer(m.vtype),
+        maximize=m.modelsense == "max", offset=0.0, gap=gap, time_limit=time_limit, threads=threads,
+        presolve=presolve, verbose=verbose, relaxation=relaxation, initial=start,
+        method=method or ("highs" if structures else _method(m, n_units)),
+        n_units=-1 if n_units is None else int(n_units),
+        connected=[] if structures is None else structures[0], corridors=[] if structures is None else structures[1],
+        max_candidates=max_candidates)
+
+
+class Prepared:
+    """A model's arrays for HiGHS, made once, to solve it again and again with other bounds (the
+    replacement and rank importance): the GIL-free C++ call is then all a solve costs."""
+
+    def __init__(self, m: OptimizationProblem, n_units: int | None = None):
+        lo, hi = m.row_bounds()
+        a = m.A
+        self.kw = {"start": a.indptr.astype(np.int64), "index": a.indices.astype(np.int64), "value": a.data,
+                   "obj": m.obj, "row_lo": lo, "row_hi": hi,
+                   "integer": _integer(m.vtype),
+                   "maximize": m.modelsense == "max", "offset": 0.0}
+        self.method = _method(m, n_units)
+        self.n_units = -1 if n_units is None else int(n_units)
+        self.lb, self.ub = m.lb, m.ub
+
+    def solve(self, lb: np.ndarray, ub: np.ndarray, options: dict, start: np.ndarray | None = None) -> dict:
+        from .. import _core, _threads
+
+        gap = float(options.get("gap", 0.1))
+        tl = options.get("time_limit")
+        return _core.opt_solve_highs(
+            **self.kw, lb=lb, ub=ub, gap=gap, time_limit=math.inf if tl is None else float(tl),
+            threads=_threads.resolve(options.get("n_threads")), presolve=options.get("presolve", "choose"),
+            verbose=bool(options.get("verbose", False)), relaxation=False, initial=start, method=self.method,
+            n_units=self.n_units)
+
+
+def _gurobi(m: OptimizationProblem, gap: float, time_limit: float, threads: int, verbose: bool,
+            start: np.ndarray | None) -> dict:
+    try:
+        import gurobipy as gp
+    except ImportError as e:
+        raise ImportError("the Gurobi solver needs the gurobipy package (and a Gurobi licence)") from e
+    vtype = {"B": gp.GRB.BINARY, "I": gp.GRB.INTEGER}
+    with gp.Env(params={"OutputFlag": int(verbose)}) as env, gp.Model(env=env) as g:
+        x = g.addMVar(m.ncol, lb=m.lb, ub=np.where(np.isinf(m.ub), gp.GRB.INFINITY, m.ub),
+                      vtype=[vtype.get(t, gp.GRB.CONTINUOUS) for t in m.vtype])
+        g.addMConstr(m.A, x, np.asarray([s[0] for s in m.sense]), m.rhs)
+        g.setObjective(m.obj @ x, gp.GRB.MAXIMIZE if m.modelsense == "max" else gp.GRB.MINIMIZE)
+        g.Params.MIPGap = gap
+        g.Params.Threads = threads
+        if math.isfinite(time_limit):
+            g.Params.TimeLimit = time_limit
+        if start is not None:
+            x.Start = start
+        g.optimize()
+        status = {gp.GRB.OPTIMAL: "optimal", gp.GRB.TIME_LIMIT: "time_limit", gp.GRB.INFEASIBLE: "infeasible",
+                  gp.GRB.UNBOUNDED: "unbounded", gp.GRB.INF_OR_UNBD: "infeasible_or_unbounded"}.get(
+            g.Status, f"error: Gurobi status {g.Status}")
+        ok = g.SolCount > 0
+        mip = g.IsMIP == 1
+        return {"status": status, "has_solution": ok, "x": x.X.copy() if ok else None,
+                "objective": g.ObjVal if ok else math.nan,
+                "bound": g.ObjBound if mip else (g.ObjVal if ok else math.nan),
+                "gap": (g.MIPGap if mip else 0.0) if ok else math.nan,
+                "nodes": int(g.NodeCount) if mip else 0, "seconds": g.Runtime}
+
+
+# models up to this many columns go on to HiGHS's MIP when the cut engine stops short of the gap
+CUT_HIGHS_COLUMNS = 50_000
+
+
+def _highs_or_cut(m: OptimizationProblem, gap: float, time_limit: float, threads: int, presolve: str,
+                  verbose: bool, start: np.ndarray | None, n_units: int | None) -> dict:
+    """Minimum sets with boundary penalties or symmetric connectivity rewards (pair terms >= 0 in
+    Marxan's form) on the cut engine (Lagrangian bound by minimum cuts, repaired selections); on
+    HiGHS's MIP from its solution if the gap is not reached and the model is small enough. Other
+    models on HiGHS behind the covering and wide engines."""
+    import time
+
+    from ._milp_anneal import closure_model, cut_applies, solve_closure, solve_cut
+    from ._milp_subset import subset_model
+
+    if m.connected or m.corridors:  # contiguity, corridors: a first solution, cuts, then the MIP
+        from ._milp_connect import solve_connected
+
+        return solve_connected(m, gap, time_limit, threads, presolve, verbose, start, n_units)
+    sm = subset_model(m, n_units)
+    if sm is not None:  # maximum features, phylogenetic diversity: the wide engine, then the subset search
+        return _wide_then_subset(m, sm, gap, time_limit, threads, presolve, verbose, start, n_units)
+    mm = cut_applies(m, n_units)
+    t0 = time.perf_counter()
+    if mm is not None:
+        r = solve_cut(m, n_units, mm, gap, time_limit, verbose, start, threads)
+    else:
+        # budgeted minimisations with pair terms (min penalties...): the closure engine
+        cm = closure_model(m, n_units) if n_units is not None and m.ncol > n_units else None
+        if cm is None:
+            return _highs(m, gap, time_limit, threads, presolve, verbose, start, n_units=n_units)
+        r = solve_closure(m, n_units, cm, gap, time_limit, threads, verbose, start)
+        if not r["has_solution"] and r["status"] != "infeasible":  # no selection repaired: HiGHS alone
+            left = time_limit - (time.perf_counter() - t0)
+            if left <= 0:
+                return r
+            return _highs(m, gap, left, threads, presolve, verbose, start, n_units=n_units)
+    if r["status"] in ("optimal", "infeasible") or m.ncol > CUT_HIGHS_COLUMNS or not r["has_solution"]:
+        if r["status"] not in ("optimal", "infeasible", "time_limit"):
+            r["status"] = "heuristic"
+        return r
+    left = time_limit - (time.perf_counter() - t0)
+    if left <= 0:
+        r["status"] = "time_limit"
+        return r
+    h = _highs(m, gap, left, threads, presolve, verbose, r["x"], n_units=n_units)
+    out = dict(h)
+    if not h["has_solution"] or h["objective"] > r["objective"]:
+        out.update({k: r[k] for k in ("has_solution", "x", "objective")})
+    bound = max(r["bound"], h["bound"]) if math.isfinite(h.get("bound", math.nan)) else r["bound"]
+    out["bound"] = bound
+    g = out["objective"] - bound
+    out["gap"] = 0.0 if g <= 0 else g / max(abs(out["objective"]), 1e-10)
+    out["status"] = "optimal" if out["gap"] <= gap else h["status"]
+    out["seconds"] = time.perf_counter() - t0
+    return out
+
+
+# the wide engine's share of the time limit before the subset search
+SUBSET_ENGINE_SHARE = 0.4
+
+
+def _wide_then_subset(m: OptimizationProblem, sm, gap: float, time_limit: float, threads: int, presolve: str,
+                      verbose: bool, start: np.ndarray | None, n_units: int) -> dict:
+    """Budgeted objectives that reward the targets met: the wide engine (its bound, a first solution),
+    then a local search over the set of targets met (:mod:`._milp_subset`) for the rest of the time."""
+    import time
+
+    from ._milp_subset import improve_subset
+
+    t0 = time.perf_counter()
+    share = time_limit * SUBSET_ENGINE_SHARE if math.isfinite(time_limit) else time_limit
+    r = dict(_highs(m, gap, share, threads, presolve, verbose, start, n_units=n_units))
+    if r["status"] in ("optimal", "infeasible") or not r["has_solution"]:
+        return r
+    deadline = t0 + time_limit if math.isfinite(time_limit) else math.inf
+    found = improve_subset(m, sm, np.asarray(r["x"]), deadline, threads, verbose)
+    if found is not None:
+        r["x"], r["objective"] = found
+        g = r["bound"] - r["objective"]  # a maximisation
+        r["gap"] = 0.0 if g <= 0 else g / max(abs(r["objective"]), 1e-10)
+        if r["gap"] <= gap:
+            r["status"] = "optimal"
+    r["seconds"] = time.perf_counter() - t0
+    return r
+
+
+def solve_model(m: OptimizationProblem, solver: str, options: dict, start: np.ndarray | None = None,
+                n_units: int | None = None, engines: bool = True, zone_units: int | None = None) -> dict:
+    """Solve a compiled model on a solver; the result's status, solution and bounds. ``engines``: False
+    solves on HiGHS's own MIP, without terraflux's engines; ``zone_units``: the units of a problem with
+    zones (its minimum sets go to the zones engine)."""
+    from .. import _threads
+
+    gap = float(options.get("gap", 0.1))
+    tl = options.get("time_limit")
+    time_limit = math.inf if tl is None else float(tl)
+    threads = _threads.resolve(options.get("n_threads"))
+    verbose = bool(options.get("verbose", False))
+    zm = None
+    if solver == "highs" and zone_units is not None and m.ncol > m.col_ids.count("pu"):
+        from ._zones import zone_cut_model
+
+        zm = zone_cut_model(m, zone_units, m.col_ids.count("pu") // zone_units)
+    if zm is not None:  # minimum sets with boundary penalties or connectivity rewards: the zones cut engine
+        from ._zones import solve_zone_cut
+
+        r = solve_zone_cut(m, zm, gap, time_limit, verbose, start, threads, options.get("presolve", "choose"))
+    elif solver == "highs" and zone_units is not None:
+        # minimum sets: the zones engine; models with few columns besides the units': the zones wide engine
+        nu = m.col_ids.count("pu")
+        rows = m.nrow - m.row_ids.count("pu_zone")
+        method = ("zones" if _is_zone_covering(m, zone_units) else
+                  "zones_wide" if (m.ncol - nu <= ZONE_WIDE_OTHER and rows <= ZONE_WIDE_ROWS
+                                   and "pu_zone" in m.row_ids) else "highs")
+        try:
+            r = _highs(m, gap, time_limit, threads, options.get("presolve", "choose"), verbose, start,
+                       n_units=zone_units if method != "highs" else None, method=method)
+        except ValueError:  # not of the engine's form after all
+            r = _highs(m, gap, time_limit, threads, options.get("presolve", "choose"), verbose, start)
+    elif solver == "highs" and not engines:
+        r = _highs(m, gap, time_limit, threads, options.get("presolve", "choose"), verbose, start)
+    elif solver == "highs":
+        r = _highs_or_cut(m, gap, time_limit, threads, options.get("presolve", "choose"), verbose, start, n_units)
+    elif solver == "gurobi":
+        r = _gurobi(m, gap, time_limit, threads, verbose, start)
+    elif solver == "anneal":
+        from ._milp_anneal import solve_anneal
+
+        if n_units is None:
+            raise ValueError("the anneal solver needs the number of planning units")
+        r = solve_anneal(m, n_units, options, start)
+    else:
+        raise ValueError(f"unknown solver {solver!r}")
+    r["solver"] = solver
+    return r
+
+
+# ----------------------------------------------------------------------------- solution
+
+@dataclass
+class Solution(Saveable):
+    """A solution of a :class:`~terraflux.prioritize.Problem`.
+
+    Attributes
+    ----------
+    selection
+        The selected share of every planning unit (1 / 0 with binary
+        decisions): a raster on the planning units' grid (NaN outside the
+        planning units) or a copy of their table with a ``solution`` column.
+        With zones: a raster with a layer per zone (dimension ``zone``; NaN
+        where a unit has no cost in the zone), or a column ``solution_<zone>``
+        per zone and a ``zone`` column with the name of the unit's zone.
+    values
+        The same, one value per planning unit (in their order); with zones,
+        planning units x zones.
+    zones
+        With zones: the zone of every planning unit as a raster of zone
+        numbers (1, 2, ... in the order of ``zone_names``; 0: none; NaN
+        outside the planning units; the names in ``attrs["zones"]``), or a
+        column of zone names. With shares (proportion decisions), the zone
+        with the largest share.
+    coverage
+        Every target's feature, sense, the feature's total amount, the target,
+        the amount held and the shortfall, absolute and relative, and whether
+        it is met (prioritizr's ``eval_target_coverage_summary()``); without
+        targets (max utility, max cover), every feature's amount held.
+    objective, bound, gap
+        The objective of the solution, the solver's bound on the optimum and
+        their relative gap.
+    status
+        ``"optimal"`` (within the gap asked for), ``"time_limit"`` (the gap
+        asked for not reached within the time limit: with a limit, models too
+        wide for HiGHS's MIP to keep it stop at the engine's own solution,
+        before the limit), ``"infeasible"``, ...
+    solver, seconds
+        The solver used and the time it took.
+    """
+
+    selection: object = field(repr=False)
+    values: np.ndarray = field(repr=False)
+    coverage: pd.DataFrame = field(repr=False)
+    objective: float = math.nan
+    bound: float = math.nan
+    gap: float = math.nan
+    status: str = ""
+    solver: str = ""
+    seconds: float = 0.0
+    zone_names: tuple = ()
+    zones: object = field(default=None, repr=False)
+
+    @property
+    def cost(self) -> float:
+        """Total cost of the selection (over every zone)."""
+        v = self.values.T.ravel() if self.values.ndim == 2 else self.values
+        return float(self._cost @ v)
+
+    @property
+    def zone_costs(self) -> dict:
+        """With zones: the cost of the selection in every zone."""
+        if not self.zone_names:
+            raise ValueError("the problem has no zones")
+        c = self._cost.reshape(len(self.zone_names), -1)
+        return {z: float(c[k] @ self.values[:, k]) for k, z in enumerate(self.zone_names)}
+
+    _cost: np.ndarray = field(default=None, repr=False)
+
+    def _save_items(self) -> dict:
+        out = {"selection": self.selection, "coverage": self.coverage, "objective": self.objective,
+               "bound": self.bound, "gap": self.gap, "status": self.status, "solver": self.solver,
+               "seconds": self.seconds, "cost": self.cost}
+        if self.zone_names:
+            out["zones"] = self.zones
+        return out
+
+
+def _selection(u: Units, values: np.ndarray):
+    if u.kind == "raster":
+        out = np.full(u.template.size, np.nan)
+        out[u.index] = values
+        da = u.template.copy(data=out.reshape(u.template.shape))
+        da.name = "solution"
+        return da
+    t = u.template.copy()
+    col = np.full(len(t), np.nan)
+    col[u.index] = values
+    t["solution"] = col
+    return t
+
+
+def zone_selection(u: Units, values: np.ndarray):
+    """The selection of a problem with zones (values: units x zones): a layer per zone or a column per zone,
+    and the zone of every unit (a raster of zone numbers or a column of names)."""
+    nz = u.nz
+    closed = ~np.isfinite(u.cost.reshape(nz, -1).T)
+    shown = np.where(closed, np.nan, values)
+    picked = np.nanmax(np.where(closed, -np.inf, values), axis=1) > 0
+    code = np.where(picked, np.argmax(np.where(closed, -np.inf, values), axis=1) + 1, 0)
+    if u.kind == "raster":
+        ny, nx = u.template.shape
+        out = np.full((nz, ny * nx), np.nan)
+        out[:, u.index] = shown.T
+        dims = u.template.dims
+        da = xr.DataArray(out.reshape(nz, ny, nx), dims=("zone", *dims),
+                          coords={"zone": list(u.zone_names), **{d: u.template[d] for d in dims if d in u.template.coords}},
+                          name="solution")
+        crs = u.template.rio.crs
+        if crs is not None:
+            da = da.rio.write_crs(crs)
+        zmap = np.full(ny * nx, np.nan)
+        zmap[u.index] = code
+        zones = u.template.copy(data=zmap.reshape(ny, nx))
+        zones.name = "zone"
+        zones.attrs = {**zones.attrs, "zones": {k + 1: z for k, z in enumerate(u.zone_names)},
+                       "landschaft_product": "ZONES"}
+        return da, zones
+    t = u.template.copy()
+    for k, z in enumerate(u.zone_names):
+        col = np.full(len(t), np.nan)
+        col[u.index] = shown[:, k]
+        t[f"solution_{z}"] = col
+    names = np.array([None, *u.zone_names], dtype=object)
+    zcol = np.full(len(t), None, dtype=object)
+    zcol[u.index] = names[code]
+    t["zone"] = zcol
+    return t, t["zone"].copy()
+
+
+def coverage_table(u: Units, values: np.ndarray, targets=None, m: OptimizationProblem | None = None) -> pd.DataFrame:
+    """prioritizr's target coverage summary: one row per target (per feature, without targets)."""
+    if u.zoned:
+        return _zone_coverage(u, values, targets)
+    if targets is None or targets.sense[:1] == ("?",):  # objectives without targets
+        held = u.rij @ values
+        with np.errstate(divide="ignore", invalid="ignore"):
+            rel = np.where(u.totals != 0, held / u.totals, np.nan)
+        return pd.DataFrame({"feature": list(u.feature_names), "total_amount": u.totals,
+                             "absolute_held": held, "relative_held": rel})
+    f = targets.feature
+    # the target rows' amounts (their region's units only, for sub-regional targets)
+    held = targets.matrix @ values if targets.matrix is not None else (u.rij @ values)[f]
+    target = targets.value
+    total = targets.total if targets.total is not None else u.totals[f]
+    sense = np.asarray(targets.sense)
+    shortfall = np.where(sense == ">=", np.maximum(target - held, 0.0),
+                         np.where(sense == "<=", np.maximum(held - target, 0.0), np.abs(held - target)))
+    tol = 1e-9 * np.maximum(1.0, np.abs(target))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rel = np.where(total != 0, held / total, np.nan)
+        rel_target = np.where(total != 0, target / total, np.nan)
+        rel_short = np.where(total != 0, shortfall / total, np.nan)
+    out = pd.DataFrame({
+        "feature": [u.feature_names[k] for k in f], "sense": sense, "total_amount": total,
+        "absolute_target": target, "absolute_held": held, "absolute_shortfall": shortfall,
+        "relative_target": rel_target, "relative_held": rel, "relative_shortfall": rel_short,
+        "met": shortfall <= tol,
+    })
+    if targets.region is not None and (targets.region >= 0).any():
+        out.insert(1, "region", list(targets.region_label))
+    return out
+
+
+def _zone_coverage(u: Units, values: np.ndarray, targets) -> pd.DataFrame:
+    """The coverage of the targets of a problem with zones (values: the unit columns, zone after zone): one
+    row per target with its zones; without targets, every feature in every zone."""
+    held = targets.matrix @ values
+    sense = np.asarray(targets.sense)
+    total = targets.total
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rel = np.where(total != 0, held / total, np.nan)
+    if sense[:1].tolist() == ["?"]:
+        return pd.DataFrame({"feature": [u.feature_names[k] for k in targets.feature], "zone": list(targets.zone_label),
+                             "total_amount": total, "absolute_held": held, "relative_held": rel})
+    target = targets.value
+    shortfall = np.where(sense == ">=", np.maximum(target - held, 0.0),
+                         np.where(sense == "<=", np.maximum(held - target, 0.0), np.abs(held - target)))
+    tol = 1e-9 * np.maximum(1.0, np.abs(target))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rel_target = np.where(total != 0, target / total, np.nan)
+        rel_short = np.where(total != 0, shortfall / total, np.nan)
+    out = pd.DataFrame({
+        "feature": [u.feature_names[k] for k in targets.feature], "zone": list(targets.zone_label), "sense": sense,
+        "total_amount": total, "absolute_target": target, "absolute_held": held, "absolute_shortfall": shortfall,
+        "relative_target": rel_target, "relative_held": rel, "relative_shortfall": rel_short, "met": shortfall <= tol,
+    })
+    if targets.region is not None and (targets.region >= 0).any():
+        out.insert(1, "region", list(targets.region_label))
+    return out
+
+
+def make_solution(u: Units, m: OptimizationProblem, r: dict, targets=None) -> Solution:
+    if not r["has_solution"]:
+        raise RuntimeError(f"no solution ({r['solver']}: {r['status']})")
+    if u.zoned:
+        ncol = u.cost.size
+        x = np.asarray(r["x"], dtype=np.float64)[:ncol]
+        integer = np.isin(np.asarray(m.vtype[:ncol]), ("B", "I"))
+        x = np.where(integer, np.round(x), x)
+        values = x.reshape(u.nz, u.n).T.copy()
+        selection, zones = zone_selection(u, values)
+        return Solution(selection=selection, values=values, coverage=coverage_table(u, x, targets, m),
+                        objective=float(r["objective"]), bound=float(r["bound"]), gap=float(r["gap"]),
+                        status=r["status"], solver=r["solver"], seconds=float(r["seconds"]),
+                        zone_names=u.zone_names, zones=zones, _cost=np.where(np.isfinite(u.cost), u.cost, 0.0))
+    values = np.asarray(r["x"], dtype=np.float64)[: u.n]
+    integer = np.isin(np.asarray(m.vtype[: u.n]), ("B", "I"))
+    values = np.where(integer, np.round(values), values)
+    return Solution(selection=_selection(u, values), values=values, coverage=coverage_table(u, values, targets, m),
+                    objective=float(r["objective"]), bound=float(r["bound"]), gap=float(r["gap"]),
+                    status=r["status"], solver=r["solver"], seconds=float(r["seconds"]), _cost=u.cost)

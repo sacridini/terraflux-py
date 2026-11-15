@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Annual water yield (ls.services.water_yield) against InVEST's outputs (tools/make_reference_invest.py)."""
+"""Annual water yield (tf.services.water_yield) against InVEST's outputs (tools/make_reference_invest.py)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from test_services import CRS, PIXEL, _case, _gt, _on_invest_grid, _raster
 
-import landschaft as ls
+import terraflux as tf
 
 WY_FIELDS = ["precip_mn", "PET_mn", "AET_mn", "wyield_mn", "wyield_vol", "consum_vol", "consum_mn", "rsupply_vl"]
 
@@ -41,7 +41,7 @@ def _run_wy(name):
     if "valuation" in meta:
         kw["valuation"] = pd.DataFrame(meta["valuation"], columns=["ws_id", "efficiency", "fraction", "height",
                                                                    "kw_price", "cost", "time_span", "discount"])
-    wy = ls.services.water_yield(*_args(inputs, meta), seasonality=meta["z"], **kw)
+    wy = tf.services.water_yield(*_args(inputs, meta), seasonality=meta["z"], **kw)
     return wy, ref, meta
 
 
@@ -92,21 +92,21 @@ def test_water_yield_matches_invest(name):
 def test_water_yield_threads_and_checks():
     inputs, ref, meta = _case("wy_full")
     args = _args(inputs, meta)
-    a = ls.services.water_yield(*args, seasonality=7.5, n_threads=1)
-    b = ls.services.water_yield(*args, seasonality=7.5, n_threads=3)
+    a = tf.services.water_yield(*args, seasonality=7.5, n_threads=1)
+    b = tf.services.water_yield(*args, seasonality=7.5, n_threads=3)
     np.testing.assert_array_equal(a.wyield.values, b.wyield.values)
     ws = _polygons(meta["watersheds"], "ws_id", [1, 2])
     with pytest.raises(ValueError, match="demand"):
-        ls.services.water_yield(*args, seasonality=7.5, watersheds=ws, valuation=pd.DataFrame({"ws_id": [1, 2]}))
+        tf.services.water_yield(*args, seasonality=7.5, watersheds=ws, valuation=pd.DataFrame({"ws_id": [1, 2]}))
     with pytest.raises(ValueError, match="lulc_veg"):
-        ls.services.water_yield(args[0], _bio(inputs).assign(lulc_veg=2), *args[2:], seasonality=7.5)
+        tf.services.water_yield(args[0], _bio(inputs).assign(lulc_veg=2), *args[2:], seasonality=7.5)
     with pytest.raises(ValueError, match="ws_id"):
-        ls.services.water_yield(*args, seasonality=7.5, watersheds=_polygons(meta["watersheds"], "id", [1, 2]))
+        tf.services.water_yield(*args, seasonality=7.5, watersheds=_polygons(meta["watersheds"], "id", [1, 2]))
     with pytest.raises(ValueError, match="positive"):
-        ls.services.water_yield(*args, seasonality=0)
+        tf.services.water_yield(*args, seasonality=0)
 
 
 def test_water_yield_saves(tmp_path):
     wy, ref, meta = _run_wy("wy_full")
-    parts = ls.load_result(wy.save(tmp_path / "wy"))
+    parts = tf.load_result(wy.save(tmp_path / "wy"))
     np.testing.assert_array_equal(parts["wyield"].values, wy.wyield.values)

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What SALib (1.6) and scipy.stats.qmc give, for landschaft's tests (the same files as Terraflux's), written to
+"""What SALib (1.6) and scipy.stats.qmc give, for terraflux's tests (the same files as Terraflux's), written to
 tests/data/reference/sensitivity/sensitivity.npz and .json:
 
     python tools/make_reference_sensitivity.py

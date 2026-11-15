@@ -7,9 +7,9 @@ import json
 
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from bio_cases import DATA, EXPORT_CASES, PHYLO_CASES, PROPERTY_CASES, REFERENCE, SPATIAL_CASES, phylo_calcs, spatial_calcs
-from landschaft.bio._export import natsort
+from terraflux.bio._export import natsort
 from test_bio_props import _run as _run_props
 from test_bio_spatial import _basedata
 
@@ -27,12 +27,12 @@ def _result(case: dict):
     if key not in _RESULTS:
         if case["from"] == "spatial":
             c = SPATIAL_CASES[case["case"]]
-            res = ls.bio.spatial_analysis(_basedata(c["basedata"]), c["conditions"], spatial_calcs(c),
+            res = tf.bio.spatial_analysis(_basedata(c["basedata"]), c["conditions"], spatial_calcs(c),
                                           definition_query=c.get("definition_query"))
         elif case["from"] == "phylo":
             c = PHYLO_CASES[case["case"]]
-            res = ls.bio.spatial_analysis(_basedata(c["basedata"]), c["conditions"], phylo_calcs(c),
-                                          tree=ls.bio.read_tree(DATA / c["tree"]))
+            res = tf.bio.spatial_analysis(_basedata(c["basedata"]), c["conditions"], phylo_calcs(c),
+                                          tree=tf.bio.read_tree(DATA / c["tree"]))
         else:
             assert case["case"] in PROPERTY_CASES
             res = _run_props(case["case"])

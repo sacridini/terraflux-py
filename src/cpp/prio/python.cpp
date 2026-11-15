@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the spatial prioritization (landschaft._core.prio_*).
+// Python bindings of the spatial prioritization (terraflux._core.prio_*).
 
 #include "prio/python.hpp"
 

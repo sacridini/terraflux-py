@@ -7,13 +7,13 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-import landschaft as ls
-from landschaft.morphology import ParcellationResult, contortion, parcellation
+import terraflux as tf
+from terraflux.morphology import ParcellationResult, contortion, parcellation
 
 
 @pytest.fixture
 def input_path() -> Path:
-    return Path(__file__).resolve().parent.parent / "src" / "landschaft" / "data" / "input.tif"
+    return Path(__file__).resolve().parent.parent / "src" / "terraflux" / "data" / "input.tif"
 
 
 class TestParcellation:

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.MaxNet against R's maxnet 0.1.4 / glmnet 4.1-10 (tools/make_reference_maxnet.py).
+"""tf.sdm.MaxNet against R's maxnet 0.1.4 / glmnet 4.1-10 (tools/make_reference_maxnet.py).
 
 With R's x87 maths (conftest.BITWISE) everything is compared bit for bit:
 the penalties, the lambdas, every coefficient at the last lambda, the number
@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from conftest import BITWISE
 
 REF = Path(__file__).parent / "data" / "reference" / "sdm"
@@ -55,7 +55,7 @@ def reference(case: str) -> dict:
 
 def big_centi() -> np.ndarray:
     """The data of the "big" case (tools/maxnet_reference.R) from R's generator: 100 x values."""
-    rng = ls._core.RRandom(11)
+    rng = tf._core.RRandom(11)
     nb, npres, nv = 10000, 200, 20
     n = nb + npres
     z = rng.rnorm(n * 5).reshape(5, n).T
@@ -89,9 +89,9 @@ def case_data(case: str) -> tuple[pd.DataFrame, np.ndarray, dict]:
 
 
 @lru_cache(maxsize=None)
-def fitted(case: str) -> ls.sdm.MaxNet:
+def fitted(case: str) -> tf.sdm.MaxNet:
     X, p, ref = case_data(case)
-    return ls.sdm.MaxNet(classes=ref["classes"][0], regmult=float(ref["regmult"][0]),
+    return tf.sdm.MaxNet(classes=ref["classes"][0], regmult=float(ref["regmult"][0]),
                          add_samples_to_background=bool(ref["add"][0])).fit(X, p)
 
 
@@ -173,7 +173,7 @@ def test_predictions_match_r(case):
 
 def test_estimator_api():
     X, p, _ = case_data("brad_lq")
-    m = ls.sdm.MaxNet(classes="lq", type="logistic", threshold=0.3)
+    m = tf.sdm.MaxNet(classes="lq", type="logistic", threshold=0.3)
     assert m.get_params()["classes"] == "lq"
     m.set_params(regmult=1.0)
     m.fit(X, p, sample_weight=np.ones(len(p)))
@@ -190,7 +190,7 @@ def test_estimator_api():
     again = pickle.loads(pickle.dumps(m))
     np.testing.assert_array_equal(again.predict_proba(X), proba)
     # the same model with any number of threads
-    one = ls.sdm.MaxNet(classes="lq", type="logistic", n_threads=1).fit(X, p)
+    one = tf.sdm.MaxNet(classes="lq", type="logistic", n_threads=1).fit(X, p)
     assert one.betas_ == m.betas_
 
 
@@ -198,7 +198,7 @@ def test_without_scikit_learn(monkeypatch):
     import importlib
     import sys
 
-    import landschaft.sdm._maxnet as module
+    import terraflux.sdm._maxnet as module
 
     original = module.MaxNet
     monkeypatch.setitem(sys.modules, "sklearn", None)
@@ -217,12 +217,12 @@ def test_without_scikit_learn(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(module)
-        module.MaxNet = original  # the class ls.sdm.MaxNet is (pickling)
+        module.MaxNet = original  # the class tf.sdm.MaxNet is (pickling)
 
 
 def test_missing_and_unseen_values():
     X, p, _ = case_data("syn_np40")
-    m = ls.sdm.MaxNet().fit(X, p)
+    m = tf.sdm.MaxNet().fit(X, p)
     nd = X.iloc[:4].copy()
     nd["k"] = nd["k"].cat.add_categories(["new"])
     nd.loc[nd.index[0], "a"] = np.nan  # a missing value: NaN (R drops the row)
@@ -234,36 +234,36 @@ def test_missing_and_unseen_values():
     assert np.isnan(out[1]) == uses_k
     assert np.isfinite(out[2]) and np.isfinite(out[3])
     with pytest.raises(ValueError, match="missing"):
-        ls.sdm.MaxNet().fit(nd, np.array([1, 0, 1, 0]))
+        tf.sdm.MaxNet().fit(nd, np.array([1, 0, 1, 0]))
 
 
 def test_numpy_input_and_sdmdata():
     X, p, _ = case_data("brad_num_lqp15")
-    a = ls.sdm.MaxNet(classes="lqp", regmult=1.5).fit(X.to_numpy(), p)
+    a = tf.sdm.MaxNet(classes="lqp", regmult=1.5).fit(X.to_numpy(), p)
     b = fitted("brad_num_lqp15")
     np.testing.assert_array_equal(list(a.betas_.values()), list(b.betas_.values()))
     assert not hasattr(a, "feature_names_in_")
     assert next(iter(a.betas_)).startswith("x")
-    data = ls.sdm.SDMData(X, p.astype(np.int8), None)
-    c = ls.sdm.MaxNet(classes="lqp", regmult=1.5).fit(data)
+    data = tf.sdm.SDMData(X, p.astype(np.int8), None)
+    c = tf.sdm.MaxNet(classes="lqp", regmult=1.5).fit(data)
     np.testing.assert_array_equal(c.predict_proba(data), b.predict_proba(X))
 
 
 def test_errors():
     X, p, _ = case_data("syn_np12")
     with pytest.raises(ValueError, match="presence"):
-        ls.sdm.MaxNet().fit(X, np.where(p == 1, 2, 0))
+        tf.sdm.MaxNet().fit(X, np.where(p == 1, 2, 0))
     with pytest.raises(ValueError, match="classes"):
-        ls.sdm.MaxNet(classes="lqz").fit(X, p)
+        tf.sdm.MaxNet(classes="lqz").fit(X, p)
     with pytest.raises(ValueError, match="hinge"):
         Xc = X.assign(a=1.0)
-        ls.sdm.MaxNet(classes="h").fit(Xc, p)
+        tf.sdm.MaxNet(classes="h").fit(Xc, p)
     with pytest.raises(AttributeError, match="fit"):
-        ls.sdm.MaxNet().predict(X)
+        tf.sdm.MaxNet().predict(X)
 
 
 def test_r_as_character():
-    f = ls._core.sdm_r_as_character
+    f = tf._core.sdm_r_as_character
     values = [1234567890123456, 1e15, 123456789012345, 100000, 123456, 0.0001, 0.00012, 1 / 3, 2 / 3 * 1e-10,
               1e5 + 0.1, -0.5, 1e-300, 5e22, 0.1 + 0.2, 100, 3e5, 1234567.1, 12345678901234567890.0, -1e5, 1e100,
               1.5e-5, 0.1234567890123456, 0.0]

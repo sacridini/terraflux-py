@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.hydro.swat routing (aquifers, routing units, SWAT-DEG channels, the command loop)
+"""tf.hydro.swat routing (aquifers, routing units, SWAT-DEG channels, the command loop)
 against SWAT+ 62.0.1, with the reference's HRU outputs put in place of hru_control:
 every object's inflow and outflow hydrographs, the aquifers and the channels, day by
 day, as the reference dumps them (tools/make_reference_swat.py)."""
@@ -12,8 +12,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 from conftest import assert_swat_close
 
 REF = Path(__file__).parent / "data" / "reference" / "swat"

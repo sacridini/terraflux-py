@@ -4,134 +4,134 @@ Measures of the texture of a continuous raster (NDVI, elevation, canopy height,
 any gradient) that need no classification into patches: how much it varies,
 how its heights are distributed, how its trend can be removed. They are the
 areal surface texture parameters of ISO 25178, brought to landscape ecology as
-*gradient surface metrics*, and live in the `ls.surface` module.
+*gradient surface metrics*, and live in the `tf.surface` module.
 
 The metrics follow the R package geodiv, bit for bit wherever geodiv is
 right; where it errs (Sq and the moments built on it, the seven-point slopes,
 the valleys, the summit curvature, the areas of the bearing area curve, the
 centre of its Fourier images, the fractal dimension's prisms, the choice of
-trend surface), Landschaft computes what the method intends, and each
+trend surface), Terraflux computes what the method intends, and each
 function's notes say what differs.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-ndvi = ls.surface.example_data("orforest")
-z = ls.surface.remove_plane(ndvi)       # residuals from the best trend surface
-ls.surface.metrics(z)                   # every metric in one table
+ndvi = tf.surface.example_data("orforest")
+z = tf.surface.remove_plane(ndvi)       # residuals from the best trend surface
+tf.surface.metrics(z)                   # every metric in one table
 ```
 
 ## All metrics at once
 
-::: landschaft.surface.metrics
+::: terraflux.surface.metrics
 
-::: landschaft.surface.list_metrics
+::: terraflux.surface.list_metrics
 
 ## Amplitude
 
-::: landschaft.surface.sa
+::: terraflux.surface.sa
 
-::: landschaft.surface.sq
+::: terraflux.surface.sq
 
-::: landschaft.surface.ssk
+::: terraflux.surface.ssk
 
-::: landschaft.surface.sku
+::: terraflux.surface.sku
 
-::: landschaft.surface.sv
+::: terraflux.surface.sv
 
-::: landschaft.surface.sph
+::: terraflux.surface.sph
 
-::: landschaft.surface.smean
+::: terraflux.surface.smean
 
 ## Slopes and developed area
 
-::: landschaft.surface.sdq
+::: terraflux.surface.sdq
 
-::: landschaft.surface.sdq6
+::: terraflux.surface.sdq6
 
-::: landschaft.surface.sdr
+::: terraflux.surface.sdr
 
-::: landschaft.surface.surface_area
+::: terraflux.surface.surface_area
 
-::: landschaft.surface.flat_area
+::: terraflux.surface.flat_area
 
 ## Peaks and valleys
 
-::: landschaft.surface.find_peaks
+::: terraflux.surface.find_peaks
 
-::: landschaft.surface.find_valleys
+::: terraflux.surface.find_valleys
 
-::: landschaft.surface.sds
+::: terraflux.surface.sds
 
-::: landschaft.surface.ssc
+::: terraflux.surface.ssc
 
-::: landschaft.surface.s10z
+::: terraflux.surface.s10z
 
 ## Bearing area curve
 
-::: landschaft.surface.bearing_area
+::: terraflux.surface.bearing_area
 
-::: landschaft.surface.height_ba
+::: terraflux.surface.height_ba
 
-::: landschaft.surface.sdc
+::: terraflux.surface.sdc
 
-::: landschaft.surface.sbi
+::: terraflux.surface.sbi
 
-::: landschaft.surface.svi
+::: terraflux.surface.svi
 
-::: landschaft.surface.sci
+::: terraflux.surface.sci
 
-::: landschaft.surface.sk
+::: terraflux.surface.sk
 
-::: landschaft.surface.spk
+::: terraflux.surface.spk
 
-::: landschaft.surface.svk
+::: terraflux.surface.svk
 
 ## Autocorrelation, orientation and wavelength
 
-::: landschaft.surface.aacf
+::: terraflux.surface.aacf
 
-::: landschaft.surface.scl
+::: terraflux.surface.scl
 
-::: landschaft.surface.stxr
+::: terraflux.surface.stxr
 
-::: landschaft.surface.std
+::: terraflux.surface.std
 
-::: landschaft.surface.srw
+::: terraflux.surface.srw
 
-::: landschaft.surface.sfd
+::: terraflux.surface.sfd
 
 ## Texture images
 
-::: landschaft.surface.window_metrics
+::: terraflux.surface.window_metrics
 
 ## Terrain
 
 Indices of a DEM's shape as the R package spatialEco computes them (over
 terra's slope and aspect), corrected where it errs.
 
-::: landschaft.surface.terrain
+::: terraflux.surface.terrain
 
-::: landschaft.surface.tpi
+::: terraflux.surface.tpi
 
-::: landschaft.surface.tri
+::: terraflux.surface.tri
 
-::: landschaft.surface.vrm
+::: terraflux.surface.vrm
 
-::: landschaft.surface.srr
+::: terraflux.surface.srr
 
-::: landschaft.surface.dissection
+::: terraflux.surface.dissection
 
-::: landschaft.surface.curvature
+::: terraflux.surface.curvature
 
-::: landschaft.surface.spherical_sd
+::: terraflux.surface.spherical_sd
 
-::: landschaft.surface.hsp
+::: terraflux.surface.hsp
 
-::: landschaft.surface.trasp
+::: terraflux.surface.trasp
 
-::: landschaft.surface.hli
+::: terraflux.surface.hli
 
 ## Landforms (geomorphons)
 
@@ -139,35 +139,35 @@ The 10 landforms and 498 ternary patterns of Jasiewicz & Stepinski (2013),
 from the lines of sight of every cell: GRASS GIS's `r.geomorphon`, bit for bit
 (four of its errors corrected).
 
-::: landschaft.surface.geomorphons
+::: terraflux.surface.geomorphons
 
-::: landschaft.surface.Geomorphons
+::: terraflux.surface.Geomorphons
 
-`ls.surface.GEOMORPHON_FORMS` maps the codes to the names: 1 flat, 2 peak,
+`tf.surface.GEOMORPHON_FORMS` maps the codes to the names: 1 flat, 2 peak,
 3 ridge, 4 shoulder, 5 spur, 6 slope, 7 hollow, 8 footslope, 9 valley, 10 pit.
 
 ## Hilltops (APP de topo de morro)
 
-::: landschaft.surface.hilltop
+::: terraflux.surface.hilltop
 
-::: landschaft.surface.Hilltop
+::: terraflux.surface.Hilltop
 
 ## Viewshed
 
-::: landschaft.surface.viewshed
+::: terraflux.surface.viewshed
 
 ## Spatial interaction
 
-::: landschaft.surface.gravity
+::: terraflux.surface.gravity
 
 ## Trend surfaces
 
-::: landschaft.surface.fit_plane
+::: terraflux.surface.fit_plane
 
-::: landschaft.surface.best_fit_plane
+::: terraflux.surface.best_fit_plane
 
-::: landschaft.surface.remove_plane
+::: terraflux.surface.remove_plane
 
 ## Example data
 
-::: landschaft.surface.example_data
+::: terraflux.surface.example_data

@@ -51,11 +51,11 @@ The price of this certainty is that you do not control the cost. It is whatever 
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 base = P.problem(cost, features).add_min_set_objective().add_binary_decisions()
 
 for t in (0.1, 0.3, 0.5):
@@ -77,7 +77,7 @@ and the locked-out units before raising targets.
 
 ## Budget objectives
 
-When the money is fixed, you must say what "doing the most" means. `ls.prioritize` offers the objectives of
+When the money is fixed, you must say what "doing the most" means. `tf.prioritize` offers the objectives of
 prioritizr (Hanson et al. 2025) and one of its own:
 
 | Objective | What it optimizes within the budget | Good for |
@@ -170,7 +170,7 @@ Serra Verde has 4825 planning units. Each can be in or out of the plan, so there
 possible plans, a number with 1453 digits. Trying them all is impossible, even on every computer on Earth
 for the age of the universe. Yet the solve above takes a fraction of a second. How?
 
-`ls.prioritize` writes the problem as a **mixed integer linear program** (MILP):
+`tf.prioritize` writes the problem as a **mixed integer linear program** (MILP):
 
 - one **variable** per planning unit, x<sub>i</sub> = 1 if it is selected and 0 if not;
 - an **objective**: the total cost Σ c<sub>i</sub> x<sub>i</sub>, to minimize;
@@ -183,7 +183,7 @@ model                               # rows: one per target; columns: one per pla
 ```
 
 A **solver** is a program, built over decades for airline schedules and supply chains, that searches such
-models cleverly. `ls.prioritize` translates the conservation problem into the solver's language and the
+models cleverly. `tf.prioritize` translates the conservation problem into the solver's language and the
 answer back into maps; you never deal with the solver directly.
 
 !!! note "In plain words"
@@ -223,7 +223,7 @@ plan of this chapter came within 0.2 %). For exploration, 1 to 5 % is plenty and
 for a final plan, ask for a small gap with `add_highs_solver(gap=...)` and report it. The `status` of a solution says how the solve
 ended: `"optimal"` (the gap asked for was reached), `"time_limit"`, `"infeasible"`.
 
-### Solvers in `ls.prioritize`
+### Solvers in `tf.prioritize`
 
 | Solver | Method | When |
 |---|---|---|
@@ -231,7 +231,7 @@ ended: `"optimal"` (the gap asked for was reached), `"time_limit"`, `"infeasible
 | `add_gurobi_solver` | exact (MILP), commercial, needs a licence | very large or hard models, if you have it |
 | `add_anneal_solver` | simulated annealing, as in Marxan | Marxan comparisons; penalties on huge maps |
 
-Behind HiGHS, Landschaft adds engines of its own for the problems that general solvers find hard: covering
+Behind HiGHS, Terraflux adds engines of its own for the problems that general solvers find hard: covering
 problems with millions of units, boundary and connectivity penalties, multi-action plans. They start the
 solver from a near-optimal plan and fix the units whose choice is already proven, so the same models solve
 in seconds instead of hours. You do not choose them: they run when they apply, and the gap and status keep
@@ -264,7 +264,7 @@ print(f"annealing: {anneal.cost:,.0f}   optimum: {exact.cost:,.0f}   "
 <figcaption>Twenty runs of Marxan's simulated annealing (2 million iterations each) on the 30 % problem of
 Serra Verde. They cost from 42.9 to 44.2 million USD, 15 to 19 % more than the proven optimum of 37.1
 million, and five of them miss a target. None of them knows how far it is from the best plan. The
-annealing solver of `ls.prioritize` repairs and trims every run, which brings its best run to 37.5 million,
+annealing solver of `tf.prioritize` repairs and trims every run, which brings its best run to 37.5 million,
 within 1 % of the optimum, and reports the gap to the bound.</figcaption>
 </figure>
 
@@ -289,8 +289,8 @@ Constraints are hard: the plan must obey them. Penalties are soft: the plan pays
 chapter is about the most important of both, the **shape** of the plan.
 
 ```python
-protected = ls.load_raster(P.example_data("protected"))
-urban = ls.load_raster(P.example_data("urban"))
+protected = tf.load_raster(P.example_data("protected"))
+urban = tf.load_raster(P.example_data("urban"))
 plan = (base.add_relative_targets(0.3)
             .add_locked_in_constraints(protected)
             .add_locked_out_constraints(urban)
@@ -300,7 +300,7 @@ print(f"with reserves and cities: {plan.cost / 1000:.1f} million USD")
 
 ## The equations
 
-You do not need them to use `ls.prioritize`, but they make precise what each objective means. With
+You do not need them to use `tf.prioritize`, but they make precise what each objective means. With
 x<sub>i</sub> ∈ {0, 1} the decision for planning unit i (or 0 ≤ x<sub>i</sub> ≤ 1 with proportion
 decisions), c<sub>i</sub> its cost, r<sub>ij</sub> the amount of feature j in it, T<sub>j</sub> the target of
 feature j, B the budget and w<sub>j</sub> the feature weights:
@@ -343,7 +343,7 @@ the same, row by row, as prioritizr's.
     3. Maximum utility adds up amounts. The mangrove's total amount is small, and it grows on dear coastal
        land, so each dollar buys more total habitat in the cheap mountains. Weights or targets fix this.
     4. A gap needs a bound, a proof that no plan is better. Annealing only compares the plans it visits, so
-       it never proves anything about those it did not visit. (`ls.prioritize`'s annealing solver adds the
+       it never proves anything about those it did not visit. (`tf.prioritize`'s annealing solver adds the
        bound of the linear relaxation, so it can report a gap after all.)
 
 ## References

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm folds against blockCV::cv_spatial and ENMeval's partitions."""
+"""tf.sdm folds against blockCV::cv_spatial and ENMeval's partitions."""
 
 from __future__ import annotations
 

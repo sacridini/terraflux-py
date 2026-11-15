@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.surface.geomorphons against GRASS GIS's r.geomorphon 8.4 (tools/make_reference_geomorphons.py)."""
+"""tf.surface.geomorphons against GRASS GIS's r.geomorphon 8.4 (tools/make_reference_geomorphons.py)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
 REF = Path(__file__).parent / "data" / "reference" / "surface"
 DATA = np.load(REF / "geomorphons.npz")
@@ -26,7 +26,7 @@ def _run(name, **kw):
     ny, nx = z.shape
     ew, ns = c["cell"]
     x0, y0 = c["origin"]
-    return ls.surface.geomorphons(z, search=c["search"], skip=c["skip"], flat=c["flat"], dist=c["dist"],
+    return tf.surface.geomorphons(z, search=c["search"], skip=c["skip"], flat=c["flat"], dist=c["dist"],
                                   units="map" if c.get("meters") else "cells", comparison=c["comparison"],
                                   extended=c.get("extended", False), measures=True,
                                   extent=(x0, x0 + nx * ew, y0 - ny * ns, y0), **kw)
@@ -67,13 +67,13 @@ def test_the_correct_form_changes_only_what_it_corrects(name):
 def test_peaks_pits_and_their_binary_patterns():
     yy, xx = np.mgrid[0:41, 0:41].astype(float)
     cone = 100 - 0.1 * ((yy - 20) ** 2 + (xx - 20) ** 2)   # a dome: steeper away from the top
-    g = ls.surface.geomorphons(cone, search=5)
-    assert ls.surface.GEOMORPHON_FORMS[int(g.forms[20, 20])] == "peak"
+    g = tf.surface.geomorphons(cone, search=5)
+    assert tf.surface.GEOMORPHON_FORMS[int(g.forms[20, 20])] == "peak"
     assert (g.positive[20, 20], g.negative[20, 20], g.ternary[20, 20]) == (0, 255, 0)
-    p = ls.surface.geomorphons(-cone, search=5)
-    assert ls.surface.GEOMORPHON_FORMS[int(p.forms[20, 20])] == "pit"
+    p = tf.surface.geomorphons(-cone, search=5)
+    assert tf.surface.GEOMORPHON_FORMS[int(p.forms[20, 20])] == "pit"
     assert (p.positive[20, 20], p.negative[20, 20], p.ternary[20, 20]) == (255, 0, 6560)
-    flat = ls.surface.geomorphons(np.full((20, 20), 5.0), search=3)
+    flat = tf.surface.geomorphons(np.full((20, 20), 5.0), search=3)
     assert set(np.unique(flat.forms.values[~np.isnan(flat.forms.values)])) == {1}
 
 
@@ -81,16 +81,16 @@ def test_lines_of_sight_reach_the_last_row():
     """A cliff on the last row is seen from the cells above it (r.geomorphon misses it)."""
     z = np.zeros((30, 30))
     z[-1, :] = 500.0
-    g = ls.surface.geomorphons(z, search=6)
-    e = ls.surface.geomorphons(z, search=6, _grass_errors=True)  # the emulation reads the last row too
-    assert ls.surface.GEOMORPHON_FORMS[int(g.forms[25, 15])] != "flat"
+    g = tf.surface.geomorphons(z, search=6)
+    e = tf.surface.geomorphons(z, search=6, _grass_errors=True)  # the emulation reads the last row too
+    assert tf.surface.GEOMORPHON_FORMS[int(g.forms[25, 15])] != "flat"
     assert _same(g.forms.values, e.forms.values)
 
 
 def test_borders_nodata_and_threads():
     z = DATA["holes/dem"]
-    a = ls.surface.geomorphons(z, search=6, skip=1, measures=True, n_threads=1)
-    b = ls.surface.geomorphons(z, search=6, skip=1, measures=True, n_threads=3)
+    a = tf.surface.geomorphons(z, search=6, skip=1, measures=True, n_threads=1)
+    b = tf.surface.geomorphons(z, search=6, skip=1, measures=True, n_threads=3)
     for k in OUTPUTS:
         assert _same(getattr(a, k).values, getattr(b, k).values), k
     f = a.forms.values
@@ -109,16 +109,16 @@ def test_whitebox_tools_mostly_agrees():
 def test_arguments_and_result(tmp_path):
     z = DATA["hills/dem"] if "hills/dem" in DATA.files else DATA["map_units/dem"]
     with pytest.raises(ValueError, match="skip"):
-        ls.surface.geomorphons(z, search=3, skip=3)
+        tf.surface.geomorphons(z, search=3, skip=3)
     with pytest.raises(ValueError, match="flatness"):
-        ls.surface.geomorphons(z, flat=0)
+        tf.surface.geomorphons(z, flat=0)
     with pytest.raises(ValueError, match="units"):
-        ls.surface.geomorphons(z, units="km")
+        tf.surface.geomorphons(z, units="km")
     with pytest.raises(ValueError, match="comparison"):
-        ls.surface.geomorphons(z, comparison="angle")
+        tf.surface.geomorphons(z, comparison="angle")
     with pytest.raises(ValueError, match="projected"):
-        ls.surface.geomorphons(ls.surface.example_data("orelevation"))
-    g = ls.surface.geomorphons(z, search=4)
+        tf.surface.geomorphons(tf.surface.example_data("orelevation"))
+    g = tf.surface.geomorphons(z, search=4)
     assert g.intensity is None and g.share()["share"].sum() == pytest.approx(1.0)
     folder = g.save(tmp_path / "gm")
     assert (folder / "forms.tif").is_file() and (folder / "ternary.tif").is_file()

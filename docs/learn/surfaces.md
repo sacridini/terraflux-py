@@ -40,12 +40,12 @@ it more than on the landscape:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-ndvi = ls.load_raster(ls.surface.example_data("orforest"))
+ndvi = tf.load_raster(tf.surface.example_data("orforest"))
 for t in (0.60, 0.65, 0.70, 0.75):
     habitat = np.where(ndvi.values >= t, 2, 1).astype("uint8")
-    m = ls.Landscape(habitat).class_metrics(["pland", "np"]).set_index("class").loc[2]
+    m = tf.Landscape(habitat).class_metrics(["pland", "np"]).set_index("class").loc[2]
     print(f"NDVI >= {t:.2f}: {m['pland']:5.1f} % habitat in {int(m['np']):5d} patches")
 ```
 
@@ -66,7 +66,7 @@ other is not texture. The first step is therefore to remove it, fitting a
 polynomial surface in the coordinates and keeping the residuals:
 
 ```python
-z = ls.surface.remove_plane(ndvi)       # residuals from the best polynomial of order 0-3
+z = tf.surface.remove_plane(ndvi)       # residuals from the best polynomial of order 0-3
 print(z.attrs["order"], round(float(z.mean()), 12))
 ```
 
@@ -97,7 +97,7 @@ Sa = (1/N) Σ |z<sub>i</sub> − z̄|  &nbsp;&nbsp;&nbsp;&nbsp; Sq = √[ (1/N) 
 
 ```python
 by_hand = {"Sa": np.abs(dev).mean(), "Sq": np.sqrt((dev ** 2).mean())}
-tool = ls.surface.metrics(toy, ["sa", "sq"])
+tool = tf.surface.metrics(toy, ["sa", "sq"])
 print(by_hand, tool.to_dict())
 ```
 
@@ -114,8 +114,8 @@ Ssk = (1/Sq³) (1/N) Σ (z<sub>i</sub> − z̄)³  &nbsp;&nbsp;&nbsp;&nbsp; Sku 
 ```python
 sq = np.sqrt((dev ** 2).mean())
 g1 = (dev ** 3).mean() / sq ** 3
-print(g1, ls.surface.ssk(toy, adj=False))
-print((dev ** 4).mean() / sq ** 4 - 3, ls.surface.sku(toy))
+print(g1, tf.surface.ssk(toy, adj=False))
+print((dev ** 4).mean() / sq ** 4 - 3, tf.surface.sku(toy))
 ```
 
 `ssk` by default multiplies by √(N(N−1))/(N−2), the adjusted coefficient
@@ -132,8 +132,8 @@ reference plane); Sds is their density:
 ```python
 right = toy[:-1, :-1] - toy[:-1, 1:]
 down = toy[:-1, :-1] - toy[1:, :-1]
-print(np.sqrt((right ** 2 + down ** 2).mean()), ls.surface.sdq(toy))
-print(ls.surface.find_peaks(toy))
+print(np.sqrt((right ** 2 + down ** 2).mean()), tf.surface.sdq(toy))
+print(tf.surface.find_peaks(toy))
 ```
 
 On the 4 × 4 surface only the four inner cells can be peaks, and one is:
@@ -150,9 +150,9 @@ of the curve separates the core (height range Sk) from the peaks above it
 its top measure how much "room" the core and the valleys leave (Sci, Svi).
 
 ```python
-curve = ls.surface.bearing_area(toy)
+curve = tf.surface.bearing_area(toy)
 print(curve)
-print(ls.surface.height_ba(toy, 0.5))     # the height with half the surface above it
+print(tf.surface.height_ba(toy, 0.5))     # the height with half the surface above it
 ```
 
 On a forest's greenness, a long valley tail (large Svk) means a closed
@@ -184,13 +184,13 @@ at arrangement.
   grows as it is measured with finer cells (Clarke, 1986).
 
 ```python
-field = ls.nlm.gaussian_field(120, 120, autocorr_range=15, seed=1)
+field = tf.nlm.gaussian_field(120, 120, autocorr_range=15, seed=1)
 x = np.arange(120)
 ridges = np.sin(2 * np.pi * x / 12)[None, :] + 0.3 * field.values
 for name, s in (("isotropic field", field), ("ridges", ridges)):
-    lengths = ls.surface.scl(s)
-    print(f"{name:16s} Sal {lengths[0]:5.1f}  Str {ls.surface.stxr(s)[0]:.2f}  "
-          f"Std {ls.surface.std(s)[0]:5.1f}  Srw {ls.surface.srw(s)[0]:5.1f}")
+    lengths = tf.surface.scl(s)
+    print(f"{name:16s} Sal {lengths[0]:5.1f}  Str {tf.surface.stxr(s)[0]:.2f}  "
+          f"Std {tf.surface.std(s)[0]:5.1f}  Srw {tf.surface.srw(s)[0]:5.1f}")
 ```
 
 ![Two surfaces and their autocorrelation](../assets/figures/learn_aacf.png)
@@ -212,7 +212,7 @@ like any other covariate. The window size is the scale of the analysis
 home range, not from the map.
 
 ```python
-texture = ls.surface.window_metrics(z, ["sa", "sku"], window=9)
+texture = tf.surface.window_metrics(z, ["sa", "sku"], window=9)
 print(float(texture["sa"].mean()), float(texture["sku"].mean()))
 ```
 
@@ -243,8 +243,8 @@ terrain has indices of its own, many of them designed with ecology in mind:
 The TPI of a cell is easy to check by hand:
 
 ```python
-dem = ls.load_raster(ls.surface.example_data("orelevation"))
-tpi = ls.surface.tpi(dem, 3)
+dem = tf.load_raster(tf.surface.example_data("orelevation"))
+tpi = tf.surface.tpi(dem, 3)
 window = dem.values[99:102, 199:202]
 print(dem.values[100, 200] - window.mean(), float(tpi.values[100, 200]))
 ```
@@ -268,7 +268,7 @@ water body or, in undulating relief, "the nearest saddle point". These
 hilltop permanent protection areas (*APP de topo de morro*) keep vegetation
 on the steep upper slopes, where clearing causes erosion and landslides.
 
-`ls.surface.hilltop` sweeps the cells from the highest down, joining each to
+`tf.surface.hilltop` sweeps the cells from the highest down, joining each to
 its swept neighbours, and records each summit's base where its region meets
 a higher one (or the plain, given as a mask). Two cones that meet at a
 saddle show it:
@@ -278,7 +278,7 @@ yy, xx = np.mgrid[0:60, 0:100] * 30.0 + 15                  # 30 m cells
 big = 500 + np.clip(400 - np.hypot(yy - 885, xx - 1065), 0, None)
 small = 500 + np.clip(250 - np.hypot(yy - 885, xx - 1545), 0, None)
 cones = np.maximum(big, small)                              # 45 degree slopes on a plain at 500 m
-h = ls.surface.hilltop(cones, extent=(0, 3000, 0, 1800))
+h = tf.surface.hilltop(cones, extent=(0, 3000, 0, 1800))
 hills = h.hills[h.hills.height > 0]
 print(hills[["top", "base", "base_kind", "height", "mean_slope", "threshold"]].round(1))
 print(cones[29, 35:52].min())                               # the lowest point of the ridge between them
@@ -303,16 +303,16 @@ P<sub>i</sub> = Σ<sub>k</sub> m<sub>k</sub> / d<sub>ik</sub><sup>β</sup>
 </div>
 
 The potential is a common driver of land change: deforestation and
-urbanisation follow it. `ls.surface.gravity` computes it, with distances in
+urbanisation follow it. `tf.surface.gravity` computes it, with distances in
 cells (a source's own cell at 1, as Dinamica EGO does) or in map units, and
-`ls.simulate.gravity_of` recomputes it from the simulated map at every step
+`tf.simulate.gravity_of` recomputes it from the simulated map at every step
 ([chapter 14](simulation.md)). By hand, for the cell of the smaller of two
 towns:
 
 ```python
 towns = np.full((5, 7), np.nan)
 towns[1, 1], towns[3, 5] = 2000, 500                        # populations
-p = ls.surface.gravity(towns, 2)
+p = tf.surface.gravity(towns, 2)
 print(2000 / ((3 - 1) ** 2 + (5 - 1) ** 2) + 500 / 1, float(p[3, 5]))
 ```
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # ecospat.boyce (ecospat 4.1.3) with its errors corrected, the reference of
-# ls.sdm.boyce. Every change is marked "FIX":
+# tf.sdm.boyce. Every change is marked "FIX":
 #   - the "+1 trick" on the last moving window (and the -1 on its centre)
 #     made the index depend on the scale of the predictions (the last window
 #     vanished for predictions on 0-1, stayed for 0-1000): removed;

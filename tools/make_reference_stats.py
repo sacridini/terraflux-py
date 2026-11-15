@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What pymannkendall (1.4), PySAL's esda (2.10) and libpysal (4.15) and scipy give, for landschaft's tests (the same
+"""What pymannkendall (1.4), PySAL's esda (2.10) and libpysal (4.15) and scipy give, for terraflux's tests (the same
 files as Terraflux's), written to tests/data/reference/stats/stats.npz and .json:
 
     python tools/make_reference_stats.py

@@ -272,7 +272,7 @@ def make_ini() -> None:
     try:
         for name in INI_CONFIGS:
             text = (OMNISCAPE_TEST / f"{name}.ini").read_text()
-            # Stored with paths relative to the INI file (landschaft falls back to them).
+            # Stored with paths relative to the INI file (terraflux falls back to them).
             (inis / f"{name}.ini").write_text(text.replace("input/", "../omniscape_input/"))
             d = tmp / name
             d.mkdir()

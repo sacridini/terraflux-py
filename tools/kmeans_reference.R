@@ -3,7 +3,7 @@
 # R 4.4.2 references of stats::kmeans() for tests/test_sdm_kmeans.py: prints
 # the CASES literal pasted there. Run with
 #   Rscript tools/kmeans_reference.R > kmeans_cases.txt
-# The data sets are rebuilt in the test with landschaft._core.RRandom (R's
+# The data sets are rebuilt in the test with terraflux._core.RRandom (R's
 # generator), so only the results are stored; doubles as C99 hex ("%a").
 
 Sys.setenv(LANGUAGE = "en")  # R's messages untranslated

@@ -1,49 +1,49 @@
 # Installation
 
-Landschaft is a Python package with a compiled C++ core, published on
-[PyPI](https://pypi.org/project/landschaft/) as binary wheels:
+Terraflux is a Python package with a compiled C++ core, published on
+[PyPI](https://pypi.org/project/terraflux/) as binary wheels:
 
 ```bash
-pip install landschaft
+pip install terraflux
 ```
 
 Wheels exist for CPython 3.10 to 3.14 on Windows (x86-64), macOS 11+ (Apple
 silicon and Intel) and Linux (x86-64 and ARM64, glibc 2.28+); they include the
 OpenMP runtime, so every tool runs in parallel and no compiler is needed. The
 same command installs everything every tool uses (see
-[What is installed](#what-is-installed)); `pip install -U landschaft` updates it.
+[What is installed](#what-is-installed)); `pip install -U terraflux` updates it.
 
 ## Install with pip
 
-A virtual environment keeps Landschaft and its dependencies apart from other
+A virtual environment keeps Terraflux and its dependencies apart from other
 projects (rasterio then comes as a binary wheel that bundles GDAL):
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install landschaft
+pip install terraflux
 ```
 
 On a cluster, install in a virtual environment on the login node, or use the
-container image with Apptainer (`apptainer pull landschaft.sif
-docker://ghcr.io/sacridini/landschaft:latest`); see
+container image with Apptainer (`apptainer pull terraflux.sif
+docker://ghcr.io/sacridini/terraflux-py:latest`); see
 [on a cluster](../tutorials/hpc-slurm.md#install).
 
 ## Install in a conda environment
 
 [conda](https://docs.conda.io) (or mamba) provides Python and the geospatial
 libraries as tested binaries on every platform. Install those from conda-forge
-first, then Landschaft with pip, so that pip does not replace them:
+first, then Terraflux with pip, so that pip does not replace them:
 
 ```bash
-conda create -n landschaft -c conda-forge python=3.12 rasterio rioxarray geopandas
-conda activate landschaft
-pip install landschaft
+conda create -n terraflux -c conda-forge python=3.12 rasterio rioxarray geopandas
+conda activate terraflux
+pip install terraflux
 ```
 
 ## Build from source
 
-On other platforms, or to work on Landschaft itself, it is built from source,
+On other platforms, or to work on Terraflux itself, it is built from source,
 which takes two to five minutes the first time.
 
 ### Requirements
@@ -73,12 +73,12 @@ problems:
     3. Open the *Miniforge Prompt* and run:
 
     ```bat
-    conda create -n landschaft -c conda-forge python=3.12 numpy pandas scipy rasterio rioxarray xarray ^
+    conda create -n terraflux -c conda-forge python=3.12 numpy pandas scipy rasterio rioxarray xarray ^
           dask geopandas pyarrow openpyxl matplotlib folium plotly xyzservices pillow contextily pywebview h3-py dendropy ^
           scikit-build-core pybind11 "cmake>=4.2"
-    conda activate landschaft
-    git clone https://github.com/sacridini/landschaft.git
-    cd landschaft
+    conda activate terraflux
+    git clone https://github.com/sacridini/terraflux-py.git
+    cd terraflux
     pip install --no-build-isolation -e .
     ```
 
@@ -95,17 +95,17 @@ problems:
     3. In a terminal:
 
     ```bash
-    conda create -n landschaft -c conda-forge python=3.12 numpy pandas scipy rasterio rioxarray xarray \
+    conda create -n terraflux -c conda-forge python=3.12 numpy pandas scipy rasterio rioxarray xarray \
           dask geopandas pyarrow openpyxl matplotlib folium plotly xyzservices pillow contextily pywebview h3-py dendropy \
           scikit-build-core pybind11 cmake ninja llvm-openmp
-    conda activate landschaft
-    git clone https://github.com/sacridini/landschaft.git
-    cd landschaft
+    conda activate terraflux
+    git clone https://github.com/sacridini/terraflux-py.git
+    cd terraflux
     pip install --no-build-isolation -e .
     ```
 
     `llvm-openmp` gives Apple's compiler the OpenMP runtime it lacks; without
-    it Landschaft builds and runs, single-threaded. The build takes the
+    it Terraflux builds and runs, single-threaded. The build takes the
     runtime of the conda environment it installs into, else Homebrew's
     `libomp` (`brew install libomp`), whatever CMake it runs with.
 
@@ -117,12 +117,12 @@ problems:
     3. In a terminal:
 
     ```bash
-    conda create -n landschaft -c conda-forge python=3.12 numpy pandas scipy rasterio rioxarray xarray \
+    conda create -n terraflux -c conda-forge python=3.12 numpy pandas scipy rasterio rioxarray xarray \
           dask geopandas pyarrow openpyxl matplotlib folium plotly xyzservices pillow contextily pywebview h3-py dendropy \
           scikit-build-core pybind11 cmake ninja
-    conda activate landschaft
-    git clone https://github.com/sacridini/landschaft.git
-    cd landschaft
+    conda activate terraflux
+    git clone https://github.com/sacridini/terraflux-py.git
+    cd terraflux
     pip install --no-build-isolation -e .
     ```
 
@@ -135,28 +135,28 @@ With a system Python and a compiler already installed, pip builds the latest
 code of the repository, or the source distribution of a release:
 
 ```bash
-pip install "landschaft @ git+https://github.com/sacridini/landschaft.git"
-pip install --no-binary landschaft landschaft
+pip install "terraflux @ git+https://github.com/sacridini/terraflux-py.git"
+pip install --no-binary terraflux terraflux
 ```
 
 ## Run with Docker
 
-The repository has a `Dockerfile` that builds Landschaft and everything it
+The repository has a `Dockerfile` that builds Terraflux and everything it
 uses in a Linux image, so the host needs neither a compiler nor Python, only
 [Docker](https://docs.docker.com/get-docker/):
 
 ```bash
-git clone https://github.com/sacridini/landschaft.git
-cd landschaft
-docker build -t landschaft .
+git clone https://github.com/sacridini/terraflux-py.git
+cd terraflux
+docker build -t terraflux .
 ```
 
 The container works in `/data`; mount the folder with your maps and scripts
 there:
 
 ```bash
-docker run --rm -it -v "$PWD:/data" landschaft                 # Python shell
-docker run --rm -v "$PWD:/data" landschaft python analysis.py  # run a script
+docker run --rm -it -v "$PWD:/data" terraflux                 # Python shell
+docker run --rm -v "$PWD:/data" terraflux python analysis.py  # run a script
 ```
 
 In PowerShell write `${PWD}` instead of `$PWD`. Outputs written with relative
@@ -164,18 +164,18 @@ paths land in the mounted folder. Other options:
 
 | Command | Effect |
 |---|---|
-| `docker build --build-arg PYTHON_VERSION=3.11 -t landschaft .` | another Python version |
-| `docker build --target test -t landschaft:test .` then `docker run --rm landschaft:test` | run the test suite in the container |
-| `docker run --cpuset-cpus 0-7 ...` | limit the cores; Landschaft then uses all of them but one |
+| `docker build --build-arg PYTHON_VERSION=3.11 -t terraflux .` | another Python version |
+| `docker build --target test -t terraflux:test .` then `docker run --rm terraflux:test` | run the test suite in the container |
+| `docker run --cpuset-cpus 0-7 ...` | limit the cores; Terraflux then uses all of them but one |
 
 ## What is installed
 
 `pip install` installs everything every tool uses: dask (lazy and parallel
 processing), geopandas and pyarrow (vectors, Parquet), openpyxl (Excel),
-matplotlib, folium, plotly, Pillow and contextily (`ls.plot` and the figures),
-pywebview (`ls.plot` in a window of its own), h3 and dendropy (biodiversity
+matplotlib, folium, plotly, Pillow and contextily (`tf.plot` and the figures),
+pywebview (`tf.plot` in a window of its own), h3 and dendropy (biodiversity
 analysis). There are no optional features to choose. Two extras are for
-developing Landschaft:
+developing Terraflux:
 
 | Extra | Packages | Needed for |
 |---|---|---|
@@ -185,14 +185,14 @@ developing Landschaft:
 ## Check the installation
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-print(ls.__version__)        # the installed version
-print(ls.max_threads())      # processors the C++ core can use
-print(ls.default_threads())  # threads used by default: all of them but one
+print(tf.__version__)        # the installed version
+print(tf.max_threads())      # processors the C++ core can use
+print(tf.default_threads())  # threads used by default: all of them but one
 
-forest = ls.load_raster(ls.example_data("input"))
-print(ls.mspa_stats(ls.mspa(forest)))
+forest = tf.load_raster(tf.example_data("input"))
+print(tf.mspa_stats(tf.mspa(forest)))
 ```
 
 If the last line prints a table of MSPA classes, everything works. To run the
@@ -205,13 +205,13 @@ pytest
 
 ## The C++ libraries without Python
 
-Native programs can link Landschaft's C++ core directly (as
-[Terraflux](https://github.com/sacridini/terraflux) does for `ls.simulate`'s
-models). `LANDSCHAFT_PYTHON=OFF` builds and installs only the static libraries
+Native programs can link Terraflux's C++ core directly (as
+[Terraflux](https://github.com/sacridini/terraflux) does for `tf.simulate`'s
+models). `TERRAFLUX_PYTHON=OFF` builds and installs only the static libraries
 and their headers, without Python, pybind11 or the MILP solver:
 
 ```bash
-cmake -S . -B build/native -DLANDSCHAFT_PYTHON=OFF -DCMAKE_INSTALL_PREFIX=dist/native
+cmake -S . -B build/native -DTERRAFLUX_PYTHON=OFF -DCMAKE_INSTALL_PREFIX=dist/native
 cmake --build build/native --config Release --target install --parallel
 ```
 
@@ -224,7 +224,7 @@ cmake --build build/native --config Release --target install --parallel
     Visual Studio Build Tools on Windows, `xcode-select --install` on macOS,
     `build-essential` or `gcc-c++` on Linux.
 
-??? question "`ls.max_threads()` returns 1"
+??? question "`tf.max_threads()` returns 1"
     The wheels always have OpenMP; a core built from source may not. On
     macOS install `llvm-openmp` (conda) or `libomp` (Homebrew) and reinstall;
     with GCC and MSVC OpenMP is always available. For a runtime elsewhere, point the build at it:

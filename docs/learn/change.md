@@ -39,7 +39,7 @@ five ways:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
 
 def initial():
@@ -63,7 +63,7 @@ m = initial(); m[5:12, 85:92] = 1; m[88:94, 6:12] = 1
 scenarios["attrition"] = m
 
 signatures = pd.DataFrame({
-    name: ls.Landscape(m, res=10).class_metrics(["ca", "np", "te"]).set_index("class").loc[2]
+    name: tf.Landscape(m, res=10).class_metrics(["ca", "np", "te"]).set_index("class").loc[2]
     for name, m in scenarios.items()
 }).T
 signatures
@@ -107,11 +107,11 @@ boundary then appears as a strip of gain on one side and loss on the other.
 Here is the forest map compared with itself, shifted by a single cell:
 
 ```python
-forest = ls.load_raster(ls.example_data("input")).values
+forest = tf.load_raster(tf.example_data("input")).values
 shifted = forest.copy()
 shifted[:, 1:] = forest[:, :-1]            # the same map, one cell to the right
 
-simple = ls.simple_change(forest, shifted)
+simple = tf.simple_change(forest, shifted)
 {"gain": simple.gain, "loss": simple.loss,
  "as % of the forest": 100 * (simple.gain + simple.loss) / (forest == 2).sum()}
 ```
@@ -122,7 +122,7 @@ as real change only what affects the structure of the patches, and labels
 thin strips of change along boundaries as *spurious*:
 
 ```python
-mcd = ls.morphological_change(forest, shifted)
+mcd = tf.morphological_change(forest, shifted)
 {"structural gain": mcd.mcd_gain, "structural loss": mcd.mcd_loss, "spurious": mcd.spurious}
 ```
 
@@ -139,9 +139,9 @@ from each class at the first date (rows) to each class at the second
 transitions (Pontius et al., 2004). For fragmentation classes
 ([chapter 3](fragmentation.md)), the matrix shows whether habitat moved
 towards more intact or more fragmented conditions:
-`ls.fos_change(before, after)` computes it from two fragmentation maps,
-`ls.fad_multiscale_change` at several observation scales at once, and
-`ls.landscape_mosaic_change` for the land-use mix around the habitat.
+`tf.fos_change(before, after)` computes it from two fragmentation maps,
+`tf.fad_multiscale_change` at several observation scales at once, and
+`tf.landscape_mosaic_change` for the land-use mix around the habitat.
 The [change detection tutorial](../tutorials/change-detection.md) goes
 through all three.
 
@@ -163,12 +163,12 @@ and patch 113 (52 ha), a patch of similar size with almost no role in the
 network:
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
+landcover = tf.load_raster(tf.example_data("clc"))
 landscape_area = landcover.size * 25 * 25 / 1e4          # hectares
 
 
 def forest_graph(landcover):
-    return ls.HabitatGraph.from_raster(landcover, habitat=[23, 24, 25], area_unit="ha",
+    return tf.HabitatGraph.from_raster(landcover, habitat=[23, 24, 25], area_unit="ha",
                                        distance="edge", max_distance=10_000,
                                        landscape_area=landscape_area)
 
@@ -180,7 +180,7 @@ rows = []
 for patch in (84, 113):
     later = landcover.copy()
     later.values[patch_ids == patch] = 12                 # cleared for arable land
-    table = ls.conn.eca_change([now, forest_graph(later)], "PC", distance=2000,
+    table = tf.conn.eca_change([now, forest_graph(later)], "PC", distance=2000,
                                probability=0.5, landscape_area=landscape_area,
                                names=["now", f"without patch {patch}"])
     rows.append(table.iloc[1])
@@ -207,7 +207,7 @@ clearings as equivalent.
 5. Report change in **connectivity** alongside change in amount (dECA and
    dA), and identify the **process** (perforation, dissection...) behind
    the change.
-6. For many dates, use `ls.SpatioTemporalAnalysis` to compute and plot
+6. For many dates, use `tf.SpatioTemporalAnalysis` to compute and plot
    metrics along the series ([tutorial](../tutorials/landscape-metrics.md#several-maps-and-time-series)).
 
 !!! success "Key points"

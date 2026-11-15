@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Tests for Spatial Joint Entropy in landschaft.
+"""Tests for Spatial Joint Entropy in terraflux.
 
 Includes:
 1. Exact numerical verification against GTB's entropy_mspainp.pro algorithm.
@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 import rasterio
 
-import landschaft as ls
+import terraflux as tf
 
 
 def gtb_reference_entropy(arr: np.ndarray) -> float:
@@ -54,14 +54,14 @@ def gtb_reference_entropy(arr: np.ndarray) -> float:
 
 @pytest.fixture(scope="module")
 def input_raster():
-    return ls.load_raster(ls.example_data("input"))
+    return tf.load_raster(tf.example_data("input"))
 
 
 def test_spatial_entropy_accuracy_against_gtb_reference(input_raster):
     """Verify bit-exact / numerical match with GTB's entropy_mspainp.pro."""
     # Test on full input.tif
     expected_index = gtb_reference_entropy(input_raster.values)
-    res = ls.spatial_entropy(input_raster)
+    res = tf.spatial_entropy(input_raster)
 
     assert pytest.approx(res.entropy_index, rel=1e-6) == expected_index
 
@@ -72,7 +72,7 @@ def test_spatial_entropy_homogeneous():
     arr = np.full((30, 30), 2, dtype=np.uint8)
     arr[0, 0] = 1
 
-    res = ls.spatial_entropy(arr)
+    res = tf.spatial_entropy(arr)
     # Almost all transitions are 7-7 (0 diff), so entropy is very close to 0 (< 2.0%)
     assert res.entropy_index < 2.0
 
@@ -81,7 +81,7 @@ def test_spatial_entropy_map(input_raster):
     """Test local moving-window spatial entropy map."""
     # Compute on small patch for quick testing
     patch = input_raster.values[:100, :100]
-    ent_map = ls.spatial_entropy_map(patch, window_size=20)
+    ent_map = tf.spatial_entropy_map(patch, window_size=20)
 
     assert ent_map.shape == patch.shape
     arr_val = np.asarray(ent_map)
@@ -92,13 +92,13 @@ def test_spatial_entropy_map(input_raster):
 def test_entropy_write_raster_integration(tmp_path, input_raster):
     """Test saving spatial entropy GeoTIFF with colormap and tags."""
     patch = input_raster[:100, :100]
-    ent_map = ls.spatial_entropy_map(patch, window_size=20)
+    ent_map = tf.spatial_entropy_map(patch, window_size=20)
     out_file = tmp_path / "test_entropy.tif"
 
     # Convert to byte for colormapped TIFF
     byte_ent = np.round(ent_map).astype(np.uint8)
     byte_ent.attrs["landschaft_product"] = "SPATIAL_ENTROPY"
-    ls.write_raster(byte_ent, out_file)
+    tf.write_raster(byte_ent, out_file)
     assert out_file.exists()
 
     with rasterio.open(out_file) as src:

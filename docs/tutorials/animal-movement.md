@@ -18,7 +18,7 @@ could have taken instead, with the landscape at the end of each.
 - draw random steps from fitted step-length and turn-angle distributions;
 - attach the landscape to every step, observed or random.
 
-Everything lives in `ls.move`. The [Learn chapter](../learn/movement.md)
+Everything lives in `tf.move`. The [Learn chapter](../learn/movement.md)
 explains the ideas behind steps and step selection.
 
 ## Reading the tracks
@@ -32,10 +32,10 @@ one row per record, ordered by animal and time:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
 pd.set_option("display.width", 120, "display.max_columns", 10)
-tracks = ls.load_tracks(ls.move.example_data("fishers"))
+tracks = tf.load_tracks(tf.move.example_data("fishers"))
 print(len(tracks), tracks.crs)
 print(tracks[["individual-local-identifier", "timestamp"]].head(3))
 ```
@@ -54,9 +54,9 @@ Movebank also flags outliers, by hand or by its filters, as not visible.
 Neither belongs in an analysis of movement:
 
 ```python
-tracks = ls.move.filter_movebank_visible(tracks)  # no flagged outliers in this study
+tracks = tf.move.filter_movebank_visible(tracks)  # no flagged outliers in this study
 tracks = tracks[~tracks.geometry.is_empty]
-tracks = ls.move.filter_unique(tracks)             # one record per animal and time
+tracks = tf.move.filter_unique(tracks)             # one record per animal and time
 print(len(tracks))
 print(tracks["individual-local-identifier"].value_counts().sort_index().to_dict())
 ```
@@ -66,9 +66,9 @@ print(tracks["individual-local-identifier"].value_counts().sort_index().to_dict(
 {'F1': 1349, 'F2': 3004, 'F3': 1501, 'M1': 919, 'M2': 1638, 'M3': 2436, 'M4': 8958, 'M5': 13099}
 ```
 
-Every function of `ls.move` finds the time and the animal in Movebank's
+Every function of `tf.move` finds the time and the animal in Movebank's
 columns (`timestamp`, `individual-local-identifier`); a table with other
-names is declared once with `ls.move.as_tracks(table, time="t", track="id")`.
+names is declared once with `tf.move.as_tracks(table, time="t", track="id")`.
 
 ## Steps
 
@@ -78,10 +78,10 @@ starts, and the last location of each animal has none (NaN). Distances in
 longitude and latitude are taken on the sphere, as `sf` does:
 
 ```python
-tracks["step"] = ls.move.distance(tracks)             # metres
-tracks["lag"] = ls.move.time_lags(tracks, "min")
-tracks["speed"] = ls.move.speed(tracks, "km/h")
-tracks["turn"] = ls.move.turn_angle(tracks, "deg")    # change of direction, -180 to 180
+tracks["step"] = tf.move.distance(tracks)             # metres
+tracks["lag"] = tf.move.time_lags(tracks, "min")
+tracks["speed"] = tf.move.speed(tracks, "km/h")
+tracks["turn"] = tf.move.turn_angle(tracks, "deg")    # change of direction, -180 to 180
 by_animal = tracks.groupby("individual-local-identifier").agg(
     days=("timestamp", lambda t: (t.max() - t.min()).days),
     lag_min=("lag", "median"),
@@ -128,8 +128,8 @@ animal (the first, the last or a random one), and `interpolate` places
 locations at regular times along the great circle between the records:
 
 ```python
-hourly = ls.move.filter_per_interval(tracks, "hour")
-regular = ls.move.interpolate(tracks, "15 mins", omit=True)  # only the new locations
+hourly = tf.move.filter_per_interval(tracks, "hour")
+regular = tf.move.interpolate(tracks, "15 mins", omit=True)  # only the new locations
 print(len(hourly), len(regular))
 ```
 
@@ -142,10 +142,10 @@ azimuthal equidistant projection centred on the tracks, where distances
 from the centre are true, for maps and for methods that need metres:
 
 ```python
-lines = ls.move.track_lines(tracks).set_index("individual-local-identifier")
-local = lines.to_crs(ls.move.aeqd_crs(tracks))
+lines = tf.move.track_lines(tracks).set_index("individual-local-identifier")
+local = lines.to_crs(tf.move.aeqd_crs(tracks))
 print((local.length / 1000).round(1).to_dict())
-ls.write_vector(lines, "fishers.gpkg")
+tf.write_vector(lines, "fishers.gpkg")
 ```
 
 ```text
@@ -159,9 +159,9 @@ land use (GlobCover) and human population density, in the equal-area Albers
 projection of the United States:
 
 ```python
-elevation = ls.load_raster(ls.move.example_data("elevation"))
-landuse = ls.load_raster(ls.move.example_data("landuse"))
-popden = ls.load_raster(ls.move.example_data("popden"))
+elevation = tf.load_raster(tf.move.example_data("elevation"))
+landuse = tf.load_raster(tf.move.example_data("landuse"))
+popden = tf.load_raster(tf.move.example_data("popden"))
 print(elevation.rio.crs, elevation.shape, landuse.shape, popden.shape)
 
 four = tracks[tracks["individual-local-identifier"].isin(["F1", "F2", "M1", "M4"])]
@@ -186,9 +186,9 @@ with their starts (`x1_`, `y1_`), ends (`x2_`, `y2_`), length (`sl_`), turn
 angle in radians (`ta_`) and times:
 
 ```python
-bursts = ls.move.resample(four, "30min", "3min")
-bursts = ls.move.filter_min_n_burst(bursts, 3)
-steps = ls.move.steps(bursts)
+bursts = tf.move.resample(four, "30min", "3min")
+bursts = tf.move.filter_min_n_burst(bursts, 3)
+steps = tf.move.steps(bursts)
 print(len(bursts), len(steps))
 print(steps.groupby("individual-local-identifier")["burst_"].nunique().to_dict())
 print(steps[["sl_", "ta_", "dt_"]].head(3))
@@ -216,12 +216,12 @@ location over the length travelled (1 for a straight line), and **sinuosity**
 
 ```python
 summary = pd.DataFrame({
-    "travelled_km": ls.move.cum_dist(four) / 1000,
-    "net_km": ls.move.tot_dist(four) / 1000,
-    "straightness": ls.move.straightness(four),
-    "sinuosity": ls.move.sinuosity(four),
+    "travelled_km": tf.move.cum_dist(four) / 1000,
+    "net_km": tf.move.tot_dist(four) / 1000,
+    "straightness": tf.move.straightness(four),
+    "sinuosity": tf.move.sinuosity(four),
 })
-nsd = pd.Series(ls.move.nsd(four), index=four.index)
+nsd = pd.Series(tf.move.nsd(four), index=four.index)
 summary["max_nsd_km2"] = nsd.groupby(four["individual-local-identifier"]).max() / 1e6
 print(summary.round(3))
 ```
@@ -248,8 +248,8 @@ distribution of turn angles (Fortin et al. 2005; Avgar et al. 2016).
 `fit_distr` fits them as amt does:
 
 ```python
-sl = ls.move.fit_distr(steps["sl_"], "gamma")
-ta = ls.move.fit_distr(steps["ta_"], "vonmises")
+sl = tf.move.fit_distr(steps["sl_"], "gamma")
+ta = tf.move.fit_distr(steps["ta_"], "vonmises")
 print(sl)
 print(ta)
 ```
@@ -267,7 +267,7 @@ each animal on its own steps. The observed steps have `case_` True, and
 seed makes the draws reproducible; they are those of R with the same seed:
 
 ```python
-ssf = ls.move.random_steps(steps, n_control=10, seed=1)
+ssf = tf.move.random_steps(steps, n_control=10, seed=1)
 print(len(ssf), ssf["case_"].sum())
 print(ssf[["individual-local-identifier", "step_id_", "case_", "sl_", "ta_"]].head(4))
 ```
@@ -297,9 +297,9 @@ steps' CRS. `time_of_day` says whether each step started by day or by night,
 from the sun's position at its location:
 
 ```python
-ssf = ls.move.extract_covariates(ssf, {"elevation": elevation, "landuse": landuse, "popden": popden})
+ssf = tf.move.extract_covariates(ssf, {"elevation": elevation, "landuse": landuse, "popden": popden})
 ssf["forest"] = ssf["landuse"].isin([50, 70, 100]).astype(int)  # closed forest classes
-ssf["tod"] = ls.move.time_of_day(ssf, where="start")
+ssf["tod"] = tf.move.time_of_day(ssf, where="start")
 ssf["log_sl"] = np.log(ssf["sl_"])
 ssf["cos_ta"] = np.cos(ssf["ta_"])
 print(ssf[["case_", "elevation", "landuse", "popden", "tod"]].head(4))
@@ -348,7 +348,7 @@ The steps, filters, interpolation, lines and projection are those of R's
 move2 0.5.0 bit for bit, and the resampling, steps, summaries, fitted
 distributions, random steps (with the same seed) and covariates those of
 amt 0.3.1, tested on random tracks and on these fishers. Where they err,
-Landschaft does what they intend: move2's local projection is centred with
+Terraflux does what they intend: move2's local projection is centred with
 the wrong datum code (EPSG:4236 instead of 4326, about 900 m off here), amt
 measures directions in longitude and latitude from the east and converts
 sinuosity's radians as if they were degrees. See

@@ -29,10 +29,10 @@ negative outside (how far from habitat).
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))       # 0 missing, 1 background, 2 forest
-distance = ls.euclidean_distance(forest, pixel_size=25)
+forest = tf.load_raster(tf.example_data("input"))       # 0 missing, 1 background, 2 forest
+distance = tf.euclidean_distance(forest, pixel_size=25)
 signed = np.asarray(distance.signed_distance) * 25      # the map is in cells; 25 m cells
 {"forest cells within 100 m of an edge (%)": 100 * np.mean(signed[forest.values == 2] <= 100),
  "open cells within 100 m of forest (%)": 100 * np.mean(-signed[forest.values == 1] <= 100)}
@@ -56,7 +56,7 @@ from a set of source cells to every other cell. It is computed on the grid
 seen as a graph (each cell linked to its eight neighbours), with Dijkstra's
 shortest-path algorithm (Dijkstra, 1959): starting from the sources,
 repeatedly settle the unsettled cell with the smallest accumulated cost and
-update its neighbours. In Landschaft a step between two cells costs the mean
+update its neighbours. In Terraflux a step between two cells costs the mean
 of their resistances times the step length (1 for a side, √2 for a
 diagonal).
 
@@ -66,14 +66,14 @@ that grows with the distance from habitat, on the assumption that forest
 animals avoid moving far from cover:
 
 ```python
-resistance = ls.distance_to_resistance(forest)        # 2 on forest, 3 to 100 away from it
-objects = ls.accounting(forest)
+resistance = tf.distance_to_resistance(forest)        # 2 on forest, 3 to 100 away from it
+objects = tf.accounting(forest)
 ids = np.asarray(objects.ids.values)
 largest = [obj[0] for obj in objects.largest]          # ids of the three largest objects
 area_a, area_b = ids == largest[0], ids == largest[1]
 
-cost_from_a = np.asarray(ls.cost_distance(resistance, area_a))
-cost_from_b = np.asarray(ls.cost_distance(resistance, area_b))
+cost_from_a = np.asarray(tf.cost_distance(resistance, area_a))
+cost_from_b = np.asarray(tf.cost_distance(resistance, area_b))
 ```
 
 ## Least-cost paths and corridors
@@ -94,7 +94,7 @@ background = forest.values == 1
 ```
 
 ```python
-path = ls.least_cost_path(resistance, area_a, area_b)
+path = tf.least_cost_path(resistance, area_a, area_b)
 path.path_length, path.rest_pixels, path.expense
 ```
 
@@ -124,7 +124,7 @@ ECA = √( Σ<sub>i</sub> a<sub>i</sub>² ) &nbsp;&nbsp;&nbsp;&nbsp; coherence =
 </div>
 
 ```python
-status = ls.restoration_status(forest)
+status = tf.restoration_status(forest)
 
 object_areas = np.bincount(ids[ids > 0])[1:].astype(float)
 object_areas = object_areas[object_areas > 0]
@@ -148,7 +148,7 @@ from itertools import combinations
 
 options = []
 for first, second in combinations(largest, 2):
-    corridor = ls.restoration_corridor(forest, resistance, ids == first, ids == second)
+    corridor = tf.restoration_corridor(forest, resistance, ids == first, ids == second)
     options.append({"objects": f"{first} and {second}",
                     "cells to restore": corridor.rest_pixels,
                     "coherence gain (points)": corridor.delta_doc,
@@ -180,12 +180,12 @@ above.
 
 Two further tools answer questions of proximity:
 
-- **Isochrone maps** (`ls.isochrone_map`, `ls.isochrone_map_ab`) turn the
+- **Isochrone maps** (`tf.isochrone_map`, `tf.isochrone_map_ab`) turn the
   accumulated cost from an area into rings of equal cost, like travel-time
   maps: which areas can a disperser from a reserve reach within a given
   effort?
-- **Zones of influence** (`ls.influence_zones`) assign each background cell
-  to the nearest large habitat object, and `ls.proximity` measures how close
+- **Zones of influence** (`tf.influence_zones`) assign each background cell
+  to the nearest large habitat object, and `tf.proximity` measures how close
   neighbouring objects are along the boundaries between zones. They show
   which object each part of the matrix "belongs" to, e.g. for planning
   buffer zones.
@@ -194,14 +194,14 @@ Two further tools answer questions of proximity:
 
 | Question | Tool |
 |---|---|
-| How far is every point from habitat, or from its edge? | `ls.euclidean_distance` |
-| How costly is it to reach every point from given areas? | `ls.cost_distance`, `ls.isochrone_map` |
-| What is the best route between two areas, and what would it cost to restore? | `ls.least_cost_path`, `ls.isochrone_map_ab` |
-| How much would restoring that route add to connectivity? | `ls.restoration_corridor` |
-| How connected is the habitat now, and what could it gain? | `ls.restoration_status` |
+| How far is every point from habitat, or from its edge? | `tf.euclidean_distance` |
+| How costly is it to reach every point from given areas? | `tf.cost_distance`, `tf.isochrone_map` |
+| What is the best route between two areas, and what would it cost to restore? | `tf.least_cost_path`, `tf.isochrone_map_ab` |
+| How much would restoring that route add to connectivity? | `tf.restoration_corridor` |
+| How connected is the habitat now, and what could it gain? | `tf.restoration_status` |
 | Which patches would add the most connectivity if restored? | `HabitatGraph(..., restoration=...)` |
-| Which habitat object is each point of the matrix closest to? | `ls.influence_zones`, `ls.proximity` |
-| How much of every converted cell to restore, for species, carbon and intactness? | `ls.prioritize.restoration_problem` ([tutorial](../tutorials/restoration-plans.md)) |
+| Which habitat object is each point of the matrix closest to? | `tf.influence_zones`, `tf.proximity` |
+| How much of every converted cell to restore, for species, carbon and intactness? | `tf.prioritize.restoration_problem` ([tutorial](../tutorials/restoration-plans.md)) |
 
 !!! success "Key points"
     - Distance to habitat describes both edge exposure inside habitat and

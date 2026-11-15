@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of Zonation 5 for ls.prioritize.
+"""Generate golden outputs of Zonation 5 for tf.prioritize.
 
 Usage::
 

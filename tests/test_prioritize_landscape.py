@@ -10,9 +10,9 @@ import optimize_cases
 import pytest
 from scipy import ndimage
 
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 @pytest.fixture(scope="module")
@@ -135,5 +135,5 @@ def test_problem_surfaces():
     pf = p.add_cuts_portfolio(3).solve()
     cmp = P.eval_landscape_comparison(pf, s, fractions=[0.2])
     assert cmp.table["cells_a"].iloc[0] == cmp.table["cells_b"].iloc[0]
-    assert "Plot" in repr(ls.plot(lsi))
-    assert "Plot" in repr(ls.plot(cmp))
+    assert "Plot" in repr(tf.plot(lsi))
+    assert "Plot" in repr(tf.plot(cmp))

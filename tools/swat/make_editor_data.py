@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build ``src/landschaft/hydro/swat/data/swatplus_editor.zip``: what ls.hydro.swat.from_tables
+"""Build ``src/terraflux/hydro/swat/data/swatplus_editor.zip``: what tf.hydro.swat.from_tables
 takes from the SWAT+ Editor 4.0.2 and its datasets database (public domain).
 
 * ``static/<file>``: the files the editor writes the same for every project (the
@@ -121,7 +121,7 @@ def main() -> None:
             text = files[name].decode().replace("\r\n", "\n")
             z.writestr(f"static/{name}", text.split("\n", 1)[1])
         z.writestr("datasets.json", json.dumps(datasets(), indent=0, sort_keys=True))
-    out = ROOT / "src" / "landschaft" / "hydro" / "swat" / "data" / "swatplus_editor.zip"
+    out = ROOT / "src" / "terraflux" / "hydro" / "swat" / "data" / "swatplus_editor.zip"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(buf.getvalue())
     print(out, len(buf.getvalue()))

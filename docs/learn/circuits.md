@@ -58,8 +58,8 @@ chain with a second, parallel route:
 
 ```python
 import numpy as np
-import landschaft as ls
-from landschaft import circuit
+import terraflux as tf
+from terraflux import circuit
 
 one_route = [[1, 2, 1.0], [2, 3, 1.0]]                       # 1 - 2 - 3
 two_routes = one_route + [[1, 4, 1.0], [4, 3, 1.0]]          # and 1 - 4 - 3
@@ -105,7 +105,7 @@ round(float(np.mean([commute_time(1, 3) for _ in range(20_000)])), 2)
 ```
 
 The walkers need 8 steps on average, as the circuit predicts. In
-Landschaft, `HabitatGraph.from_raster(..., distance="commute-time")` uses
+Terraflux, `HabitatGraph.from_raster(..., distance="commute-time")` uses
 this quantity as the distance between habitat patches
 ([chapter 7](networks.md#choosing-distances-and-probabilities)).
 
@@ -141,7 +141,7 @@ Now the single best route:
 
 ```python
 open_land = np.where(np.isnan(resistance), 0, resistance)      # 0: impassable here
-path = ls.least_cost_path(open_land, points == 1, points == 2)
+path = tf.least_cost_path(open_land, points == 1, points == 2)
 rows_crossed = np.flatnonzero(np.asarray(path.lcp_mask)[:, 50])
 rows_crossed
 ```
@@ -163,10 +163,10 @@ restoration is most efficient (McRae et al., 2008).
 | **pairwise** | between every pair of focal points or regions, one pair at a time | effective resistance between all pairs (an isolation matrix), cumulative current | `circuit.circuitscape_pairwise` |
 | **advanced** | from sources you place to grounds you place | flow between specific areas, e.g. from a population to all suitable habitat | `circuit.circuitscape_advanced` |
 | **one-to-all / all-to-one** | from each point to all others (or the reverse) | how connected each point is to the rest | `circuit.circuitscape_one_to_all` |
-| **omnidirectional** | between all cells within a moving window | connectivity everywhere, without choosing points | `ls.omniscape` |
+| **omnidirectional** | between all cells within a moving window | connectivity everywhere, without choosing points | `tf.omniscape` |
 
 These are the modes of the Circuitscape software (Shah & McRae, 2008;
-Anantharaman et al., 2020), whose results Landschaft reproduces. The
+Anantharaman et al., 2020), whose results Terraflux reproduces. The
 pairwise resistance matrix can be compared with genetic distances
 between populations (isolation by resistance; McRae, 2006; McRae & Beier,
 2007). The cumulative current map highlights corridors and pinch points
@@ -197,7 +197,7 @@ their ratio, the **normalised current**, reads:
 | well below 1 | movement is **impeded**: barriers, or areas avoided |
 
 ```python
-omni = ls.omniscape(resistance, radius=15, block_size=1,
+omni = tf.omniscape(resistance, radius=15, block_size=1,
                     flow_potential=True, normalized_current=True)
 normalised = np.asarray(omni["normalized_cum_currmap"])
 {"narrow gap": np.nanmean(normalised[8:11, 48:52]),

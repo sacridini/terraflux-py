@@ -8,7 +8,7 @@ Usage::
 Runs the verbatim GTB code in ``tests/gtb_idl`` with GDL (or IDL) and writes
 ``tests/data/reference/idl_reference.json``: for every case, the SHA-256 of
 each output map and the numbers of the GTB report. The test-suite compares
-landschaft against this file, so it runs anywhere without GDL.
+terraflux against this file, so it runs anywhere without GDL.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ from gtb_reference import (  # noqa: E402
 )
 
 OUT = ROOT / "tests" / "data" / "reference" / "idl_reference.json"
-GTB_INPUT = ROOT / "src" / "landschaft" / "data" / "input.tif"
+GTB_INPUT = ROOT / "src" / "terraflux" / "data" / "input.tif"
 
 # (connectivity, thresholds, highlight_largest)
 ACCOUNTING_PARAMS = [
@@ -184,7 +184,7 @@ def gray_scene(seed: int, shape=(180, 240)) -> np.ndarray:
 
 
 def fos_inputs() -> dict[str, np.ndarray]:
-    with rasterio.open(ROOT / "src" / "landschaft" / "data" / "gscinput.tif") as src:
+    with rasterio.open(ROOT / "src" / "terraflux" / "data" / "gscinput.tif") as src:
         gsc = src.read(1)
     return {"gtb_input_special": with_special_background(gtb_input(), 1),
             "blobs_101": scenes.make("blobs", 101), "gscinput": gsc, "gray_7": gray_scene(7)}

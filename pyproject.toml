@@ -3,7 +3,7 @@ requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "landschaft"
+name = "terraflux"
 version = "1.58.1"
 description = "Fast, exact landscape pattern, fragmentation, landscape-metric and connectivity analysis for Python."
 readme = "README.md"
@@ -56,15 +56,15 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://sacridini.github.io/landschaft/"
-Documentation = "https://sacridini.github.io/landschaft/"
-Source = "https://github.com/sacridini/landschaft"
-Changelog = "https://github.com/sacridini/landschaft/blob/main/CHANGELOG.md"
-Issues = "https://github.com/sacridini/landschaft/issues"
+Homepage = "https://sacridini.github.io/terraflux/"
+Documentation = "https://sacridini.github.io/terraflux/"
+Source = "https://github.com/sacridini/terraflux-py"
+Changelog = "https://github.com/sacridini/terraflux-py/blob/main/CHANGELOG.md"
+Issues = "https://github.com/sacridini/terraflux-py/issues"
 
-# `landschaft worker` lends this computer to a group of helpers (ls.parallel)
+# `terraflux-py worker` lends this computer to a group of helpers (tf.parallel)
 [project.scripts]
-landschaft = "landschaft._cli:main"
+terraflux-py = "terraflux._cli:main"
 
 # for development only
 [project.optional-dependencies]
@@ -73,10 +73,10 @@ docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.26", 
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
-wheel.packages = ["src/landschaft"]
+wheel.packages = ["src/terraflux"]
 cmake.build-type = "Release"
-# only landschaft's modules: HiGHS (built in) installs its headers and library too
-install.components = ["landschaft"]
+# only terraflux's modules: HiGHS (built in) installs its headers and library too
+install.components = ["terraflux"]
 # the sdist holds what the build needs; tests, docs and tools stay in the repository
 sdist.exclude = [".github", ".dockerignore", "Dockerfile", "IDEAS.md", "assets", "docs", "mkdocs.yml", "site",
                  "tests", "tools"]
@@ -107,7 +107,7 @@ skip = "*-musllinux_* *-manylinux_i686 *-win32 *-win_arm64"
 test-extras = ["test"]
 test-requires = ["threadpoolctl"]
 test-command = [
-    "python -c \"import landschaft._core as c; assert c.openmp, 'built without OpenMP'\"",
+    "python -c \"import terraflux._core as c; assert c.openmp, 'built without OpenMP'\"",
     "pytest {project}/tests -q -p no:cacheprovider -m \"not external_reference and not timing\"",
 ]
 
@@ -115,8 +115,8 @@ test-command = [
 # Apple's clang has no OpenMP runtime: conda-forge's llvm-openmp (macOS 11+), which
 # delocate bundles into the wheel.
 archs = ["native"]
-before-all = "bash tools/ci/install_libomp_macos.sh /tmp/landschaft-libomp"
-config-settings = { "cmake.define.OpenMP_ROOT" = "/tmp/landschaft-libomp" }
+before-all = "bash tools/ci/install_libomp_macos.sh /tmp/terraflux-libomp"
+config-settings = { "cmake.define.OpenMP_ROOT" = "/tmp/terraflux-libomp" }
 environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
 
 [tool.cibuildwheel.windows]

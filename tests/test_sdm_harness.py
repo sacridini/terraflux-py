@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The R reference harness of ls.sdm hands the inputs to R unchanged."""
+"""The R reference harness of tf.sdm hands the inputs to R unchanged."""
 
 from __future__ import annotations
 

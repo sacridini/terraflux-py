@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Reading the references of the R packages behind ls.sdm (tools/make_reference_sdm.py)."""
+"""Reading the references of the R packages behind tf.sdm (tools/make_reference_sdm.py)."""
 
 from __future__ import annotations
 

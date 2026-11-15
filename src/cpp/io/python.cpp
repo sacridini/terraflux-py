@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Python bindings of the zonal statistics and the extraction at points
-// (landschaft._core.io_*).
+// (terraflux._core.io_*).
 
 #include "io/python.hpp"
 

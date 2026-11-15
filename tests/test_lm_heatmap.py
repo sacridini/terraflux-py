@@ -16,9 +16,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from gtb_reference import find_gdl, find_spatcon, run_gtb_lm_delta, run_gtb_lm_heatmap
-from landschaft.lm_heatmap import LM103_CODES
+from terraflux.lm_heatmap import LM103_CODES
 
 REFERENCE = Path(__file__).parent / "data" / "reference" / "idl_reference.json"
 
@@ -41,14 +41,14 @@ def landcover() -> np.ndarray:
 
 
 def test_heatmap_values(landcover):
-    h = ls.landscape_mosaic_heatmap(landcover, 7)
+    h = tf.landscape_mosaic_heatmap(landcover, 7)
     assert h.values.dtype == np.float32 and h.values.shape == (256,)
-    im103 = np.asarray(ls.landscape_mosaic(landcover, 7, output_classes=103))
+    im103 = np.asarray(tf.landscape_mosaic(landcover, 7, output_classes=103))
     counts = np.bincount(im103.ravel(), minlength=256)
     np.testing.assert_allclose(h.values, counts / counts[1:].sum() * 100, rtol=1e-6)
     assert h.values[list(LM103_CODES)].sum() == pytest.approx(100.0, abs=1e-3)
     assert set(np.nonzero(counts[1:])[0] + 1) <= set(LM103_CODES)
-    same = ls.landscape_mosaic_heatmap(im103, is_lm103=True, window="7")
+    same = tf.landscape_mosaic_heatmap(im103, is_lm103=True, window="7")
     np.testing.assert_array_equal(same.values, h.values)
 
     t = h.table
@@ -57,7 +57,7 @@ def test_heatmap_values(landcover):
 
 
 def test_triangle_layout(landcover):
-    h = ls.landscape_mosaic_heatmap(landcover, 7)
+    h = tf.landscape_mosaic_heatmap(landcover, 7)
     tri = h.triangle
     assert tri.shape == (12, 21)
     assert np.isfinite(tri).sum() == 103
@@ -67,18 +67,18 @@ def test_triangle_layout(landcover):
 
 
 def test_csv_layout(landcover, tmp_path):
-    h = ls.landscape_mosaic_heatmap(landcover, 7)
+    h = tf.landscape_mosaic_heatmap(landcover, 7)
     lines = h.csv_text().splitlines()
     assert len(lines) == 13
     assert lines[0] == "Landscape Mosaic using Window size (7x7)" + ", " * 20 + ","
     assert all(line.count(",") == 21 for line in lines[1:])
-    assert ls.landscape_mosaic_heatmap(landcover, 7, window="multiscale").csv_text().startswith(
+    assert tf.landscape_mosaic_heatmap(landcover, 7, window="multiscale").csv_text().startswith(
         "Landscape Mosaic (multiscale),")
     assert h.to_csv(tmp_path / "heatmap.csv").read_text() == h.csv_text()
 
 
 def test_idl_cell_format():
-    from landschaft.lm_heatmap import _idl_cell
+    from terraflux.lm_heatmap import _idl_cell
 
     assert _idl_cell(np.float32(10.869387)) == "      10.869"
     assert _idl_cell(np.float32(0.0)) == "      0.000"
@@ -91,16 +91,16 @@ def test_idl_cell_format():
 def test_change(landcover):
     other = landcover.copy()
     other[other == 1] = 2
-    ha = ls.landscape_mosaic_heatmap(landcover, 7)
-    hb = ls.landscape_mosaic_heatmap(other, 7)
-    d = ls.landscape_mosaic_change(ha, hb)
+    ha = tf.landscape_mosaic_heatmap(landcover, 7)
+    hb = tf.landscape_mosaic_heatmap(other, 7)
+    d = tf.landscape_mosaic_change(ha, hb)
     np.testing.assert_array_equal(d.values, hb.values - ha.values)
     assert d.values[list(LM103_CODES)].sum() == pytest.approx(0.0, abs=1e-3)
     assert list(d.table.columns) == ["percent_a", "percent_b", "change", "recode_class_19"]
     assert d.csv_text().splitlines()[0].startswith("Delta Landscape Mosaic: B(Window size: 7) - A(Window size: 7)")
-    from_maps = ls.landscape_mosaic_change(landcover, other, 7)
+    from_maps = tf.landscape_mosaic_change(landcover, other, 7)
     np.testing.assert_array_equal(from_maps.values, d.values)
-    assert not ls.landscape_mosaic_change(ha, ha).values.any()
+    assert not tf.landscape_mosaic_change(ha, ha).values.any()
 
 
 def test_lm_class_boundary_matches_spatcon():
@@ -109,14 +109,14 @@ def test_lm_class_boundary_matches_spatcon():
     # window is *not* ">= 70% forest" (class 94, not 93).
     data = np.array([0] * 9 + [1] * 12 + [2] * 112 + [3] * 36, dtype=np.uint8).reshape(13, 13)
     assert data[6, 6] != 0
-    assert np.asarray(ls.landscape_mosaic(data, 13, output_classes=103))[6, 6] == 94
+    assert np.asarray(tf.landscape_mosaic(data, 13, output_classes=103))[6, 6] == 94
 
 
 def test_invalid():
     with pytest.raises(ValueError, match="no classified"):
-        ls.landscape_mosaic_heatmap(np.zeros((5, 5), np.uint8), is_lm103=True)
+        tf.landscape_mosaic_heatmap(np.zeros((5, 5), np.uint8), is_lm103=True)
     with pytest.raises(ValueError, match="uint8"):
-        ls.landscape_mosaic_heatmap(np.zeros((5, 5), np.int32), is_lm103=True)
+        tf.landscape_mosaic_heatmap(np.zeros((5, 5), np.int32), is_lm103=True)
 
 
 # --- agreement with GTB -------------------------------------------------------------
@@ -141,9 +141,9 @@ def reference_inputs():
 def test_heatmap_matches_stored_gtb_outputs(reference_inputs, case):
     data = reference_inputs[case["input"]]
     assert digest(data) == case["input_sha256"], "reference input changed: rerun tools/make_reference_idl.py"
-    im103 = ls.landscape_mosaic(data, case["window"], output_classes=103)
+    im103 = tf.landscape_mosaic(data, case["window"], output_classes=103)
     assert digest(im103) == case["im103_sha256"], "103-class LM differs from GTB's spatcon"
-    h = ls.landscape_mosaic_heatmap(im103, is_lm103=True, window=str(case["window"]))
+    h = tf.landscape_mosaic_heatmap(im103, is_lm103=True, window=str(case["window"]))
     assert float32_hex(h.values) == case["hn"], "heatmap vector differs from GTB (bit for bit)"
     assert h.csv_text() == case["csv"]
 
@@ -152,9 +152,9 @@ def test_heatmap_matches_stored_gtb_outputs(reference_inputs, case):
 @pytest.mark.parametrize("case", _reference("lm_delta"), ids=lambda c: f"{c['a'][0]}-{c['b'][0]}")
 def test_heatmap_change_matches_stored_gtb_outputs(reference_inputs, case):
     (name_a, win_a), (name_b, win_b) = case["a"], case["b"]
-    ha = ls.landscape_mosaic_heatmap(reference_inputs[name_a], win_a)
-    hb = ls.landscape_mosaic_heatmap(reference_inputs[name_b], win_b)
-    d = ls.landscape_mosaic_change(ha, hb)
+    ha = tf.landscape_mosaic_heatmap(reference_inputs[name_a], win_a)
+    hb = tf.landscape_mosaic_heatmap(reference_inputs[name_b], win_b)
+    d = tf.landscape_mosaic_change(ha, hb)
     assert float32_hex(d.values) == case["hn"]
     assert d.csv_text() == case["csv"]
 
@@ -181,14 +181,14 @@ def test_heatmap_live_against_gtb(gtb_tools, seed):
     window = int(rng.choice([5, 7, 13, 27]))
     refs = [run_gtb_lm_heatmap(gdl, spatcon, m, window) for m in maps]
     for m, ref in zip(maps, refs):
-        im103 = np.asarray(ls.landscape_mosaic(m, window, output_classes=103))
+        im103 = np.asarray(tf.landscape_mosaic(m, window, output_classes=103))
         np.testing.assert_array_equal(im103, ref["im103"])
-        h = ls.landscape_mosaic_heatmap(im103, is_lm103=True, window=str(window))
+        h = tf.landscape_mosaic_heatmap(im103, is_lm103=True, window=str(window))
         np.testing.assert_array_equal(h.values.view(np.uint32), ref["hn"].view(np.uint32))
         np.testing.assert_array_equal(np.nan_to_num(h.triangle, nan=-1.0), ref["hmap"])
         assert h.csv_text() == ref["csv"]
         heatmaps.append(h)
     delta = run_gtb_lm_delta(gdl, refs[0]["hn"], refs[1]["hn"], str(window), str(window))
-    d = ls.landscape_mosaic_change(*heatmaps)
+    d = tf.landscape_mosaic_change(*heatmaps)
     np.testing.assert_array_equal(d.values.view(np.uint32), delta["hn"].view(np.uint32))
     assert d.csv_text() == delta["csv"]

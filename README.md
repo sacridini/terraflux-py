@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sacridini/landschaft/main/assets/logos/landschaft_ridge_stacked_dark.svg">
-    <img alt="Landschaft" src="https://raw.githubusercontent.com/sacridini/landschaft/main/assets/logos/landschaft_ridge_stacked_light.svg" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sacridini/terraflux-py/main/assets/logos/landschaft_ridge_stacked_dark.svg">
+    <img alt="Terraflux" src="https://raw.githubusercontent.com/sacridini/terraflux-py/main/assets/logos/landschaft_ridge_stacked_light.svg" width="320">
   </picture>
 </p>
 
@@ -12,15 +12,17 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/landschaft/"><img alt="PyPI" src="https://img.shields.io/pypi/v/landschaft"></a>
+  <a href="https://pypi.org/project/terraflux/"><img alt="PyPI" src="https://img.shields.io/pypi/v/terraflux"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
   <img alt="C++17 / OpenMP" src="https://img.shields.io/badge/core-C%2B%2B17%20%C2%B7%20OpenMP-00599c">
   <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-2e7d32">
 </p>
 
+<p align="center"><i>terraflux was called landschaft until 1.58; <code>pip install landschaft</code> keeps working.</i></p>
+
 ---
 
-Landschaft brings the established methods of landscape ecology together in one
+Terraflux brings the established methods of landscape ecology together in one
 Python package, with a C++17/OpenMP core behind a numpy / xarray / dask / rasterio
 API. It reproduces the reference tools of each method, checked against their outputs
 in the test suite, and runs from a few to several hundred times faster.
@@ -43,56 +45,56 @@ in the test suite, and runs from a few to several hundred times faster.
 | **Species distributions** | cleaning and thinning occurrence records, accessible area, collinearity filters, background points, spatial cross-validation folds, evaluation (AUC, TSS, Boyce index), Maxent (MaxNet), ensembles of scikit-learn models, projection and extrapolation (MESS, MOP, ExDet) | CoordinateCleaner, spThin, usdm, dismo, blockCV, ENMeval, ecospat, predicts, maxnet, mop |
 | **Land change simulation** | change analysis (intensity, components of difference, Markov chains), transition potential (weights of evidence, logistic regression, any scikit-learn model), allocation (CLUE-S, ordered, land systems, Expander/Patcher, random patch seeds, patch growing), dynamic variables, regional demands, validation at several resolutions, fuzzy similarity, calibration, scenarios with replicates | lulcc, OpenLand, diffeR, CLUMondo, FUTURES, MOLUSCE, Dinamica EGO, PLUS |
 | **Ecosystem services** | carbon storage and sequestration with valuation, habitat degradation, quality and rarity, crop pollination by wild bees | InVEST |
-| **Large data** | out-of-core tiles and row blocks, parallel batches of rasters, tasks shared with the other computers of a lab (`landschaft worker`) | |
+| **Large data** | out-of-core tiles and row blocks, parallel batches of rasters, tasks shared with the other computers of a lab (`terraflux-py worker`) | |
 
 ## Installation
 
 ```bash
-pip install landschaft
+pip install terraflux
 ```
 
 Binary wheels are published for CPython 3.10 to 3.14 on Windows (x86-64), macOS (Apple
 silicon and Intel, 11+) and Linux (x86-64, ARM64), with the OpenMP runtime included:
 no compiler is needed, and everything every tool uses is installed with the package.
 In a conda environment, install the geospatial libraries from conda-forge first and
-Landschaft with pip:
+Terraflux with pip:
 
 ```bash
-conda create -n landschaft -c conda-forge python=3.12 rasterio rioxarray geopandas
-conda activate landschaft
-pip install landschaft
+conda create -n terraflux -c conda-forge python=3.12 rasterio rioxarray geopandas
+conda activate terraflux
+pip install terraflux
 ```
 
 Building from source (other platforms, development) needs a C++17 compiler; see the
-[installation guide](https://sacridini.github.io/landschaft/getting-started/installation.html).
+[installation guide](https://sacridini.github.io/terraflux/getting-started/installation.html).
 
 ### Docker
 
 The image needs no compiler or Python on the host and includes every optional feature:
 
 ```bash
-docker build -t landschaft .
-docker run --rm -it -v "$PWD:/data" landschaft                 # Python shell
-docker run --rm -v "$PWD:/data" landschaft python analysis.py  # run a script from the current folder
+docker build -t terraflux .
+docker run --rm -it -v "$PWD:/data" terraflux                 # Python shell
+docker run --rm -v "$PWD:/data" terraflux python analysis.py  # run a script from the current folder
 ```
 
 The current folder is mounted at `/data`, the working directory of the container.
 `--build-arg PYTHON_VERSION=3.11` picks another Python, and
-`docker build --target test -t landschaft:test . && docker run --rm landschaft:test`
+`docker build --target test -t terraflux:test . && docker run --rm terraflux:test`
 runs the test suite in the container.
 
 ## Quick start
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))    # bundled sample map
-morph = ls.mspa(forest, edge_width=2)                # cores, edges, bridges, loops...
-ls.write_raster(morph, "forest_mspa.tif")            # GeoTIFF with its colour table
-print(ls.mspa_stats(morph))
+forest = tf.load_raster(tf.example_data("input"))    # bundled sample map
+morph = tf.mspa(forest, edge_width=2)                # cores, edges, bridges, loops...
+tf.write_raster(morph, "forest_mspa.tif")            # GeoTIFF with its colour table
+print(tf.mspa_stats(morph))
 
-landcover = ls.load_raster(ls.example_data("clc"))
-ls.landscape_metrics(landcover, level="landscape", metric=["shdi", "contag", "ed"])
+landcover = tf.load_raster(tf.example_data("clc"))
+tf.landscape_metrics(landcover, level="landscape", metric=["shdi", "contag", "ed"])
 ```
 
 Every function takes numpy arrays, georeferenced `xarray.DataArray`s or dask arrays,
@@ -101,7 +103,7 @@ and returns the same type; parallel functions use all cores but one unless given
 
 ## Documentation
 
-The documentation website, **<https://sacridini.github.io/landschaft/>**, has a
+The documentation website, **<https://sacridini.github.io/terraflux/>**, has a
 getting-started guide, tutorials by topic, the full API reference with runnable
 examples, and the benchmarks and accuracy report. It is built from `docs/` with
 MkDocs and published with each release; to build it locally:
@@ -131,7 +133,7 @@ floating-point solvers. Typical speed-ups on the benchmark cases:
 | Land change simulation | lulcc, OpenLand, diffeR, CLUMondo, r.futures, MOLUSCE; Dinamica EGO (measured) | identical bits (R's and NumPy's random numbers included); Dinamica to its 15 digits | 7–43× |
 
 Methods, machines, full tables and the known differences are on the
-[benchmarks and accuracy page](https://sacridini.github.io/landschaft/benchmarks.html). To run the tests:
+[benchmarks and accuracy page](https://sacridini.github.io/terraflux/benchmarks.html). To run the tests:
 
 ```bash
 pip install -e ".[test]"
@@ -140,15 +142,15 @@ pytest
 
 ## Versioning
 
-Landschaft follows [Semantic Versioning](https://semver.org/): from 1.0 on, the public API
+Terraflux follows [Semantic Versioning](https://semver.org/): from 1.0 on, the public API
 changes incompatibly only in a new major version. Changes are listed in the
-[changelog](https://github.com/sacridini/landschaft/blob/main/CHANGELOG.md).
+[changelog](https://github.com/sacridini/terraflux-py/blob/main/CHANGELOG.md).
 
 ## License and credits
 
-GPL-3.0-or-later. Landschaft ports code from GuidosToolbox and miallib,
+GPL-3.0-or-later. Terraflux ports code from GuidosToolbox and miallib,
 © European Union (Joint Research Centre), authors Pierre Soille, Peter Vogt et al.,
-both GPL-3.0-or-later; the example maps in `src/landschaft/data` come from the
+both GPL-3.0-or-later; the example maps in `src/terraflux/data` come from the
 [GTB repository](https://github.com/ec-jrc/GTB). GTB's `mspa` notes that its
 interface is made available for non-commercial purposes: contact the JRC for
 commercial use of MSPA.

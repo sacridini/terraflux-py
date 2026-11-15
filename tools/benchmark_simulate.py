@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Time ls.simulate against the land change tools it reproduces.
+"""Time tf.simulate against the land change tools it reproduces.
 
 Usage::
 
     python tools/benchmark_simulate.py [--reps N] [--only lulcc,molusce,dinamica]
 
 Prints a Markdown table: each task's best time in the original and in
-Landschaft (default threads, best of ``reps``). The originals run as in
+Terraflux (default threads, best of ``reps``). The originals run as in
 ``tools/make_reference_simulate.py``: lulcc in R (only the timed call is
 measured, with ``system.time``), MOLUSCE's algorithms imported in this
 process, Dinamica EGO's console (the time of a script that only loads the
@@ -32,9 +32,9 @@ import make_reference_simulate as mrs
 import simulate_cases as sc
 import simulate_engines as se
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def tile(world, k: int):
@@ -154,7 +154,7 @@ def main() -> None:
     p.add_argument("--only", default="lulcc,molusce,dinamica")
     args = p.parse_args()
     groups = {"lulcc": lulcc_rows, "molusce": molusce_rows, "dinamica": dinamica_rows}
-    print("| Task | Original | Original's time | Landschaft | Speed-up |")
+    print("| Task | Original | Original's time | Terraflux | Speed-up |")
     print("|---|---|---|---|---|", flush=True)
     for name in args.only.split(","):
         for task, tool, ref, ours in groups[name](args.reps):

@@ -13,7 +13,7 @@ tells whether the pattern differs from what chance alone would give.
 - test whether a real map is more aggregated than random ones;
 - reproduce landscapes made with the R package NLMR.
 
-All models live in `ls.nlm` and return an `xarray.DataArray` on a grid with its
+All models live in `tf.nlm` and return an `xarray.DataArray` on a grid with its
 origin at (0, 0) and cells of size `resolution`. Every model takes a `seed`:
 the same seed gives the same landscape, and the same landscape as NLMR.
 
@@ -21,21 +21,21 @@ the same seed gives the same landscape, and the same landscape as NLMR.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 models = {
-    "random": ls.nlm.random(200, 200, seed=1),
-    "planar gradient": ls.nlm.planar_gradient(200, 200, direction=60),
-    "edge gradient": ls.nlm.edge_gradient(200, 200, direction=60),
-    "distance gradient": ls.nlm.distance_gradient(200, 200, origin=(90, 110, 90, 110), nlmr_compat=False),
-    "midpoint displacement": ls.nlm.mpd(200, 200, roughness=0.6, seed=2, nlmr_compat=False),
-    "fractional Brownian motion": ls.nlm.fbm(200, 200, fract_dim=1.4, seed=3),
-    "Gaussian field": ls.nlm.gaussian_field(200, 200, autocorr_range=20, seed=4),
-    "random clusters": ls.nlm.random_cluster(200, 200, p=0.55, ai=[0.3, 0.3, 0.4], seed=5),
-    "neighbourhood clusters": ls.nlm.neigh(200, 200, p_neigh=0.95, p_empty=0.002, categories=4, seed=6),
-    "rectangular clusters": ls.nlm.random_rectangular_cluster(200, 200, minl=5, maxl=30, seed=7),
-    "Voronoi mosaic": ls.nlm.mosaic_tess(200, 200, germs=60, seed=8),
-    "Poisson line mosaic": ls.nlm.mosaic_field(200, 200, n=20, seed=9),
+    "random": tf.nlm.random(200, 200, seed=1),
+    "planar gradient": tf.nlm.planar_gradient(200, 200, direction=60),
+    "edge gradient": tf.nlm.edge_gradient(200, 200, direction=60),
+    "distance gradient": tf.nlm.distance_gradient(200, 200, origin=(90, 110, 90, 110), nlmr_compat=False),
+    "midpoint displacement": tf.nlm.mpd(200, 200, roughness=0.6, seed=2, nlmr_compat=False),
+    "fractional Brownian motion": tf.nlm.fbm(200, 200, fract_dim=1.4, seed=3),
+    "Gaussian field": tf.nlm.gaussian_field(200, 200, autocorr_range=20, seed=4),
+    "random clusters": tf.nlm.random_cluster(200, 200, p=0.55, ai=[0.3, 0.3, 0.4], seed=5),
+    "neighbourhood clusters": tf.nlm.neigh(200, 200, p_neigh=0.95, p_empty=0.002, categories=4, seed=6),
+    "rectangular clusters": tf.nlm.random_rectangular_cluster(200, 200, minl=5, maxl=30, seed=7),
+    "Voronoi mosaic": tf.nlm.mosaic_tess(200, 200, germs=60, seed=8),
+    "Poisson line mosaic": tf.nlm.mosaic_field(200, 200, n=20, seed=9),
 }
 ```
 
@@ -53,23 +53,23 @@ They fall into a few families:
 | Mosaics | `mosaic_tess`, `mosaic_gibbs`, `mosaic_field` | number of tiles, spacing of the germs |
 
 Continuous models are rescaled to 0-1 by default (`rescale=False` keeps the raw
-values). Gradients and random surfaces can be combined with `ls.nlm.merge`, for
+values). Gradients and random surfaces can be combined with `tf.nlm.merge`, for
 instance a regional gradient with local noise:
 
 ```python
-blend = ls.nlm.merge(models["planar gradient"], models["fractional Brownian motion"], scaling=0.6)
+blend = tf.nlm.merge(models["planar gradient"], models["fractional Brownian motion"], scaling=0.6)
 ```
 
 ## From continuous surfaces to habitat maps
 
-Most analyses need categories. `ls.nlm.classify` cuts a continuous landscape
+Most analyses need categories. `tf.nlm.classify` cuts a continuous landscape
 by class proportions (or by Jenks' natural breaks with `n=`), and
-`ls.nlm.binarize` gives habitat/matrix maps at chosen habitat shares, the
+`tf.nlm.binarize` gives habitat/matrix maps at chosen habitat shares, the
 highest values becoming habitat:
 
 ```python
-surface = ls.nlm.fbm(200, 200, fract_dim=1.6, seed=3)
-maps = ls.nlm.binarize(surface, [0.2, 0.4, 0.6])     # 1 matrix, 2 habitat
+surface = tf.nlm.fbm(200, 200, fract_dim=1.6, seed=3)
+maps = tf.nlm.binarize(surface, [0.2, 0.4, 0.6])     # 1 matrix, 2 habitat
 [float((maps.sel(p=b) == 2).mean()) for b in (0.2, 0.4, 0.6)]
 ```
 
@@ -87,19 +87,19 @@ forest, and compare it with 99 random maps and 99 fractal maps with the same
 amount of forest:
 
 ```python
-forest = ls.load_raster(ls.example_data("input")).values[:250, :250]
+forest = tf.load_raster(tf.example_data("input")).values[:250, :250]
 habitat = np.where(forest == 2, 2, 1)             # the few missing cells as matrix
 share = float((habitat == 2).mean())
 
 
 def aggregation(m):
-    table = ls.landscape_metrics(np.asarray(m), level="class", metric="ai")
+    table = tf.landscape_metrics(np.asarray(m), level="class", metric="ai")
     return float(table.loc[table["class"] == 2, "value"].iloc[0])
 
 
 observed = aggregation(habitat)
-random_ai = [aggregation(ls.nlm.binarize(ls.nlm.random(250, 250, seed=s), share)) for s in range(1, 100)]
-fractal_ai = [aggregation(ls.nlm.binarize(ls.nlm.fbm(250, 250, fract_dim=1.5, seed=s), share)) for s in range(1, 100)]
+random_ai = [aggregation(tf.nlm.binarize(tf.nlm.random(250, 250, seed=s), share)) for s in range(1, 100)]
+fractal_ai = [aggregation(tf.nlm.binarize(tf.nlm.fbm(250, 250, fract_dim=1.5, seed=s), share)) for s in range(1, 100)]
 observed, max(random_ai), min(fractal_ai), max(fractal_ai)
 ```
 
@@ -133,7 +133,7 @@ r <- nlm_mpd(ncol = 129, nrow = 129, roughness = 0.7, user_seed = 42)
 
 ```python
 # Python: the same values
-m = ls.nlm.mpd(129, 129, roughness=0.7, seed=42)
+m = tf.nlm.mpd(129, 129, roughness=0.7, seed=42)
 ```
 
 A few models behave in NLMR differently from what their documentation says;
@@ -148,7 +148,7 @@ and `nlmr_compat=False` does what the documentation promises:
 | `mosaic_tess`, `mosaic_gibbs` | values given in GEOS's order of the Voronoi cells (with shapely) | each germ its own value |
 
 `nlm_fbm` and `nlm_gaussianfield` print a message in NLMR 1.4 (RandomFields left
-CRAN); Landschaft gives the values of the replacements NLMR ships internally
+CRAN); Terraflux gives the values of the replacements NLMR ships internally
 (`simulate_fbm`, `simulate_gaussian_field`).
 
 ## Speed

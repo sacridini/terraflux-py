@@ -15,7 +15,7 @@ import pytest
 import scipy.sparse as sp
 from optimize_reference import case_ids, model, result
 
-import landschaft as ls
+import terraflux as tf
 
 CASES = case_ids("actions")
 
@@ -124,13 +124,13 @@ def test_inputs_checked_and_completed():
     feats, thr, dt = optimize_cases.pa_features(), optimize_cases.pa_threats(), optimize_cases.pa_dist_threats()
     df = optimize_cases.pa_dist_features()
     with pytest.raises(ValueError, match="unique"):
-        ls.prioritize.actions_data(pd.concat([pu, pu.head(1)]), feats, df, thr, dt)
+        tf.prioritize.actions_data(pd.concat([pu, pu.head(1)]), feats, df, thr, dt)
     with pytest.raises(ValueError, match="duplicate"):
-        ls.prioritize.actions_data(pu, feats, pd.concat([df, df.head(1)]), thr, dt)
+        tf.prioritize.actions_data(pu, feats, pd.concat([df, df.head(1)]), thr, dt)
     neg = pu.copy()
     neg.loc[0, "monitoring_cost"] = -1.0
     with pytest.raises(ValueError, match="negative"):
-        ls.prioritize.actions_data(neg, feats, df, thr, dt)
+        tf.prioritize.actions_data(neg, feats, df, thr, dt)
     with pytest.raises(ValueError, match="minimizeCosts"):
         d.problem("cheapest")
 
@@ -179,7 +179,7 @@ def _grid_data(side=12, seed=3, boundary=False, blm_actions=0.0, locks=False):
         a = np.concatenate([g[:, :-1].ravel(), g[:-1, :].ravel()])
         b = np.concatenate([g[:, 1:].ravel(), g[1:, :].ravel()])
         bnd = pd.DataFrame({"id1": a, "id2": b, "boundary": np.ones(a.size)})
-    return ls.prioritize.actions_data(
+    return tf.prioritize.actions_data(
         pd.DataFrame({"id": ids, "monitoring_cost": rng.integers(1, 4, n).astype(float), "status": status}),
         pd.DataFrame({"id": np.arange(1.0, 6.0), "target_recovery": np.floor(0.3 * recoverable),
                       "target_conservation": np.floor(0.2 * (feat & ~thr.any(axis=0)).sum(axis=1))}),
@@ -290,13 +290,13 @@ def _tables_of(cost, feats, thr, acost, fire_cost):
 
 def test_raster_inputs_are_the_tables():
     cost, feats, thr, acost = _rasters()
-    d = ls.prioritize.actions_raster_data(cost, feats, thr, {"fire": 2.0, "cattle": acost},
+    d = tf.prioritize.actions_raster_data(cost, feats, thr, {"fire": 2.0, "cattle": acost},
                                           target_recovery=[3, 2, 4], target_conservation=1, relative=False)
     pu, df, dt = _tables_of(cost, feats, thr, acost, 2.0)
     fe = pd.DataFrame({"id": [1.0, 2.0, 3.0], "name": ["sp1", "sp2", "sp3"], "target_recovery": [3.0, 2.0, 4.0],
                        "target_conservation": 1.0})
     th = pd.DataFrame({"id": [1.0, 2.0], "name": ["fire", "cattle"], "blm_actions": 0.0})
-    ref = ls.prioritize.actions_data(pu, fe, df, th, dt)
+    ref = tf.prioritize.actions_data(pu, fe, df, th, dt)
     a, b = d.problem("minimizeCosts").compile(), ref.problem("minimizeCosts").compile()
     assert (a.A != b.A).nnz == 0
     for key in ("obj", "rhs", "lb", "ub"):
@@ -306,7 +306,7 @@ def test_raster_inputs_are_the_tables():
 
 def test_raster_relative_targets():
     cost, feats, thr, acost = _rasters()
-    d = ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.5, target_conservation=0.25)
+    d = tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.5, target_conservation=0.25)
     pu, df, dt = _tables_of(cost, feats, thr, acost, 1.0)
     dt["action_cost"] = 1.0
     threatened = df["pu"].isin(dt["pu"])  # every threat harms every feature
@@ -315,12 +315,12 @@ def test_raster_relative_targets():
     np.testing.assert_allclose(d.features["target_recovery"].to_numpy(), 0.5 * rec)
     np.testing.assert_allclose(d.features["target_conservation"].to_numpy(), 0.25 * con)
     with pytest.raises(ValueError, match="between 0 and 1"):
-        ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=30)
+        tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=30)
 
 
 def test_raster_solution_maps():
     cost, feats, thr, acost = _rasters()
-    d = ls.prioritize.actions_raster_data(cost, feats, thr, acost, target_recovery=0.4, boundary=True,
+    d = tf.prioritize.actions_raster_data(cost, feats, thr, acost, target_recovery=0.4, boundary=True,
                                           blm_actions=[0.5, 0.0])
     # the boundary: every pair of edge-sharing units once, and the units' perimeters
     b = d.boundary
@@ -341,14 +341,14 @@ def test_raster_inputs_checked():
     cost, feats, thr, acost = _rasters()
     holes = acost.copy(data=np.where(thr.values[1] > 0, np.nan, acost.values))
     with pytest.raises(ValueError, match="no value in cells where the threat occurs"):
-        ls.prioritize.actions_raster_data(cost, feats, thr, [1.0, holes])
+        tf.prioritize.actions_raster_data(cost, feats, thr, [1.0, holes])
     with pytest.raises(ValueError, match="no value for"):
-        ls.prioritize.actions_raster_data(cost, feats, thr, {"fire": 1.0})
+        tf.prioritize.actions_raster_data(cost, feats, thr, {"fire": 1.0})
     with pytest.raises(ValueError, match="maps need"):
         _problem("actions_mincost").add_highs_solver(gap=0).solve().maps()
     locked = cost.copy(data=np.zeros(cost.shape))
     locked.values[5, 5] = 1
-    d = ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.2, locked_out=locked)
+    d = tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.2, locked_out=locked)
     assert d.pu.loc[d.pu["status"] == 3].shape[0] == 1
 
 
@@ -359,8 +359,8 @@ def test_raster_relative_targets_without_a_feature():
     empty = feats.copy(data=feats.values.copy())
     empty.values[1] = 0.0
     with pytest.warns(UserWarning, match="not represented"):
-        d = ls.prioritize.actions_raster_data(cost, empty, thr, 1.0, target_recovery=0.5)
-    full = ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.5)
+        d = tf.prioritize.actions_raster_data(cost, empty, thr, 1.0, target_recovery=0.5)
+    full = tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.5)
     assert list(d.features["name"]) == ["sp1", "sp3"]
     np.testing.assert_array_equal(d.features["target_recovery"].to_numpy(),
                                   full.features["target_recovery"].to_numpy()[[0, 2]])
@@ -370,13 +370,13 @@ def test_raster_relative_targets_without_a_feature():
 def test_raster_held_amounts_are_the_pairs(seed):
     """The relative targets' amounts by bits of threats per unit and feature: bit for bit the sums over
     the model's (feature, unit) pairs."""
-    from landschaft.prioritize._actions import _pairs
-    from landschaft.prioritize._actions_raster import _held
+    from terraflux.prioritize._actions import _pairs
+    from terraflux.prioritize._actions_raster import _held
 
     cost, feats, thr, _ = _rasters(seed=seed, ny=14, nx=11)
     sens = pd.DataFrame({"feature": ["sp1", "sp2", "sp3", "sp3"], "threat": ["fire", "cattle", "fire", "cattle"]})
     for s in (None, sens.iloc[[0, 1, 2]], sens):
-        d = ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, sensitivity=s)
+        d = tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, sensitivity=s)
         p = _pairs(d)
         ref = np.zeros((2, len(d.features)))
         np.add.at(ref, (p.threatened.astype(np.int64), p.feature), p.amount)
@@ -392,8 +392,8 @@ def test_table_ids_in_any_order():
     pu2 = pu.assign(id=pu["id"].map(new)).sample(frac=1.0, random_state=1)
     df2 = df.assign(pu=df["pu"].map(new)).iloc[rng.permutation(len(df))]
     dt2 = dt.assign(pu=dt["pu"].map(new)).iloc[rng.permutation(len(dt))]
-    a = ls.prioritize.actions_data(pu, ft, df, th, dt)
-    b = ls.prioritize.actions_data(pu2, ft, df2, th, dt2)
+    a = tf.prioritize.actions_data(pu, ft, df, th, dt)
+    b = tf.prioritize.actions_data(pu2, ft, df2, th, dt2)
     np.testing.assert_array_equal(b.pu["id"].to_numpy(), np.sort(list(new.values())))
     ca, cb = a.problem("minimizeCosts").compile(), b.problem("minimizeCosts").compile()
     assert ca.A.shape == cb.A.shape
@@ -406,12 +406,12 @@ def test_table_ids_in_any_order():
 
 def test_raster_solution_saves(tmp_path):
     cost, feats, thr, acost = _rasters()
-    d = ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.3)
+    d = tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.3)
     s = d.problem("minimizeCosts").add_highs_solver(gap=0).solve()
-    ls.save(s, tmp_path / "sol")
+    tf.save(s, tmp_path / "sol")
     names = sorted(p.name for p in (tmp_path / "sol").iterdir())
     assert "maps.tif" in names and "monitoring.csv" in names
-    back = ls.load_raster(tmp_path / "sol" / "maps.tif")
+    back = tf.load_raster(tmp_path / "sol" / "maps.tif")
     np.testing.assert_array_equal(np.nan_to_num(back.values, nan=-1), np.nan_to_num(s.maps().values, nan=-1))
 
 
@@ -425,7 +425,7 @@ def _tiny(seed):
     thr = rng.random((2, n)) < 0.5
     fk, fp = np.nonzero(feat)
     tk, tp = np.nonzero(thr)
-    data = ls.prioritize.actions_data(
+    data = tf.prioritize.actions_data(
         pd.DataFrame({"id": np.arange(1.0, n + 1), "monitoring_cost": rng.integers(1, 4, n).astype(float)}),
         pd.DataFrame({"id": [1.0, 2.0], "target_recovery": [1.0, 1.0], "target_conservation": [1.0, 0.0]}),
         pd.DataFrame({"pu": fp + 1.0, "feature": fk + 1.0, "amount": rng.integers(1, 3, fp.size).astype(float)}),
@@ -534,7 +534,7 @@ def test_top_portfolio_is_the_best_solutions(model):
     p = data.problem(model, budget=8.0).add_directional_dependencies(flow, penalty=0.5)
     want = _brute_force(p.data, flow, model, 0.5, False, p.budget, every=True)[:6]
     port = p.add_top_portfolio(6).add_highs_solver(gap=0).solve()
-    assert isinstance(port, ls.prioritize.ActionsPortfolio) and len(port) == 6
+    assert isinstance(port, tf.prioritize.ActionsPortfolio) and len(port) == 6
     np.testing.assert_allclose(port.summary["objective"].to_numpy(), want, atol=1e-6)
     keys = {tuple(np.concatenate([s.units, s.actions])) for s in port}
     assert len(keys) == 6
@@ -557,10 +557,10 @@ def test_gap_and_shuffle_portfolios():
 
 def test_portfolio_maps_and_save(tmp_path):
     cost, feats, thr, acost = _rasters()
-    d = ls.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.3)
+    d = tf.prioritize.actions_raster_data(cost, feats, thr, 1.0, target_recovery=0.3)
     port = d.problem("minimizeCosts").add_cuts_portfolio(3).add_highs_solver(gap=0).solve()
     m = port.maps()
     assert list(m["band"].values) == ["monitoring", "fire", "cattle"]
     assert np.nanmax(m.values) <= 1 and np.nanmin(m.values) >= 0
-    ls.save(port, tmp_path / "port")
+    tf.save(port, tmp_path / "port")
     assert (tmp_path / "port" / "frequency_maps.tif").exists()

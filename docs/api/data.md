@@ -6,61 +6,61 @@ tool. The page [Loading and saving data](../getting-started/data.md) shows
 them together.
 
 !!! example "Every example runs"
-    The examples on these pages use the maps that ship with Landschaft
-    (`ls.example_data`) and are run as tests, outputs included.
+    The examples on these pages use the maps that ship with Terraflux
+    (`tf.example_data`) and are run as tests, outputs included.
 
 ## Rasters
 
-::: landschaft.load_raster
+::: terraflux.load_raster
 
-::: landschaft.write_raster
+::: terraflux.write_raster
 
-::: landschaft.match_grid
+::: terraflux.match_grid
 
-::: landschaft.reproject
+::: terraflux.reproject
 
-::: landschaft.clip
+::: terraflux.clip
 
-::: landschaft.reclassify
+::: terraflux.reclassify
 
 ## Vectors
 
-::: landschaft.load_vector
+::: terraflux.load_vector
 
-::: landschaft.write_vector
+::: terraflux.write_vector
 
-::: landschaft.rasterize
+::: terraflux.rasterize
 
 ## Values by zone and at points
 
-::: landschaft.zonal_stats
+::: terraflux.zonal_stats
 
-::: landschaft.zonal_map
+::: terraflux.zonal_map
 
-::: landschaft.tabulate_area
+::: terraflux.tabulate_area
 
-::: landschaft.extract
+::: terraflux.extract
 
 ## Tables
 
-::: landschaft.load_table
+::: terraflux.load_table
 
-::: landschaft.write_table
+::: terraflux.write_table
 
 ## Saving results
 
-::: landschaft.save
+::: terraflux.save
 
-::: landschaft.load_result
+::: terraflux.load_result
 
 Every result object (of `fos`, `restoration_status`, `zonation`...) also has
 a `save(folder)` method that calls `save`.
 
 ## Plotting
 
-::: landschaft.plot
+::: terraflux.plot
 
-::: landschaft.Plot
+::: terraflux.Plot
     options:
       members: [maps, charts, figure, show, save, to_html]
 
@@ -69,11 +69,11 @@ kind of data, and how to choose their colours.
 
 ## Example data
 
-::: landschaft.example_data
+::: terraflux.example_data
 
 ## Example data
 
-`ls.EXAMPLE_DATA` describes the habitat and land-cover rasters; the
+`tf.EXAMPLE_DATA` describes the habitat and land-cover rasters; the
 examples of the other modules are listed under `example_data` above:
 
 | Name | Content |
@@ -84,21 +84,21 @@ examples of the other modules are listed under `example_data` above:
 
 ## Collections of rasters
 
-::: landschaft.RasterCollection
+::: terraflux.RasterCollection
     options:
       members: [load, to_stack]
 
-::: landschaft.RasterInfo
+::: terraflux.RasterInfo
     options:
       members: false
 
 ## Checking inputs
 
-::: landschaft.validate_mspa_input
+::: terraflux.validate_mspa_input
 
-::: landschaft.validate_fad_input
+::: terraflux.validate_fad_input
 
-::: landschaft.InvalidInputError
+::: terraflux.InvalidInputError
     options:
       members: false
 
@@ -106,41 +106,41 @@ examples of the other modules are listed under `example_data` above:
 
 Every class map has a colour table: a `{value: (red, green, blue, alpha)}`
 dictionary with 256 entries, embedded by `write_raster`. Each is also
-available as a constant (`ls.MSPA_CLASSES` names the MSPA codes;
-`ls.FAD_COLORMAP`, `ls.LM_COLORMAP`... are the tables themselves).
+available as a constant (`tf.MSPA_CLASSES` names the MSPA codes;
+`tf.FAD_COLORMAP`, `tf.LM_COLORMAP`... are the tables themselves).
 
-::: landschaft.mspa_colormap
+::: terraflux.mspa_colormap
 
-::: landschaft.fad_colormap
+::: terraflux.fad_colormap
 
-::: landschaft.fad5_colormap
+::: terraflux.fad5_colormap
 
-::: landschaft.lm_colormap
+::: terraflux.lm_colormap
 
-::: landschaft.accounting_colormap
+::: terraflux.accounting_colormap
 
-::: landschaft.change_colormap
+::: terraflux.change_colormap
 
-::: landschaft.foschange_colormap
+::: terraflux.foschange_colormap
 
-::: landschaft.dist_colormap
+::: terraflux.dist_colormap
 
-::: landschaft.entropy_colormap
+::: terraflux.entropy_colormap
 
-::: landschaft.contortion_colormap
+::: terraflux.contortion_colormap
 
-::: landschaft.resistance_colormap
+::: terraflux.resistance_colormap
 
-::: landschaft.gtn_components_colormap
+::: terraflux.gtn_components_colormap
 
-::: landschaft.gtn_importance_colormap
+::: terraflux.gtn_importance_colormap
 
 ## Threads
 
-::: landschaft.default_threads
+::: terraflux.default_threads
 
-::: landschaft.set_default_threads
+::: terraflux.set_default_threads
 
-::: landschaft.max_threads
+::: terraflux.max_threads
 
-::: landschaft.doctor
+::: terraflux.doctor

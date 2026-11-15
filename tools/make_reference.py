@@ -7,7 +7,7 @@ Usage::
 
 Writes ``tests/data/reference/*.npz`` (inputs and expected outputs) and a
 ``manifest.json`` describing how they were produced. The test-suite compares
-landschaft against these files, so it runs anywhere without the executable.
+terraflux against these files, so it runs anywhere without the executable.
 """
 
 from __future__ import annotations

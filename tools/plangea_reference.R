@@ -7,7 +7,7 @@
 # Usage: Rscript plangea_reference.R job.json out_dir   (run by tools/make_reference_plangea.py)
 #
 # plangea is not installed (most of its dependencies are missing): its R files are sourced from the
-# folder in the job. Changes, all of them to plumbing or to the errors landschaft corrects:
+# folder in the job. Changes, all of them to plumbing or to the errors terraflux corrects:
 # - aux_save / aux_load write and read RDS files (plangea needs the qs package);
 # - harmonize_bd runs its foreach loops sequentially (no snow cluster, no devtools::load_all);
 # - the restoration procedure (scen's loop for one landscape area target: the bd layer, scen_solver on

@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import landschaft as ls
-from landschaft.change import (
+import terraflux as tf
+from terraflux.change import (
     FOSChangeResult,
     MorphologicalChangeResult,
     SimpleChangeResult,

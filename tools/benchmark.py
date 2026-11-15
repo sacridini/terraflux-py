@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Benchmark landschaft's MSPA against the original GuidosToolbox executable.
+"""Benchmark terraflux's MSPA against the original GuidosToolbox executable.
 
 Usage::
 
     python tools/benchmark.py [--exe path/to/mspa_win64.exe] [--repeats 10]
 
-Uses the bundled GTB sample maps (``ls.example_data``): ``input`` (1000 x 1000)
+Uses the bundled GTB sample maps (``tf.example_data``): ``input`` (1000 x 1000)
 and ``clc`` (2000 x 2000 CORINE land cover, forest classes as foreground).
-The original's time includes its TIFF I/O; landschaft is timed in memory.
+The original's time includes its TIFF I/O; terraflux is timed in memory.
 
 Runs with one thread and with the default threads alternate, and the fastest
 of each is reported: other programs and the operating system (which may move
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-import landschaft as ls
+import terraflux as tf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
 from gtb_reference import run_original_mspa  # noqa: E402
@@ -39,24 +39,24 @@ def timed(f) -> float:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--exe", type=Path, help="original mspa executable")
-    ap.add_argument("--repeats", type=int, default=10, help="runs of each landschaft configuration")
+    ap.add_argument("--repeats", type=int, default=10, help="runs of each terraflux configuration")
     args = ap.parse_args()
 
     maps = {
-        "input.tif 1000x1000": ls.load_raster(ls.example_data("input")).values,
-        "CORINE 2000x2000": ls.reclassify(
-            ls.load_raster(ls.example_data("clc")).values, foreground=[23, 24, 25]
+        "input.tif 1000x1000": tf.load_raster(tf.example_data("input")).values,
+        "CORINE 2000x2000": tf.reclassify(
+            tf.load_raster(tf.example_data("clc")).values, foreground=[23, 24, 25]
         ),
     }
-    print(f"threads: {ls.default_threads()} by default, {ls.max_threads()} available")
+    print(f"threads: {tf.default_threads()} by default, {tf.max_threads()} available")
     print(f"{'map':22s} {'params':12s} {'original':>9s} {'1 thread':>9s} {'default':>9s} {'identical':>9s}")
     for name, data in maps.items():
         for conn, eew in [(8, 1), (8, 5), (4, 20)]:
-            ours = ls.mspa(data, connectivity=conn, edge_width=eew)
+            ours = tf.mspa(data, connectivity=conn, edge_width=eew)
             t1 = tn = float("inf")
             for _ in range(args.repeats):
-                t1 = min(t1, timed(lambda: ls.mspa(data, connectivity=conn, edge_width=eew, n_threads=1)))
-                tn = min(tn, timed(lambda: ls.mspa(data, connectivity=conn, edge_width=eew)))
+                t1 = min(t1, timed(lambda: tf.mspa(data, connectivity=conn, edge_width=eew, n_threads=1)))
+                tn = min(tn, timed(lambda: tf.mspa(data, connectivity=conn, edge_width=eew)))
             if args.exe:
                 ref = None
 

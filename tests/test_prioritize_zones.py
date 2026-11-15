@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 from optimize_reference import case_ids, model, result
 
-import landschaft as ls
+import terraflux as tf
 
 ZONE_CASES = [c for c in case_ids("zones") if optimize_cases.CASES[c].py is not None]
 # contiguity: prioritizr's formulation is a restriction, ours exact (not the same model; the optimum <= theirs)
@@ -164,7 +164,7 @@ def test_relative_targets_summed_over_zones_are_shares_of_the_base_features():
 def test_contribution_per_feature():
     base = optimize_cases._zone_easy()
     w = np.array([1.0, 0.5, 0.25, 0.75, 0.0])
-    p = ls.prioritize.problem(optimize_cases.zone_cost(), optimize_cases.features(), contribution={"use": w})
+    p = tf.prioritize.problem(optimize_cases.zone_cost(), optimize_cases.features(), contribution={"use": w})
     rij_use = p.units.zone_rij[1]
     expect = base.units.zone_rij[0].multiply(w[:, None]).tocsr()
     expect.eliminate_zeros()
@@ -197,18 +197,18 @@ def test_errors():
     with pytest.raises(ValueError, match="features x zones"):
         p.add_relative_targets(np.ones((5, 2)))
     with pytest.raises(ValueError, match="mandatory allocation needs"):
-        ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_mandatory_allocation_constraints()
+        tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_mandatory_allocation_constraints()
     with pytest.raises(ValueError, match="more than one zone"):
         lock = {"protect": np.array([0, 1]), "use": np.array([1])}
         p.add_relative_targets(0.3).add_locked_in_constraints(lock).compile()
     with pytest.raises(ValueError, match="not supported with zones"):
         p.add_relative_targets(0.3).add_feature_contiguity_constraints().compile()
     with pytest.raises(ValueError, match="zones are given but the problem has none"):
-        ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_boundary_penalties(1, zones="same")
+        tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_boundary_penalties(1, zones="same")
     with pytest.raises(ValueError, match="symmetric"):
         p.add_relative_targets(0.3).add_boundary_penalties(1.0, zones=optimize_cases._ZM_A).compile()
     with pytest.raises(ValueError, match="contribution: unknown zones"):
-        ls.prioritize.problem(optimize_cases.zone_cost(), optimize_cases.features(), contribution={"x": 1})
+        tf.prioritize.problem(optimize_cases.zone_cost(), optimize_cases.features(), contribution={"x": 1})
     with pytest.raises(TypeError, match="mapping zone"):
         p.add_relative_targets(0.3).add_locked_in_constraints(optimize_cases.locked_in()).compile()
 
@@ -229,8 +229,8 @@ ONE_ZONE = {
 def test_one_zone_is_the_problem_without_zones(objective):
     """A problem with a single zone is the problem without zones plus a row per unit that changes nothing."""
     cost, feats = optimize_cases.pu_cost(), optimize_cases.features()
-    plain = ONE_ZONE[objective](ls.prioritize.problem(cost, feats)).add_highs_solver(gap=0)
-    zoned = ONE_ZONE[objective](ls.prioritize.problem({"only": cost}, feats)).add_highs_solver(gap=0)
+    plain = ONE_ZONE[objective](tf.prioritize.problem(cost, feats)).add_highs_solver(gap=0)
+    zoned = ONE_ZONE[objective](tf.prioritize.problem({"only": cost}, feats)).add_highs_solver(gap=0)
     a, b = plain.compile(), zoned.compile()
     assert b.nrow == a.nrow + plain.units.n and b.ncol == a.ncol
     assert np.array_equal(a.obj, b.obj) and np.array_equal(a.lb, b.lb) and np.array_equal(a.ub, b.ub)
@@ -284,7 +284,7 @@ def test_budgets_per_zone():
     with pytest.raises(ValueError, match="one per zone"):
         optimize_cases._zone_easy().add_max_utility_objective([1, 2])
     with pytest.raises(ValueError, match="problems have one zone"):
-        ls.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_max_utility_objective([1, 2])
+        tf.prioritize.problem(optimize_cases.pu_cost(), optimize_cases.features()).add_max_utility_objective([1, 2])
 
 
 def test_extinction_risk_with_zones_counts_every_zone():
@@ -303,7 +303,7 @@ def _random_zone_problem(n_side: int, seed: int, mandatory: bool = False, decisi
     cost = {z: optimize_cases.grid(rng.uniform(lo, hi, shape)) for z, lo, hi in
             (("protect", 5, 50), ("use", 2, 30), ("restore", 4, 40))}
     feats = optimize_cases.grid(np.where(rng.random((6, *shape)) < 0.3, rng.random((6, *shape)), 0.0))
-    p = ls.prioritize.problem(cost, feats, contribution={"use": 0.5, "restore": 0.7})
+    p = tf.prioritize.problem(cost, feats, contribution={"use": 0.5, "restore": 0.7})
     p = p.add_min_set_objective().add_relative_targets(0.3).add_relative_targets(0.05, zone="protect")
     if mandatory:
         p = p.add_mandatory_allocation_constraints()
@@ -313,7 +313,7 @@ def _random_zone_problem(n_side: int, seed: int, mandatory: bool = False, decisi
 @pytest.mark.parametrize(("mandatory", "decisions"), [(False, "binary"), (True, "binary"), (False, "proportion")])
 def test_zones_engine_reaches_the_mip_optimum(mandatory, decisions):
     """The zones engine (Lagrangian by unit, sifting, repair) proves the optimum HiGHS's MIP finds."""
-    from landschaft.prioritize._milp_solve import _highs, _is_zone_covering
+    from terraflux.prioritize._milp_solve import _highs, _is_zone_covering
 
     p = _random_zone_problem(12, 3, mandatory, decisions).add_highs_solver(gap=0)
     m = p.compile()
@@ -340,8 +340,8 @@ def test_zones_engine_on_a_wide_problem_keeps_the_time_limit():
 def test_neighbor_penalties_with_zones_are_connectivity_penalties():
     """add_neighbor_penalties with zones: the zoned connectivity penalties of the units' adjacency (the cells
     with a cost in any zone), with the zones matrix given or the identity."""
-    from landschaft.prioritize import _milp_matrices as mx
-    from landschaft.prioritize._zones_spatial import _footprint
+    from terraflux.prioritize import _milp_matrices as mx
+    from terraflux.prioritize._zones_spatial import _footprint
 
     p = _random_zone_problem(6, 2)
     adj = mx.adjacency_matrix(_footprint(p.units))
@@ -362,7 +362,7 @@ def _random_budget_problem(n_side: int, seed: int, objective: str, per_zone: boo
     cost = {z: optimize_cases.grid(rng.uniform(lo, hi, shape)) for z, lo, hi in
             (("protect", 5, 50), ("use", 2, 30), ("restore", 4, 40))}
     feats = optimize_cases.grid(np.where(rng.random((6, *shape)) < 0.3, rng.random((6, *shape)), 0.0))
-    p = ls.prioritize.problem(cost, feats, contribution={"use": 0.5, "restore": 0.7})
+    p = tf.prioritize.problem(cost, feats, contribution={"use": 0.5, "restore": 0.7})
     total = n_side * n_side * 25.0
     budget = [0.08 * total, 0.05 * total, 0.04 * total] if per_zone else 0.15 * total
     if objective == "max_utility":
@@ -378,7 +378,7 @@ def _random_budget_problem(n_side: int, seed: int, objective: str, per_zone: boo
     ("max_utility", False, "binary"), ("max_utility", True, "binary"), ("max_utility", True, "proportion"),
     ("min_shortfall", True, "binary"), ("max_features", False, "binary")])
 def test_zones_wide_engine_reaches_the_mip_optimum(objective, per_zone, decisions):
-    from landschaft.prioritize._milp_solve import _highs
+    from terraflux.prioritize._milp_solve import _highs
 
     p = _random_budget_problem(10, 7, objective, per_zone, decisions).add_highs_solver(gap=0)
     m = p.compile()
@@ -422,7 +422,7 @@ def test_portfolios_with_zones(kind):
 def test_zones_cut_engine_on_boundary_penalties():
     """Minimum sets with zones and boundary penalties go to the zones cut engine: a solution that meets every
     target and keeps one zone per unit, within a few percent of the bound (the linear relaxation's)."""
-    from landschaft.prioritize._zones import zone_cut_model
+    from terraflux.prioritize._zones import zone_cut_model
 
     p = _random_zone_problem(40, 13).add_boundary_penalties(0.05).add_highs_solver(gap=0.01, time_limit=30)
     m = p.compile()
@@ -459,7 +459,7 @@ def _same_table(ours: pd.DataFrame, ref: dict, prefix: str, columns) -> None:
 
 @pytest.mark.external_reference
 def test_eval_summaries_with_zones():
-    P = ls.prioritize
+    P = tf.prioritize
     ref = result("zones", "zones_eval_summaries")
     p, sol = _eval_problem(), optimize_cases.zone_sol()
     _same_table(P.eval_n_summary(p, sol), ref, "n", ["summary", "n"])
@@ -474,7 +474,7 @@ def test_eval_summaries_with_zones():
 
 @pytest.mark.external_reference
 def test_eval_proportion_with_zones():
-    P = ls.prioritize
+    P = tf.prioritize
     ref = result("zones", "zones_eval_proportion")
     p, sol = _eval_problem("proportion"), optimize_cases.zone_solp()
     _same_table(P.eval_n_summary(p, sol), ref, "n", ["summary", "n"])
@@ -485,7 +485,7 @@ def test_eval_proportion_with_zones():
 
 
 def test_eval_spatial_with_zones():
-    P = ls.prioritize
+    P = tf.prioritize
     ref = result("zones", "zones_eval_spatial")
     p, sol = _eval_problem(), optimize_cases.zone_sol()
     cm, am = optimize_cases._cells(optimize_cases.cell_conn()), optimize_cases._cells(optimize_cases.cell_asym())
@@ -502,14 +502,14 @@ def test_eval_spatial_with_zones():
 def test_eval_coverage_of_zone_lists():
     ref = result("zones", "zones_eval_coverage_lists")
     p = optimize_cases._zone_general().add_min_set_objective().add_manual_targets(optimize_cases._zone_manual_table())
-    cov = ls.prioritize.eval_target_coverage_summary(p.add_binary_decisions(), optimize_cases.zone_sol(),
+    cov = tf.prioritize.eval_target_coverage_summary(p.add_binary_decisions(), optimize_cases.zone_sol(),
                                                      include_sense=True, include_zone=False)
     _same_table(cov, ref, "coverage", ["feature", "sense", "met", "total_amount", "absolute_target", "absolute_held",
                                        "absolute_shortfall", "relative_target", "relative_held", "relative_shortfall"])
 
 
 def test_eval_of_a_solution_object_and_importance():
-    P = ls.prioritize
+    P = tf.prioritize
     p = _random_zone_problem(8, 21).add_highs_solver(gap=0)
     sol = p.solve()
     n = P.eval_n_summary(p, sol)
@@ -533,7 +533,7 @@ def test_eval_of_a_solution_object_and_importance():
 
 
 def test_landscape_metrics_and_mspa_with_zones():
-    P = ls.prioritize
+    P = tf.prioritize
     sol = optimize_cases.CASES["zones_minset_sum"].py().solve()
     t = P.eval_landscape_metrics(sol, metric=["np", "ca"])
     assert set(t["zone"]) <= set(optimize_cases.ZONES) and (t["class"] >= 1).all()
@@ -556,11 +556,11 @@ def test_report_and_plot_with_zones():
     os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")
     p = optimize_cases.CASES["zones_minset_sum"].py()
     sol = p.solve()
-    r = ls.prioritize.report(p, sol)
+    r = tf.prioritize.report(p, sol)
     assert list(r.tables["summary"]["summary"]) == ["overall", *optimize_cases.ZONES]
     assert "zone" in r.tables["targets"].columns
     assert sol.zones.attrs["landschaft_product"] == "ZONES"
-    pl = ls.plot(sol, show=False)
+    pl = tf.plot(sol, show=False)
     assert pl.panels[0].kind == "map"
     with pytest.raises(ValueError, match="single zone"):
-        ls.prioritize.report(p, sol, zonation=True)
+        tf.prioritize.report(p, sol, zonation=True)

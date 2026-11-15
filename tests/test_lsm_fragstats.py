@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import lsm_scenes
 
 MAPS = {
@@ -51,7 +51,7 @@ def pair_distances(lm):
 def test_proximity_similarity_connectance(case):
     data, res, directions = MAPS[case]
     radius, threshold = 4.5 * res[0], 2.5 * res[1]
-    lm = ls.Landscape(data, res=res, directions=directions, search_radius=radius, connect_threshold=threshold,
+    lm = tf.Landscape(data, res=res, directions=directions, search_radius=radius, connect_threshold=threshold,
                       similarity=SIMILARITY)
     dist = pair_distances(lm)
     p = lm.patch_metrics(["area", "prox", "simi"])
@@ -108,7 +108,7 @@ def sides(lm, data):
 def test_contrast_metrics(case, convention, count_boundary):
     data, res, directions = MAPS[case]
     bc = 0.35
-    lm = ls.Landscape(data, res=res, directions=directions, contrast=CONTRAST, boundary_contrast=bc,
+    lm = tf.Landscape(data, res=res, directions=directions, contrast=CONTRAST, boundary_contrast=bc,
                       convention=convention, count_boundary=count_boundary)
     rx, ry = res
     lh, lv = (ry, rx) if convention == "fragstats" else (rx, ry)
@@ -144,20 +144,20 @@ def test_contrast_metrics(case, convention, count_boundary):
 
 def test_missing_parameters_give_nan():
     data, res, _ = MAPS["clustered"]
-    lm = ls.Landscape(data, res=res)
+    lm = tf.Landscape(data, res=res)
     assert lm.patch_metrics(["prox", "simi"])[["prox", "simi"]].isna().all(axis=None)
     assert lm.class_metrics("connect")["connect"].isna().all()
     # no contrast table: NaN, as FRAGSTATS needs one
     assert lm.patch_metrics("econ")["econ"].isna().all()
     assert lm.class_metrics(["cwed", "teci"])[["cwed", "teci"]].isna().all(axis=None)
-    partial = ls.Landscape(data, res=res, contrast={(1, 2): 1.0})
+    partial = tf.Landscape(data, res=res, contrast={(1, 2): 1.0})
     econ = partial.patch_metrics("econ")
     assert econ["econ"].isna().any() and econ["econ"].notna().any()
 
 
 def test_similarity_default_is_proximity():
     data, res, _ = MAPS["clustered"]
-    p = ls.Landscape(data, res=res, search_radius=60).patch_metrics(["prox", "simi"])
+    p = tf.Landscape(data, res=res, search_radius=60).patch_metrics(["prox", "simi"])
     np.testing.assert_array_equal(p["prox"], p["simi"])
 
 
@@ -169,23 +169,23 @@ def test_weight_tables():
     nested = {}
     for (a, b), w in CONTRAST.items():
         nested.setdefault(a, {})[b] = w
-    a = ls.Landscape(data, res=res, contrast=CONTRAST).patch_metrics("econ")
-    b = ls.Landscape(data, res=res, contrast=frame).patch_metrics("econ")
-    c = ls.Landscape(data, res=res, contrast=nested).patch_metrics("econ")
+    a = tf.Landscape(data, res=res, contrast=CONTRAST).patch_metrics("econ")
+    b = tf.Landscape(data, res=res, contrast=frame).patch_metrics("econ")
+    c = tf.Landscape(data, res=res, contrast=nested).patch_metrics("econ")
     pd.testing.assert_frame_equal(a, b)
     pd.testing.assert_frame_equal(a, c)
     with pytest.raises(ValueError, match="convention"):
-        ls.Landscape(data, convention="other")
+        tf.Landscape(data, convention="other")
 
 
 def test_extras_selection():
-    full = ls.list_metrics(extras=True)
+    full = tf.list_metrics(extras=True)
     for m, lv in [("prox", "patch"), ("econ", "patch"), ("connect", "class"), ("teci", "landscape"),
                   ("prox_am", "class"), ("econ_mn", "landscape")]:
         assert ((full["metric"] == m) & (full["level"] == lv)).any()
     assert "contrast metric" in set(full["type"])
-    assert not ls.list_metrics()["metric"].isin(["prox", "cwed"]).any()
-    lm = ls.Landscape(MAPS["clustered"][0], search_radius=40)
+    assert not tf.list_metrics()["metric"].isin(["prox", "cwed"]).any()
+    lm = tf.Landscape(MAPS["clustered"][0], search_radius=40)
     assert lm.class_metrics(["proximity_index_mn"]).shape == (4, 2)
 
 
@@ -200,20 +200,20 @@ def pylandstats():
 @pytest.mark.parametrize("res", [(10.0, 10.0), (30.0, 20.0), (2.0, 5.0)])
 def test_fragstats_perimeter_matches_pylandstats(res, pylandstats):
     data = lsm_scenes.clustered((25, 30), [1, 2, 3], seed=5, sigma=1.5).data
-    lm = ls.Landscape(data, res=res, convention="fragstats")
+    lm = tf.Landscape(data, res=res, convention="fragstats")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pp = pylandstats.Landscape(data, res=res, nodata=0, neighborhood_rule="8").compute_patch_metrics_df()
     np.testing.assert_allclose(np.sort(lm.patch_metrics("perim")["perim"]), np.sort(pp["perimeter"]), rtol=1e-12)
     # the landscapemetrics convention differs when the cells are not square
-    lm_perim = np.sort(ls.Landscape(data, res=res).patch_metrics("perim")["perim"])
+    lm_perim = np.sort(tf.Landscape(data, res=res).patch_metrics("perim")["perim"])
     assert np.allclose(lm_perim, np.sort(pp["perimeter"])) == (res[0] == res[1])
 
 
 @pytest.mark.parametrize("seed", [6, 7])
 def test_fragstats_dcore_matches_pylandstats(seed, pylandstats):
     data = lsm_scenes.clustered((40, 45), [1, 2, 3], seed=seed, sigma=2.5).data
-    lm = ls.Landscape(data, res=10, convention="fragstats")
+    lm = tf.Landscape(data, res=10, convention="fragstats")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pl = pylandstats.Landscape(data, res=(10, 10), nodata=0, neighborhood_rule="8")
@@ -229,8 +229,8 @@ def test_fragstats_dcore_matches_pylandstats(seed, pylandstats):
             np.testing.assert_allclose(lm.landscape_metrics(f"dcore_{stat}")[f"dcore_{stat}"][0], expected,
                                        rtol=1e-12, err_msg=stat)
     # landscapemetrics' dcore: the number of core areas per patch
-    counts = ls.Landscape(data, res=10).class_metrics("dcore_mn")["dcore_mn"]
-    ncore = ls.Landscape(data, res=10).patch_metrics("ncore")
+    counts = tf.Landscape(data, res=10).class_metrics("dcore_mn")["dcore_mn"]
+    ncore = tf.Landscape(data, res=10).patch_metrics("ncore")
     np.testing.assert_allclose(counts, ncore.groupby("class")["ncore"].mean().to_numpy())
 
 
@@ -241,8 +241,8 @@ def test_out_of_core(tmp_path):
     tif = tmp_path / "m.tif"
     lsm_reference.write_landscape(tif, data, res)
     opts = {"contrast": {(1, 2): 0.3, (1, 3): 0.6, (2, 3): 0.9}, "boundary_contrast": 0.2, "convention": "fragstats"}
-    tiled = ls.Landscape(tif, block_rows=64, **opts)
-    mem = ls.Landscape(tif, **opts)
+    tiled = tf.Landscape(tif, block_rows=64, **opts)
+    mem = tf.Landscape(tif, **opts)
     pd.testing.assert_frame_equal(tiled.class_metrics(["cwed", "teci", "te"]), mem.class_metrics(["cwed", "teci", "te"]))
     for metric in ("prox", "econ"):
         with pytest.raises(NotImplementedError):
@@ -258,8 +258,8 @@ def test_out_of_core_convention_identical(tmp_path, res):
     data = lsm_scenes.clustered((150, 70), [1, 2, 3], seed=9, sigma=2.5, na_fraction=0.03)
     tif = tmp_path / "m.tif"
     lsm_reference.write_landscape(tif, data, res)
-    tiled = ls.Landscape(tif, block_rows=16, convention="fragstats")
-    mem = ls.Landscape(tif, convention="fragstats")
+    tiled = tf.Landscape(tif, block_rows=16, convention="fragstats")
+    mem = tf.Landscape(tif, convention="fragstats")
     patch = ["circle", "shape", "perim"]
     pd.testing.assert_frame_equal(tiled.patch_metrics(patch), mem.patch_metrics(patch))
     cls = ["circle_mn", "circle_sd", "shape_sd", "shape_cv", "lsi", "area_sd"]
@@ -271,7 +271,7 @@ def test_out_of_core_convention_identical(tmp_path, res):
 @pytest.mark.parametrize("seed", [5, 6])
 def test_fragstats_shape_lsi_sd_match_pylandstats(res, seed, pylandstats):
     data = lsm_scenes.clustered((25, 30), [1, 2, 3], seed=seed, sigma=1.5).data
-    lm = ls.Landscape(data, res=res, convention="fragstats")
+    lm = tf.Landscape(data, res=res, convention="fragstats")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pl = pylandstats.Landscape(data, res=res, nodata=0, neighborhood_rule="8")
@@ -296,18 +296,18 @@ def test_fragstats_shape_lsi_sd_match_pylandstats(res, seed, pylandstats):
 
 def test_fragstats_sd_over_n():
     data = lsm_scenes.clustered((20, 24), [1, 2], seed=3).data
-    lm = ls.Landscape(data, res=10, convention="fragstats")
+    lm = tf.Landscape(data, res=10, convention="fragstats")
     area = lm.patch_metrics("area")
     sd = lm.class_metrics("area_sd").set_index("class")["area_sd"]
     np.testing.assert_allclose(sd.to_numpy(), area.groupby("class")["area"].std(ddof=0).to_numpy(), rtol=1e-13)
     np.testing.assert_allclose(lm.landscape_metrics("area_sd")["area_sd"][0], area["area"].std(ddof=0), rtol=1e-13)
     # landscapemetrics: R's sd(), over n - 1
-    r_sd = ls.Landscape(data, res=10).class_metrics("area_sd")["area_sd"].to_numpy()
+    r_sd = tf.Landscape(data, res=10).class_metrics("area_sd")["area_sd"].to_numpy()
     np.testing.assert_allclose(r_sd, area.groupby("class")["area"].std(ddof=1).to_numpy(), rtol=1e-13)
     # one patch: 0 over n, NA over n - 1
     one = np.ones((3, 3), int)
-    assert ls.Landscape(one, res=1, convention="fragstats").class_metrics("area_sd")["area_sd"][0] == 0
-    assert np.isnan(ls.Landscape(one, res=1).class_metrics("area_sd")["area_sd"][0])
+    assert tf.Landscape(one, res=1, convention="fragstats").class_metrics("area_sd")["area_sd"][0] == 0
+    assert np.isnan(tf.Landscape(one, res=1).class_metrics("area_sd")["area_sd"][0])
 
 
 def _hull(points):
@@ -348,7 +348,7 @@ def brute_force_radius(points):
 @pytest.mark.parametrize("res", [(1.0, 1.0), (3.0, 2.0)])
 def test_fragstats_circle_encloses_whole_patch(res):
     data = lsm_scenes.clustered((18, 20), [1, 2, 3], seed=4, sigma=1.2).data
-    lm = ls.Landscape(data, res=res, convention="fragstats")
+    lm = tf.Landscape(data, res=res, convention="fragstats")
     labels = np.asarray(lm.labels())
     circles = lm.circumscribing_circles()
     area = lm.patch_metrics("area")["area"].to_numpy() * 10000
@@ -366,7 +366,7 @@ def test_fragstats_circle_holds_patches_landscapemetrics_cuts():
     # landscapemetrics' circle only encloses the corners of the first and
     # last rows and columns: never larger, and too small for some patches
     data = lsm_scenes.clustered((40, 40), [1, 2, 3], seed=7, sigma=2).data
-    full = ls.Landscape(data, res=1, convention="fragstats").circumscribing_circles()["diameter"].to_numpy()
-    lm_only = ls.Landscape(data, res=1).circumscribing_circles()["diameter"].to_numpy()
+    full = tf.Landscape(data, res=1, convention="fragstats").circumscribing_circles()["diameter"].to_numpy()
+    lm_only = tf.Landscape(data, res=1).circumscribing_circles()["diameter"].to_numpy()
     assert (lm_only <= full * (1 + 1e-12)).all()
     assert (lm_only < full * (1 - 1e-12)).sum() >= 3

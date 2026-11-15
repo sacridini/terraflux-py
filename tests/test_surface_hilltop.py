@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from scipy import ndimage
 
-import landschaft as ls
+import terraflux as tf
 
 EIGHT = np.ones((3, 3))
 EXT = (0.0, 1500.0, 0.0, 1000.0)  # 10 m cells on 100 x 150
@@ -30,7 +30,7 @@ def _component(mask, cell):
 
 def test_cone_on_a_plain():
     dem = _cone(505, 705, 300, 300)  # 45 degrees
-    h = ls.surface.hilltop(dem, extent=EXT)
+    h = tf.surface.hilltop(dem, extent=EXT)
     top = h.hills.iloc[0]
     assert (top.top, top.base, top.height, top.base_kind) == (800.0, 500.0, 300.0, "lowest")
     assert 43 < top.mean_slope < 46 and 43 < top.line_slope < 46
@@ -41,13 +41,13 @@ def test_cone_on_a_plain():
 
 def test_criteria():
     gentle = _cone(505, 705, 300, 900)  # 18 degrees
-    assert ls.surface.hilltop(gentle, extent=EXT).hills["qualifies"].sum() == 0
-    assert ls.surface.hilltop(gentle, extent=EXT, min_slope=15).hills["qualifies"].sum() == 1
+    assert tf.surface.hilltop(gentle, extent=EXT).hills["qualifies"].sum() == 0
+    assert tf.surface.hilltop(gentle, extent=EXT, min_slope=15).hills["qualifies"].sum() == 1
     low = _cone(505, 705, 80, 80)
-    assert ls.surface.hilltop(low, extent=EXT).hills["qualifies"].sum() == 0
-    conama = ls.surface.hilltop(low, extent=EXT, min_height=50, min_slope=16.7, slope="line")
+    assert tf.surface.hilltop(low, extent=EXT).hills["qualifies"].sum() == 0
+    conama = tf.surface.hilltop(low, extent=EXT, min_height=50, min_slope=16.7, slope="line")
     assert conama.hills["qualifies"].sum() == 1
-    upper = ls.surface.hilltop(low, extent=EXT, min_height=50, fraction=0.5)
+    upper = tf.surface.hilltop(low, extent=EXT, min_height=50, fraction=0.5)
     np.testing.assert_array_equal(upper.app.values, (low >= 540).astype(float))
 
 
@@ -62,7 +62,7 @@ def test_saddle_range_and_plain():
     dem = np.maximum(dem, np.where(np.hypot(yy - 505, xx - 1205) < 300, hill, 0))
     lake = (np.hypot(yy - 505, xx - 1205) >= 200) & (np.hypot(yy - 505, xx - 1205) < 300)
     dem[lake] = 560.0
-    h = ls.surface.hilltop(dem, extent=EXT, plain=lake)
+    h = tf.surface.hilltop(dem, extent=EXT, plain=lake)
     t = h.hills
     big = t.iloc[0]
     assert big.top == 900 and big.base == 500 and big.qualifies
@@ -109,7 +109,7 @@ def _naive(dem):
 def test_bases_and_app_against_components(seed):
     rng = np.random.default_rng(seed)
     dem = ndimage.gaussian_filter(rng.random((18, 22)), 1.5) * 1000 + rng.random((18, 22)) * 1e-3
-    h = ls.surface.hilltop(dem, extent=(0, 220, 0, 180), min_height=5, min_slope=0)
+    h = tf.surface.hilltop(dem, extent=(0, 220, 0, 180), min_height=5, min_slope=0)
     naive = _naive(dem)
     t = h.hills
     cells = {(int((180 - y) // 10), int(x // 10)): row for (y, x), row in
@@ -124,7 +124,7 @@ def test_bases_and_app_against_components(seed):
             expect |= _component(dem >= row.threshold, cell)
             # its mean slope: the cells above its base joined to it
             region = _component(dem > row.base, cell)
-            sl = ls.surface.terrain(dem, extent=(0, 220, 0, 180)).values[region]
+            sl = tf.surface.terrain(dem, extent=(0, 220, 0, 180)).values[region]
             assert row.mean_slope == pytest.approx(np.nanmean(sl), rel=1e-12)
     np.testing.assert_array_equal(h.app.values == 1, expect)
 
@@ -132,21 +132,21 @@ def test_bases_and_app_against_components(seed):
 def test_threads_and_errors():
     rng = np.random.default_rng(9)
     dem = ndimage.gaussian_filter(rng.random((200, 260)), 6) * 3000
-    a = ls.surface.hilltop(dem, extent=(0, 2600, 0, 2000), n_threads=1)
-    b = ls.surface.hilltop(dem, extent=(0, 2600, 0, 2000), n_threads=4)
+    a = tf.surface.hilltop(dem, extent=(0, 2600, 0, 2000), n_threads=1)
+    b = tf.surface.hilltop(dem, extent=(0, 2600, 0, 2000), n_threads=4)
     np.testing.assert_array_equal(a.hill.values, b.hill.values)
     pd_equal = a.hills.equals(b.hills)
     assert pd_equal
     nan_dem = dem.copy()
     nan_dem[:20] = np.nan
-    c = ls.surface.hilltop(nan_dem, extent=(0, 2600, 0, 2000))
+    c = tf.surface.hilltop(nan_dem, extent=(0, 2600, 0, 2000))
     assert np.isnan(c.app.values[:20]).all()
     with pytest.raises(ValueError, match="slope"):
-        ls.surface.hilltop(dem, slope="steepest")
+        tf.surface.hilltop(dem, slope="steepest")
     with pytest.raises(ValueError, match="fraction"):
-        ls.surface.hilltop(dem, fraction=1.5)
+        tf.surface.hilltop(dem, fraction=1.5)
     with pytest.raises(ValueError, match="plain"):
-        ls.surface.hilltop(dem, plain=np.ones((3, 3)))
+        tf.surface.hilltop(dem, plain=np.ones((3, 3)))
 
 
 def test_against_dinamica_calc_hilltop():
@@ -158,7 +158,7 @@ def test_against_dinamica_calc_hilltop():
 
     ref = simulate_reference.result("hilltop", "hilltop_dinamica")
     world = simulate_cases.build_input("hilltop_world")
-    ours = ls.surface.hilltop(world["dem"], min_height=0, min_slope=0).hills
+    ours = tf.surface.hilltop(world["dem"], min_height=0, min_slope=0).hills
     ours = ours[ours.height > 0].sort_values("top").reset_index(drop=True)
     true_slope = np.degrees(np.arctan([h / run for _, _, h, run in simulate_cases._HILL_CONES]))
     np.testing.assert_array_equal(ours.top, ref["maxima.csv/Value"])

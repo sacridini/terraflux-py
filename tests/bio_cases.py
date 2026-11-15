@@ -2,7 +2,7 @@
 """Inputs of the Biodiverse reference runs (tools/make_reference_bio.py).
 
 Each case gives the arguments of Biodiverse's import (``biodiverse``) and of the
-landschaft call that must reproduce it (``landschaft``). File names are
+terraflux call that must reproduce it (``terraflux``). File names are
 relative to ``tests/data/bio``.
 """
 
@@ -28,7 +28,7 @@ def _bd(file, group_columns, label_columns, cell_sizes, cell_origins=None, **ext
     }
     if cell_origins is not None:
         biodiverse["cell_origins"] = cell_origins
-    landschaft = {
+    terraflux = {
         "group_columns": group_columns,
         "label_columns": label_columns,
         "cell_sizes": cell_sizes,
@@ -40,8 +40,8 @@ def _bd(file, group_columns, label_columns, cell_sizes, cell_origins=None, **ext
               "include_columns": "include_columns", "exclude_columns": "exclude_columns",
               "input_sep_char": "sep", "input_quote_char": "quote"}
     for k, v in extra.items():
-        landschaft[rename[k]] = v
-    return {"biodiverse": biodiverse, "landschaft": landschaft, "file": file}
+        terraflux[rename[k]] = v
+    return {"biodiverse": biodiverse, "terraflux": terraflux, "file": file}
 
 
 BASEDATA_CASES = {
@@ -62,7 +62,7 @@ BASEDATA_CASES = {
                   input_sep_char=",", input_quote_char='"'),
 }
 
-# Biodiverse's feature import (import_data_shapefile); landschaft: BaseData.from_vector
+# Biodiverse's feature import (import_data_shapefile); terraflux: BaseData.from_vector
 VECTOR_CASES = {
     "points": {"files": ["site_points.shp"], "labels": ["genus", "species"], "cell_sizes": [100000, 100000]},
     "points_counts": {"files": ["site_points.shp"], "labels": ["species"], "cell_sizes": [50000, 50000],
@@ -522,9 +522,9 @@ def write_trees() -> None:
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-    import landschaft as ls
+    import terraflux as tf
 
-    t = ls.bio.read_tree(DATA / "Example_tree.nex")
+    t = tf.bio.read_tree(DATA / "Example_tree.nex")
     # species-only names, for the site data read with the species column as label
     nwk = t.to_newick()
     for name in t.names:
@@ -558,10 +558,10 @@ NEWICK_CASES = {
 
 MATRIX_CASES = {
     "full": {"file": "Example_matrix.txt", "params": {"ELEMENT_COLUMNS": [1, 2]}, "sparse": 0,
-             "landschaft": {"element_columns": [1, 2]}},
+             "terraflux": {"element_columns": [1, 2]}},
     "sparse": {"file": "Example_matrix_sparse.txt", "params": {}, "sparse": 1,
                "args": {"label_row_columns": [0], "label_col_columns": [1], "value_column": 2},
-               "landschaft": {"sparse": True, "row_columns": [0], "col_columns": [1], "value_column": 2}},
+               "terraflux": {"sparse": True, "row_columns": [0], "col_columns": [1], "value_column": 2}},
 }
 
 RASTER_CASES = {

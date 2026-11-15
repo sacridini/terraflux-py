@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""PLUS (ls.simulate phase 6): LEAS through Estimator(target="expansion") and the CARS allocation.
+"""PLUS (tf.simulate phase 6): LEAS through Estimator(target="expansion") and the CARS allocation.
 
 PLUS is distributed without source code or licence, so CARS is written from the paper (Liang et al. 2021)
 and checked by its properties: demand met, patch growth from neighbours, random seeds, the decreasing
@@ -14,10 +14,10 @@ import pytest
 import simulate_cases
 from scipy import ndimage
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _world(n=60, seed=3):
@@ -216,8 +216,8 @@ def test_leas_and_cars_on_plum_island():
     pytest.importorskip("sklearn")
     from sklearn.ensemble import RandomForestClassifier
 
-    lu = ls.load_raster(S.example_data("pie_landuse"))
-    ef = ls.load_raster(S.example_data("pie_drivers"))
+    lu = tf.load_raster(S.example_data("pie_landuse"))
+    ef = tf.load_raster(S.example_data("pie_drivers"))
     leas = S.Estimator(RandomForestClassifier(n_estimators=20, random_state=0), target="expansion",
                        sample=0.2, seed=1).fit(lu[0], ef, t1=lu[1])
     imp = leas.importance()

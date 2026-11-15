@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of movement ecology (landschaft._core.move_*).
+// Python bindings of movement ecology (terraflux._core.move_*).
 
 #include "move/python.hpp"
 

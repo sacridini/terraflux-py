@@ -2,10 +2,10 @@
 #
 # CoordinateCleaner 3.0.1 functions with their errors corrected ("correct
 # form"): every function is the original code with the minimal change marked
-# "FIX". Sourced by the ls.sdm reference cases (tests/sdm_cases.py) after
+# "FIX". Sourced by the tf.sdm reference cases (tests/sdm_cases.py) after
 # library(CoordinateCleaner); the originals stay available as
 # CoordinateCleaner::cc_*. The errors are listed in IDEAS.md and in the
-# docstring of ls.sdm.clean_occurrences.
+# docstring of tf.sdm.clean_occurrences.
 
 suppressMessages({library(terra); library(CoordinateCleaner)})
 .wgs84 <- "+proj=longlat +datum=WGS84 +no_defs"

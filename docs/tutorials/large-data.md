@@ -19,13 +19,13 @@ example map into four tiles:
 
 ```python
 from pathlib import Path
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))
+forest = tf.load_raster(tf.example_data("input"))
 Path("tiles").mkdir(exist_ok=True)
 for row in (0, 500):
     for col in (0, 500):
-        ls.write_raster(forest[row:row + 500, col:col + 500], f"tiles/forest_{row}_{col}.tif")
+        tf.write_raster(forest[row:row + 500, col:col + 500], f"tiles/forest_{row}_{col}.tif")
 ```
 
 ## Collections
@@ -35,7 +35,7 @@ for row in (0, 500):
 is processed.
 
 ```python
-maps = ls.load_raster("tiles/*.tif")
+maps = tf.load_raster("tiles/*.tif")
 maps
 ```
 
@@ -44,7 +44,7 @@ out (listed in `maps.skipped`) instead of stopping. MSPA processes a
 collection directly, one raster per worker thread:
 
 ```python
-results = ls.mspa(maps, edge_width=2, output_dir="mspa_out")
+results = tf.mspa(maps, edge_width=2, output_dir="mspa_out")
 results[0]
 ```
 
@@ -55,7 +55,7 @@ time and any error. Without it, the maps are returned in a list.
 ## Any tool on many files: batch
 
 ```python
-runs = ls.batch("fad", "tiles", "fad_out", window_size=27)
+runs = tf.batch("fad", "tiles", "fad_out", window_size=27)
 [run.output.name for run in runs]
 ```
 
@@ -69,7 +69,7 @@ and writes everything the tool returns, named after the input:
 | report | `<name>_<tool>.txt` (the result's `summary()`) |
 | record | `<name>_<tool>.json`: parameters, outputs, scalar results, run time |
 
-The tools are listed in `ls.BATCH_TOOLS` (MSPA, fragmentation, accounting,
+The tools are listed in `tf.BATCH_TOOLS` (MSPA, fragmentation, accounting,
 distance, landscape metrics...); any function that takes a raster as its first
 argument works too. Tool options follow as keywords (`window_size=27`).
 Inputs whose record already exists are skipped, so an interrupted run resumes
@@ -89,7 +89,7 @@ writes the result tile by tile: memory depends on the tile size, not on the
 map size.
 
 ```python
-path = ls.mspa_tiled(ls.example_data("input"), "input_mspa_tiled.tif",
+path = tf.mspa_tiled(tf.example_data("input"), "input_mspa_tiled.tif",
                      tile_size=600, overlap=200)
 path
 ```
@@ -107,7 +107,7 @@ only the table of patches is kept. The results are identical to reading the
 whole map:
 
 ```python
-big = ls.Landscape(ls.example_data("clc"), block_rows=256)
+big = tf.Landscape(tf.example_data("clc"), block_rows=256)
 big.out_of_core, big.class_metrics(["ca", "np", "ed"]).head(3)
 ```
 
@@ -139,11 +139,11 @@ in parallel when the result is computed:
 
 ```python
 Path("years").mkdir(exist_ok=True)
-ls.write_raster(forest, "years/forest_2010.tif")
-ls.write_raster(forest, "years/forest_2020.tif")
+tf.write_raster(forest, "years/forest_2010.tif")
+tf.write_raster(forest, "years/forest_2020.tif")
 
-stack = ls.load_raster("years/*.tif", stack=True)   # (file, y, x), lazy
-morph_stack = ls.mspa(stack)                       # still lazy
+stack = tf.load_raster("years/*.tif", stack=True)   # (file, y, x), lazy
+morph_stack = tf.mspa(stack)                       # still lazy
 morph_stack.shape
 ```
 
@@ -157,7 +157,7 @@ morph_stack.shape
   memory budget with `max_memory`.
 - Omniscape: `memory_limit=` caps the memory of its windows.
 - `batch` and `mspa_batch` also run on the computers of a lab with
-  `on=ls.helpers()`: see [several computers](many-computers.md).
+  `on=tf.helpers()`: see [several computers](many-computers.md).
 
 ## Next steps
 

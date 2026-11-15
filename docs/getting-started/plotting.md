@@ -1,21 +1,21 @@
 # Plotting
 
-`ls.plot` draws anything Landschaft reads or makes, as the data call for: a
+`tf.plot` draws anything Terraflux reads or makes, as the data call for: a
 raster or a vector layer on an interactive map over satellite imagery, a table
 as a chart, the result of a tool as its maps, charts and numbers together. One
 call, whatever the input:
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))
-p = ls.plot(ls.mspa(forest))
+forest = tf.load_raster(tf.example_data("input"))
+p = tf.plot(tf.mspa(forest))
 p.save("mspa.html").name                     # 'mspa.html'
 ```
 
 In a notebook (Jupyter, JupyterLab, VS Code, Colab) the plot shows inline. In a
 script it opens in a window of its own ([pywebview](https://pywebview.flowrl.com/),
-installed with Landschaft), or in the web browser where no window can open.
+installed with Terraflux), or in the web browser where no window can open.
 
 A plot saved as `.html` is a single file that opens without a network connection:
 the map library and the chart library are in the page, only the satellite imagery
@@ -34,7 +34,7 @@ the field; with `basemap=None` nothing at all is downloaded.
 | a GeoDataFrame, GeoSeries or geometry | polygons, lines or points, coloured by `column=` |
 | a DataFrame or Series | bars, lines or one chart per metric |
 | a tool's result (Zonation, habitat graphs, Biodiverse, PCA, clustergrams, least-cost paths, results with several rasters) | its maps, charts and summary numbers |
-| a species distribution model (`ls.sdm.fit`) | its response curves and cross-validated scores; with `env=` (the predictors), the suitability map of each model and of the ensemble, with the presences |
+| a species distribution model (`tf.sdm.fit`) | its response curves and cross-validated scores; with `env=` (the predictors), the suitability map of each model and of the ensemble, with the presences |
 | a change between two dates (`simple_change`, `morphological_change`, `fos_change`, `fad_multiscale_change`) | the change map with its classes named, the flows between the classes as a Sankey diagram, the counts |
 | a list of rasters and vectors | one map, one layer each |
 
@@ -86,9 +86,9 @@ screen.
 left of a line, the second on its right; drag the handle to sweep between them:
 
 ```python
-forest = ls.load_raster(ls.example_data("input"))
+forest = tf.load_raster(tf.example_data("input"))
 after = forest.where(forest.x < forest.x[400], 1)     # the east cut
-p = ls.plot([ls.mspa(forest), ls.mspa(after)], compare=True, title="Before / after")
+p = tf.plot([tf.mspa(forest), tf.mspa(after)], compare=True, title="Before / after")
 ```
 
 Two maps of the same colours share one legend card. The values under the
@@ -99,10 +99,10 @@ cursor are read on both sides.
 The defaults can all be changed in the call:
 
 ```python
-dem = ls.load_raster(ls.example_data("orelevation"))
-p = ls.plot(dem, cmap="magma", vmin=0, vmax=1500, title="Elevation")
-landcover = ls.load_raster(ls.example_data("clc"))[:400, :400]
-p = ls.plot(landcover == 23, cmap={0: "#f4f1de", 1: "#2d6a4f"},
+dem = tf.load_raster(tf.example_data("orelevation"))
+p = tf.plot(dem, cmap="magma", vmin=0, vmax=1500, title="Elevation")
+landcover = tf.load_raster(tf.example_data("clc"))[:400, :400]
+p = tf.plot(landcover == 23, cmap={0: "#f4f1de", 1: "#2d6a4f"},
             labels={0: "other", 1: "broad-leaved forest"})
 ```
 
@@ -138,14 +138,14 @@ colours share one legend. Vector layers take the colours of the interactive map
 `figsize=(w, h)` in inches, `ncols=`, `scalebar=False`, `north_arrow=False`.
 
 ```python
-p = ls.plot(forest, static=True, basemap=None)
+p = tf.plot(forest, static=True, basemap=None)
 p.figure                                      # the matplotlib figure
 p.save("forest.png").name                     # 'forest.png'
 ```
 
 ```python
-stack = ls.load_raster(ls.example_data("orelevation")).expand_dims(band=["a", "b"])
-p = ls.plot(stack, static=True, basemap=None, ncols=2, figsize=(9, 4))
+stack = tf.load_raster(tf.example_data("orelevation")).expand_dims(band=["a", "b"])
+p = tf.plot(stack, static=True, basemap=None, ncols=2, figsize=(9, 4))
 ```
 
 ## Speed

@@ -14,8 +14,8 @@ import warnings
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft import _core, _threads
+import terraflux as tf
+from terraflux import _core, _threads
 
 
 _VARIABLES = ["LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", "SLURM_JOB_ID", "SLURM_CPUS_PER_TASK",
@@ -27,15 +27,15 @@ def _reset_default(monkeypatch):
     for v in _VARIABLES:
         monkeypatch.delenv(v, raising=False)
     yield
-    ls.set_default_threads(None)
+    tf.set_default_threads(None)
 
 
 def test_default_leaves_one_core():
     cores = _threads.available_cores()
     available, machine = _threads.processors()
-    assert ls.default_threads() == (max(1, cores - 1) if available >= machine else cores)
+    assert tf.default_threads() == (max(1, cores - 1) if available >= machine else cores)
     if _core.openmp:
-        assert _core.team_size() == ls.default_threads()
+        assert _core.team_size() == tf.default_threads()
 
 
 def test_limit_and_process_default():
@@ -44,8 +44,8 @@ def test_limit_and_process_default():
         with _threads.limit(1):
             assert _core.team_size() == 1
         assert _core.team_size() == (2 if _core.openmp else 1)
-    assert ls.set_default_threads(3) == 3
-    assert ls.default_threads() == 3
+    assert tf.set_default_threads(3) == 3
+    assert tf.default_threads() == 3
     assert _threads.resolve(None) == _threads.resolve(0) == 3
     assert _threads.resolve(5) == 5
     if _core.openmp:
@@ -56,45 +56,45 @@ def test_limit_and_process_default():
         t.start()
         t.join()
         assert seen == [3]
-    ls.set_default_threads(None)
-    assert ls.default_threads() == _threads.detect().threads
+    tf.set_default_threads(None)
+    assert tf.default_threads() == _threads.detect().threads
     with pytest.raises(ValueError):
-        ls.set_default_threads(0)
+        tf.set_default_threads(0)
     with pytest.raises(ValueError):
         _threads.resolve(-1)
 
 
 def test_parallel_functions_take_n_threads():
-    for fn in (ls.fad, ls.fad_multiscale, ls.landscape_mosaic, ls.spatial_entropy, ls.euclidean_distance,
-               ls.parcellation, ls.morphological_change, ls.fos_change, ls.distance_to_resistance,
-               ls.isochrone_map_ab, ls.raster_boundaries, ls.mspa, ls.accounting, ls.spa, ls.fos,
-               ls.landscape_metrics, ls.sample_metrics, ls.window_metrics, ls.omniscape,
-               ls.conn.protconn_raster, ls.conn.settlement_probabilities, ls.circuit.circuitscape_pairwise,
-               ls.circuit.circuitscape_network_pairwise):
+    for fn in (tf.fad, tf.fad_multiscale, tf.landscape_mosaic, tf.spatial_entropy, tf.euclidean_distance,
+               tf.parcellation, tf.morphological_change, tf.fos_change, tf.distance_to_resistance,
+               tf.isochrone_map_ab, tf.raster_boundaries, tf.mspa, tf.accounting, tf.spa, tf.fos,
+               tf.landscape_metrics, tf.sample_metrics, tf.window_metrics, tf.omniscape,
+               tf.conn.protconn_raster, tf.conn.settlement_probabilities, tf.circuit.circuitscape_pairwise,
+               tf.circuit.circuitscape_network_pairwise):
         assert "n_threads" in inspect.signature(fn).parameters, fn.__name__
 
 
 def test_results_do_not_depend_on_the_threads():
     rng = np.random.default_rng(4)
     fg = rng.choice(np.array([1, 2], dtype=np.uint8), size=(120, 150), p=[0.4, 0.6])
-    a = ls.fad(fg, n_threads=1)
-    b = ls.fad(fg)
-    c = ls.fad(fg, threads=3)  # the older name
+    a = tf.fad(fg, n_threads=1)
+    b = tf.fad(fg)
+    c = tf.fad(fg, threads=3)  # the older name
     np.testing.assert_array_equal(np.asarray(a.density), np.asarray(b.density))
     np.testing.assert_array_equal(np.asarray(a.classes), np.asarray(c.classes))
     classes = rng.integers(1, 4, size=(80, 90))
-    np.testing.assert_array_equal(ls.raster_boundaries(classes, n_threads=1), ls.raster_boundaries(classes))
+    np.testing.assert_array_equal(tf.raster_boundaries(classes, n_threads=1), tf.raster_boundaries(classes))
 
 
 def test_landscape_stores_a_count():
-    from landschaft.lsm.landscape import core_options
+    from terraflux.lsm.landscape import core_options
 
-    assert core_options({}, None)["n_threads"] == ls.default_threads()
+    assert core_options({}, None)["n_threads"] == tf.default_threads()
     assert core_options({}, 2)["n_threads"] == 2
 
 
 def test_batch_workers_default():
-    from landschaft.batch import run_parallel
+    from terraflux.batch import run_parallel
 
     src = inspect.getsource(run_parallel)
     assert "default_threads()" in src
@@ -148,17 +148,17 @@ def test_rule_order():
 
 def test_variables_reach_default_threads(monkeypatch):
     monkeypatch.setenv("LANDSCHAFT_NUM_THREADS", "3")
-    assert ls.default_threads() == 3
+    assert tf.default_threads() == 3
     if _core.openmp:
         assert _core.team_size() == 3
-    assert ls.set_default_threads(2) == 2
-    ls.set_default_threads(None)
+    assert tf.set_default_threads(2) == 2
+    tf.set_default_threads(None)
     monkeypatch.delenv("LANDSCHAFT_NUM_THREADS")
     monkeypatch.setenv("SLURM_JOB_ID", "42")
     monkeypatch.setenv("SLURM_CPUS_PER_TASK", "1")
-    assert ls.default_threads() == 1
+    assert tf.default_threads() == 1
     monkeypatch.delenv("SLURM_CPUS_PER_TASK")
-    assert ls.default_threads() == _threads.available_cores()   # in a job, none kept free
+    assert tf.default_threads() == _threads.available_cores()   # in a job, none kept free
 
 
 def test_warns_once_for_a_low_omp_num_threads_in_a_job(monkeypatch):
@@ -169,16 +169,16 @@ def test_warns_once_for_a_low_omp_num_threads_in_a_job(monkeypatch):
     monkeypatch.setenv("SLURM_JOB_ID", "42")
     monkeypatch.setenv("OMP_NUM_THREADS", "1")
     with pytest.warns(RuntimeWarning, match=f"LANDSCHAFT_NUM_THREADS={available}"):
-        assert ls.default_threads() == 1
+        assert tf.default_threads() == 1
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        assert ls.default_threads() == 1
+        assert tf.default_threads() == 1
     # outside a job, no warning: OMP_NUM_THREADS is what the user asked for
     monkeypatch.setattr(_threads, "_warned", False)
     monkeypatch.delenv("SLURM_JOB_ID")
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        assert ls.default_threads() == 1
+        assert tf.default_threads() == 1
 
 
 def test_dask_worker_threads(monkeypatch):
@@ -195,7 +195,7 @@ def test_dask_worker_threads(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "distributed", Distributed)
     monkeypatch.setenv("OMP_NUM_THREADS", "1")  # what the nanny sets
-    assert ls.default_threads() == 5
+    assert tf.default_threads() == 5
 
     class Outside:
         @staticmethod
@@ -203,7 +203,7 @@ def test_dask_worker_threads(monkeypatch):
             raise ValueError("no worker found")
 
     monkeypatch.setitem(sys.modules, "distributed", Outside)
-    assert ls.default_threads() == 1
+    assert tf.default_threads() == 1
 
 
 def test_cgroup_quota(tmp_path):
@@ -239,8 +239,8 @@ def test_affinity_in_a_process():
     cpus = sorted(os.sched_getaffinity(0))
     if len(cpus) < 3 or len(cpus) < (os.cpu_count() or 1):
         pytest.skip("fewer than 3 processors, or already confined")
-    code = ("import os; os.sched_setaffinity(0, {%d, %d}); import landschaft as ls, landschaft._core as c; "
-            "print(ls.default_threads(), c.team_size() if c.openmp else 2)" % (cpus[0], cpus[1]))
+    code = ("import os; os.sched_setaffinity(0, {%d, %d}); import terraflux as tf, terraflux._core as c; "
+            "print(tf.default_threads(), c.team_size() if c.openmp else 2)" % (cpus[0], cpus[1]))
     env = {k: v for k, v in os.environ.items() if k not in _VARIABLES}
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, check=True)
     # confined to 2 of the machine's processors: both, none kept free
@@ -251,7 +251,7 @@ def test_affinity_in_a_process():
 
 
 def test_helper_children_get_the_threads():
-    from landschaft._dist._slots import child_env
+    from terraflux._dist._slots import child_env
 
     env = child_env(3)
     assert env["LANDSCHAFT_NUM_THREADS"] == env["OMP_NUM_THREADS"] == "3"

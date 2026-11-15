@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate the golden outputs of R's maxnet for ls.sdm.MaxNet.
+"""Generate the golden outputs of R's maxnet for tf.sdm.MaxNet.
 
 Usage::
 

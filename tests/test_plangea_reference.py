@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import plangea_cases as pc
 
 REF = Path(__file__).parent / "data" / "reference" / "plangea"
@@ -29,7 +29,7 @@ def _vegetation(spec: dict):
     past = pc.grid(pc.past(), names=pc.NATURAL) if spec["past"] else None
     er = pc.grid(pc.ecoregions(), names=pc.NATURAL) if spec["er"] else None
     restore_to = "current" if "D" in spec["problem"] else "original"
-    return cover, ls.original_vegetation(cover, pc.NATURAL, pc.ANTHROPIC, past=past, ecoregions=er,
+    return cover, tf.original_vegetation(cover, pc.NATURAL, pc.ANTHROPIC, past=past, ecoregions=er,
                                          failsafe=spec["failsafe"], restore_to=restore_to)
 
 
@@ -65,7 +65,7 @@ def test_area_of_habitat_is_plangea(ref, name):
     kw = {}
     if spec["elevation"]:
         kw = {"elevation": pc.grid(pc.elevation()), "elevation_limits": pc.limits_table()}
-    aoh = ls.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
+    aoh = tf.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
                                  original=veg, include_unlisted=spec["include_absent"], **kw)
     valid = texts[f"{name}/species"]
     t = aoh.table.set_index("species")
@@ -82,7 +82,7 @@ def test_area_of_habitat_is_plangea(ref, name):
 def test_area_of_habitat_flags():
     cover, veg = _vegetation(pc.OA_CASES["oa_past_er"])
     names, r = pc.ranges()
-    aoh = ls.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
+    aoh = tf.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
                                  original=veg)
     t = aoh.table.set_index("species")
     assert not t.loc["sp_c", "valid"]   # only crops: no natural class
@@ -111,7 +111,7 @@ def test_intactness_is_plangea(ref, name):
         conv = pc.conversion(spec["shape"], spec["seed"] + 100)
         x = np.zeros(spec["shape"]) if spec.get("gradient") else pc.restored(spec["shape"], spec["seed"] + 200)
         kw = {"reduction": pc.reduction(conv), "restored": x}
-    q = ls.intactness(hfi, spec["radius"], gamma=spec["gamma"], beta=spec["beta"], z=spec["z"], **kw).values
+    q = tf.intactness(hfi, spec["radius"], gamma=spec["gamma"], beta=spec["beta"], z=spec["z"], **kw).values
     cells = arrays[f"{name}/master_index"].astype(np.int64) - 1
     np.testing.assert_array_equal(q.ravel()[cells], arrays[f"{name}/fixed"])
     # plangea itself, away from the edges (it skips radius + 1 rows and columns at the end)
@@ -130,7 +130,7 @@ def test_intactness_gradient_is_the_derivative_of_plangea_total(ref):
     spec = pc.IT_CASES["it_gradient"]
     h = _footprint(spec)
     conv = pc.conversion(spec["shape"], spec["seed"] + 100)
-    g = ls.intactness_gradient(pc.grid(h), pc.reduction(conv), spec["radius"], gamma=spec["gamma"],
+    g = tf.intactness_gradient(pc.grid(h), pc.reduction(conv), spec["radius"], gamma=spec["gamma"],
                                beta=spec["beta"], z=spec["z"]).values
     cells = arrays["it_gradient/master_index"].astype(np.int64) - 1
     np.testing.assert_allclose(g.ravel()[cells], arrays["it_gradient/gradient"], rtol=1e-6)
@@ -140,10 +140,10 @@ def test_uncertainty_is_plangea(ref):
     arrays, _ = ref
     u = pc.uncertainty_inputs()
     w = u["px_area"] * u["x_vals"]
-    assert ls.uncertainty.sum_sd(u["v"], w, method="quadratic") == pytest.approx(arrays["unc/prop_quad"][0], rel=1e-14)
-    assert ls.uncertainty.sum_sd(u["v"], w, method="linear") == pytest.approx(arrays["unc/prop_lin"][0], rel=1e-14)
-    q = ls.uncertainty.product_sd(u["var_x"], u["sd_x"], u["var_v"], u["sd_v"], total=True, method="quadratic")
-    lin = ls.uncertainty.product_sd(u["var_x"], u["sd_x"], u["var_v"], u["sd_v"], total=True, method="linear")
+    assert tf.uncertainty.sum_sd(u["v"], w, method="quadratic") == pytest.approx(arrays["unc/prop_quad"][0], rel=1e-14)
+    assert tf.uncertainty.sum_sd(u["v"], w, method="linear") == pytest.approx(arrays["unc/prop_lin"][0], rel=1e-14)
+    q = tf.uncertainty.product_sd(u["var_x"], u["sd_x"], u["var_v"], u["sd_v"], total=True, method="quadratic")
+    lin = tf.uncertainty.product_sd(u["var_x"], u["sd_x"], u["var_v"], u["sd_v"], total=True, method="linear")
     assert q == pytest.approx(arrays["unc/var_sd_quad"][0], rel=1e-14)
     assert lin == pytest.approx(arrays["unc/var_sd_lin"][0], rel=1e-14)
     # plangea's own (unsquared cross term) differs
@@ -156,7 +156,7 @@ def test_extinction_risk_uncertainty_is_plangea_corrected(ref):
     arrays, texts = ref
     cover, veg = _vegetation(pc.OA_CASES["oa_past_er"])
     names, r = pc.ranges()
-    aoh = ls.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
+    aoh = tf.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
                                  original=veg)
     t = aoh.table.set_index("species")
     valid = texts["bd_absent/species"]
@@ -174,6 +174,6 @@ def test_extinction_risk_uncertainty_is_plangea_corrected(ref):
 
     for method, key in (("quadratic", "quad"), ("linear", "lin")):
         val, unc = arrays[f"bd_absent/exrisk_{key}"]
-        d = ls.uncertainty.delta_method(reduction, [0.25], [0.1], scheme="forward", step=[1e-6])
+        d = tf.uncertainty.delta_method(reduction, [0.25], [0.1], scheme="forward", step=[1e-6])
         assert float(np.sum(d.value)) == pytest.approx(val, rel=1e-12)
-        assert ls.uncertainty.sum_sd(d.sd, method=method) == pytest.approx(unc, rel=1e-6)
+        assert tf.uncertainty.sum_sd(d.sd, method=method) == pytest.approx(unc, rel=1e-6)

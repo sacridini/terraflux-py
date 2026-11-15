@@ -23,7 +23,7 @@ of ``calculate_lsm`` for each option set to
 ``return_raster`` and the public helpers (``construct_buffer``, ``pad_raster``,
 ``unpad_raster``, ``raster_to_points``, ``get_unique_values``;
 ``tools/lsm_api_reference.R``) in ``tests/data/reference/lsm_api``. The test-suite
-compares landschaft against these files, so it runs anywhere without R.
+compares terraflux against these files, so it runs anywhere without R.
 """
 
 from __future__ import annotations

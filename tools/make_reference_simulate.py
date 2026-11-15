@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of the reference land change tools behind ls.simulate.
+"""Generate golden outputs of the reference land change tools behind tf.simulate.
 
 Usage::
 

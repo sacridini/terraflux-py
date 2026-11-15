@@ -14,9 +14,9 @@ import warnings
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 PIE_FORMS = {2: ["elevation", "slope", "dist_built_1985"], 1: ["elevation", "slope"], 3: ["elevation", "slope"]}
 VIGNETTE = {"jitter": 0.0002, "scale": 0.000001, "max_iter": 1000, "max_diff": 50, "mean_diff": 50}
@@ -25,12 +25,12 @@ HAS_TERRAFLUX = bool(os.environ.get("TERRAFLUX") or shutil.which("terraflux"))
 
 @pytest.fixture(scope="module")
 def pie():
-    return ls.load_raster(S.example_data("pie_landuse")), ls.load_raster(S.example_data("pie_drivers"))
+    return tf.load_raster(S.example_data("pie_landuse")), tf.load_raster(S.example_data("pie_drivers"))
 
 
 @pytest.fixture(scope="module")
 def sibuyan():
-    return ls.load_raster(S.example_data("sibuyan_landuse")), ls.load_raster(S.example_data("sibuyan_drivers"))
+    return tf.load_raster(S.example_data("sibuyan_landuse")), tf.load_raster(S.example_data("sibuyan_drivers"))
 
 
 def _maps(model, landscape, drivers, seed):
@@ -103,7 +103,7 @@ def test_cost_distance(pie, tmp_path):
     lu, dr = pie
     slope = dr.sel(band="slope")
     for k, directions in enumerate((8, 16)):
-        tr = ls.cost.geo_correction(1 / ls.cost.transition(slope.fillna(0) + 1, "mean", directions))
+        tr = tf.cost.geo_correction(1 / tf.cost.transition(slope.fillna(0) + 1, "mean", directions))
         cost = S.distance_to(2, cost=tr)
         drivers = {**{str(n): dr[j] for j, n in enumerate(dr.band.values)}, "cost_built": cost(lu[0])}
         lr = S.LogisticRegression({**PIE_FORMS, 2: ["elevation", "slope", "cost_built"]}).fit(lu[0], drivers)
@@ -144,7 +144,7 @@ def test_estimator_as_its_predictions(pie, tmp_path):
     assert pot["op"] == "stack.classes" and "Estimator" in pot["note"]
     again, _ = S.Model.load(path)
     assert isinstance(again.potential, S.RasterPotential)
-    ls.write_raster(dr, tmp_path / "drivers.tif")
+    tf.write_raster(dr, tmp_path / "drivers.tif")
     model.save(tmp_path / "paths.json", lu[0], "drivers.tif", seed=6)
     again, inputs = S.Model.load(tmp_path / "paths.json")
     np.testing.assert_array_equal(_maps(again, inputs["start"], None, 6), _maps(model, lu[0], dr, 6))

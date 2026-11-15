@@ -8,9 +8,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 CASE = ("continuous_patcher", "continuous_patcher_dinamica")
 
 

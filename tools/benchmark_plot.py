@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Time ls.plot on rasters, stacks, vectors and tables of several sizes.
+"""Time tf.plot on rasters, stacks, vectors and tables of several sizes.
 
     python tools/benchmark_plot.py [raster] [vector] [table] [--cpus 0-11] [--reps 3]
 
@@ -22,7 +22,7 @@ import shapely
 import xarray as xr
 from rasterio.transform import from_origin
 
-import landschaft as ls
+import terraflux as tf
 
 rng = np.random.default_rng(0)
 work = tempfile.mkdtemp()
@@ -51,7 +51,7 @@ def run(label, obj, **kw):
     best = 1e9
     for _ in range(REPS):
         t0 = time.perf_counter()
-        p = ls.plot(obj, **kw)
+        p = tf.plot(obj, **kw)
         html = p.to_html()  # a static figure: drawn as a PNG in the page
         if p.figure is not None:
             import matplotlib.pyplot as plt
@@ -72,14 +72,14 @@ if args.cpus:
 
     lo, hi = (int(v) for v in args.cpus.split("-"))
     psutil.Process().cpu_affinity(list(range(lo, hi + 1)))
-ls.plot(grid(np.zeros((10, 10), np.float32))).to_html()  # imports and templates
+tf.plot(grid(np.zeros((10, 10), np.float32))).to_html()  # imports and templates
 big = smooth(10000, 10000)
 if "all" in cases or "raster" in cases:
     run("float raster 10000x10000 (memory)", grid(big))
     cls = (np.floor((big + 1.2) * 4) % 12).astype(np.uint8)
     run("class raster 10000x10000 (memory)", grid(cls))
-    path = ls.write_raster(grid(big), os.path.join(work, "big.tif"))
-    run("float raster 10000x10000 (lazy file)", ls.load_raster(path, chunks="auto"))
+    path = tf.write_raster(grid(big), os.path.join(work, "big.tif"))
+    run("float raster 10000x10000 (lazy file)", tf.load_raster(path, chunks="auto"))
     run("float raster 2000x2000", grid(big[:2000, :2000]))
     stack = np.stack([smooth(1000, 1000, 50 + 10 * i) for i in range(47)])
     run("stack 47 x 1000x1000", grid(stack))
@@ -96,5 +96,5 @@ if "all" in cases or "vector" in cases:
                                                            rng.uniform(4300000, 4600000, n)))
         run(f"{n} points, numeric column", pts, column="v")
 if "all" in cases or "table" in cases:
-    lc = ls.load_raster(ls.example_data("clc"))
-    run("landscape metrics table", ls.landscape_metrics(lc[:500, :500], level="class", metric=["ca", "pland"]))
+    lc = tf.load_raster(tf.example_data("clc"))
+    run("landscape metrics table", tf.landscape_metrics(lc[:500, :500], level="class", metric=["ca", "pland"]))

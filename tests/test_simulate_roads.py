@@ -9,9 +9,9 @@ import simulate_cases
 import simulate_reference
 from scipy.spatial.distance import pdist
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 CASE = ("roads", "roads_dinamica")
 CONFIGS = [(tag, fmap, diag) for tag, fmap in (("real", "fr"), ("int", "fri")) for diag in (True, False)]
 

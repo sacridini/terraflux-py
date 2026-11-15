@@ -16,9 +16,9 @@ developed at INPE for the Amazon, and the topographic wetness index.
 - map the height above the nearest drainage and the wetness index;
 - reproduce the routing of the InVEST models.
 
-Everything lives in `ls.hydro`. The flow directions and accumulations are
+Everything lives in `tf.hydro`. The flow directions and accumulations are
 those of WhiteboxTools cell for cell; where WhiteboxTools errs (it lets no
-water out at the map's edge when filling), Landschaft does what the method
+water out at the map's edge when filling), Terraflux does what the method
 intends.
 
 ## A DEM and its depressions
@@ -29,9 +29,9 @@ latitude).
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-dem = ls.load_raster(ls.surface.example_data("orelevation"))
+dem = tf.load_raster(tf.surface.example_data("orelevation"))
 print(dem.shape, float(dem.min()), float(dem.max()))
 ```
 
@@ -44,7 +44,7 @@ across valleys, the limits of the sensor. `fill` raises each to the height
 where it would spill over (Barnes, Lehman & Mulla 2014):
 
 ```python
-filled = ls.hydro.fill(dem)
+filled = tf.hydro.fill(dem)
 raised = (filled - dem).values
 print(int((raised > 0).sum()), round(float(raised.max()), 1))
 ```
@@ -58,7 +58,7 @@ rim of each depression instead, which often changes the terrain much less
 (Lindsay 2016): here the total change is 2786 m against 10046 m by filling.
 
 ```python
-breached = ls.hydro.breach(dem, max_length=30)
+breached = tf.hydro.breach(dem, max_length=30)
 print(int((breached.values != dem.values).sum()))
 ```
 
@@ -76,7 +76,7 @@ water to its steepest neighbour, coded as ESRI does (1 east, 2 south-east, 4
 south ... 128 north-east; 0 for the cells that drain off the map):
 
 ```python
-d8 = ls.hydro.flow_direction(filled)
+d8 = tf.hydro.flow_direction(filled)
 print(int((d8 == 0).sum()), int((d8 == 4).sum()))
 ```
 
@@ -90,8 +90,8 @@ direction. The accumulation sums, for each cell, the area that drains through
 it, in cells, area or specific contributing area (`units`):
 
 ```python
-acc = ls.hydro.flow_accumulation(filled)
-area = ls.hydro.flow_accumulation(filled, units="area")
+acc = tf.hydro.flow_accumulation(filled)
+area = tf.hydro.flow_accumulation(filled, units="area")
 print(float(acc.max()), round(float(area.max()) / 1e6, 2))
 ```
 
@@ -110,7 +110,7 @@ hillslopes; the multiple flow methods spread it among all lower neighbours:
 A stream starts where enough area drains through a cell:
 
 ```python
-rivers = ls.hydro.streams(acc, 500)
+rivers = tf.hydro.streams(acc, 500)
 print(int(np.nansum(rivers.values)))
 ```
 
@@ -131,7 +131,7 @@ table, which elevation alone cannot, since a valley floor high in the
 mountains and a coastal plain both have small HAND.
 
 ```python
-height = ls.hydro.hand(filled, rivers)
+height = tf.hydro.hand(filled, rivers)
 print(np.nanpercentile(height.values, [10, 50, 90]).round(1))
 ```
 
@@ -147,7 +147,7 @@ contributing area of a multiple flow method (FD8 by default) and the slope of
 Horn (1981):
 
 ```python
-wet = ls.hydro.twi(filled)
+wet = tf.hydro.twi(filled)
 low = height.values < 5
 print(np.nanpercentile(wet.values, [10, 50, 90]).round(2))
 print(round(float(np.nanmean(wet.values[low])), 2), round(float(np.nanmean(wet.values[~low & ~np.isnan(height.values)])), 2))

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cases shared by tools/make_reference_surface.py and the ls.surface tests.
+"""Cases shared by tools/make_reference_surface.py and the tf.surface tests.
 
 Every raster is a float64 array (NaN = NA) with an extent and a CRS; R rebuilds
 it with ``terra::rast(nrows, ncols, xmin, xmax, ymin, ymax, crs)``. Every case
@@ -7,7 +7,7 @@ runs R code on it (``r`` is the case's raster, the others by name) giving a
 named list, and a Python function giving a dict with the same keys. Call the
 geodiv functions as ``geodiv::`` (``terra::sds`` masks ``geodiv::sds``), and
 ``fx$`` for geodiv with its errors corrected (tools/surface_fixed.R) where
-ls.surface corrects them.
+tf.surface corrects them.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class RasterSpec:
     crs: str | None = None
 
 
-DATA = Path(__file__).resolve().parents[1] / "src" / "landschaft" / "surface" / "data"
+DATA = Path(__file__).resolve().parents[1] / "src" / "terraflux" / "surface" / "data"
 
 
 def _dataset(name: str) -> RasterSpec:
@@ -128,9 +128,9 @@ class Case:
 
 
 def surface():
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.surface
+    return tf.surface
 
 
 def _grid(spec: RasterSpec) -> dict:
@@ -181,7 +181,7 @@ def _plane_r(orders=(0, 1, 2, 3)) -> str:
 
 def _plane_cases() -> dict[str, Case]:
     # Not "tiny": with fewer cells than coefficients (order 3: 10) spatial's
-    # householder reads past its matrix; ls.surface raises an error instead.
+    # householder reads past its matrix; tf.surface raises an error instead.
     return {f"plane_{name}": Case(name, _plane_r(), _plane(name), "plane")
             for name in ("rand", "rand_na", "rect", "square", "ties", "normforest", "orforest", "orelevation")}
 
@@ -207,7 +207,7 @@ def _hybrid_cases() -> dict[str, Case]:
 
 
 def _geodiv_points(df, ny: int, nx: int) -> dict:
-    """findpeaks' columns from ls.surface.find_peaks: 1-based rows and columns, and
+    """findpeaks' columns from tf.surface.find_peaks: 1-based rows and columns, and
     ``ind``, the number of the cell among the interior cells."""
     row, col = df["row"].to_numpy() + 1, df["col"].to_numpy() + 1
     return {"x": df["x"].to_numpy(), "y": df["y"].to_numpy(), "val": df["value"].to_numpy(),
@@ -398,7 +398,7 @@ def _terrain_cases() -> dict[str, Case]:
         code = TERRAIN_R.replace("CIRCLE2", repr(2 * circle)).replace("CIRCLE", repr(circle))
         tol = dict(TERRAIN_TOL)
         if name == "elev_small":  # longitude/latitude: cell sizes from geodesics, which terra computes with the
-            # UCRT's sin/cos (ls.cost's GeographicLib uses the x87 ones of the raster package): last bits
+            # UCRT's sin/cos (tf.cost's GeographicLib uses the x87 ones of the raster package): last bits
             tol.update({"slope": (1e-12, 1e-14), "slope4": (1e-12, 1e-14), "aspect": (1e-12, 1e-14, 360.0),
                         "aspect4": (1e-12, 1e-14, 2 * np.pi)})
         if not UCRT_LIBM and "slope" not in tol:  # the slope's atan is the C library's (terra's on Windows: the

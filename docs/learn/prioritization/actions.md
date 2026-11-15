@@ -51,12 +51,12 @@ features and threats into the inputs of a multi-action problem:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
-threats = ls.load_raster(P.example_data("threats"))     # bands: deforestation, fire (intensity 0-1)
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
+threats = tf.load_raster(P.example_data("threats"))     # bands: deforestation, fire (intensity 0-1)
 
 d = P.actions_raster_data(cost, features, threats, action_cost=[30, 10],
                           target_recovery=0.3, target_conservation=0.1)
@@ -89,7 +89,7 @@ managed, to conserve features no threat harms there.</figcaption>
 </figure>
 
 `sol.maps()` returns the plan as rasters (a band for monitoring, one per threat), and `sol.action_summary()`
-as a table of every unit's actions. `ls.plot(sol)` draws it.
+as a table of every unit's actions. `tf.plot(sol)` draws it.
 
 ### With a budget
 
@@ -165,19 +165,19 @@ wetland that depends on its catchment, a restoration site that needs a seed sour
 ## Several good plans, and tables
 
 Multi-action problems take the same portfolios as the others (`add_gap_portfolio`, `add_cuts_portfolio`,
-... [chapter 12.6](tradeoffs.md#alternative-plans)), and `ls.plot` draws their frequency of every action.
+... [chapter 12.6](tradeoffs.md#alternative-plans)), and `tf.plot` draws their frequency of every action.
 
 `actions_raster_data` is for rasters. For properties, watersheds or any other units, `actions_data` takes
 the tables of the R package prioriactions directly: planning units, features, their distribution, threats,
 their distribution, sensitivity and boundary. Its results are identical to prioriactions', and much
-faster on large problems: Landschaft solves a multi-action problem of 100 000 units to a 1 % gap in under a
+faster on large problems: Terraflux solves a multi-action problem of 100 000 units to a 1 % gap in under a
 second, where a general solver needs about a minute.
 
 ## Zones, actions or restoration
 
 Three questions about *what to do where* look alike and lead to different models:
 
-| | The question | Per planning unit | In Landschaft |
+| | The question | Per planning unit | In Terraflux |
 |---|---|---|---|
 | **Zones** | which use does every place get? | one zone at most, exclusive | `problem({zone: cost}, ..., contribution=)` |
 | **Actions** | which threats are fought where? | several actions, with monitoring | `actions_raster_data`, `actions_data` |
@@ -195,11 +195,11 @@ zone at most: `add_mandatory_allocation_constraints` makes it exactly one, for p
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 pz = (P.problem({"protect": cost, "use": cost * 0.45}, features, contribution={"use": 0.5})
         .add_min_set_objective()
         .add_relative_targets(0.3)

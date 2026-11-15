@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Scenarios and replicates in parallel, their summaries and plots (ls.simulate phase 7c)."""
+"""Scenarios and replicates in parallel, their summaries and plots (tf.simulate phase 7c)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import pytest
 import simulate_cases
 import xarray as xr
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _model(n=40):
@@ -65,8 +65,8 @@ def test_years_keep_and_dataset():
 
 
 def test_from_a_projection():
-    lu = ls.load_raster(S.example_data("sibuyan_landuse"))
-    dr = ls.load_raster(S.example_data("sibuyan_drivers")).sel(band=["dist_sea", "dist_roads"])
+    lu = tf.load_raster(S.example_data("sibuyan_landuse"))
+    dr = tf.load_raster(S.example_data("sibuyan_drivers")).sel(band=["dist_sea", "dist_roads"])
     proj = S.run(lu[0], lu[1], dr, until=2014, seed=1, woe=250, validate=False)
     ens = S.scenarios(proj, replicates=2, seed=1)
     assert ens.years == [2011, 2012, 2013, 2014]
@@ -102,13 +102,13 @@ def test_errors():
 def test_plots():
     model, land, fast = _model()
     sim = model.run(land, seed=1)
-    kinds = [(p.kind, p.title) for p in ls.plot(sim).panels]
+    kinds = [(p.kind, p.title) for p in tf.plot(sim).panels]
     assert kinds[0][0] == "map" and ("chart", "cover") in kinds and ("chart", "flows") in kinds
     ens = S.scenarios(model, land, replicates=2, seed=1, scenarios={"trend": {}, "fast": {"demand": fast}})
-    kinds = [(p.kind, p.title) for p in ls.plot(ens).panels]
+    kinds = [(p.kind, p.title) for p in tf.plot(ens).panels]
     assert kinds[0][0] == "map" and ("chart", "cover") in kinds
-    lu = ls.load_raster(S.example_data("sibuyan_landuse"))
-    dr = ls.load_raster(S.example_data("sibuyan_drivers")).sel(band=["dist_sea", "dist_roads"])
+    lu = tf.load_raster(S.example_data("sibuyan_landuse"))
+    dr = tf.load_raster(S.example_data("sibuyan_drivers")).sel(band=["dist_sea", "dist_roads"])
     proj = S.run(lu[0], lu[1], dr, until=2013, seed=1, woe=250)
-    kinds = [p.kind for p in ls.plot(proj).panels]
+    kinds = [p.kind for p in tf.plot(proj).panels]
     assert kinds.count("chart") >= 3 and "html" in kinds  # no georeference: the last map as a chart

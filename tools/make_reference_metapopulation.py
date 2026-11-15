@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What R's MetaLandSim (2.0) gives, for landschaft's tests (tests/test_dispersal.py), written to
+"""What R's MetaLandSim (2.0) gives, for terraflux's tests (tests/test_dispersal.py), written to
 tests/data/reference/metapopulation/metapopulation.npz:
 
     python tools/make_reference_metapopulation.py

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Figures of the Learn chapters on conservation planning (docs/learn/prioritization*) and of the tutorial on
 restoration plans (rest_*, docs/tutorials/restoration-plans.md), computed with
-ls.prioritize on Serra Verde (ls.prioritize.example_data). The numbers quoted in the text are written to
+tf.prioritize on Serra Verde (tf.prioritize.example_data). The numbers quoted in the text are written to
 build/prioritize_figures.json.
 
     python tools/make_prioritize_figures.py            # every figure
@@ -27,13 +27,13 @@ from matplotlib.colors import (
 )
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Patch
 
-import landschaft as ls
+import terraflux as tf
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs" / "assets" / "figures"
 NUMBERS = ROOT / "build" / "prioritize_figures.json"
-P = ls.prioritize
+P = tf.prioritize
 
 # ----------------------------------------------------------------------------- style
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e2dc"
@@ -78,7 +78,7 @@ def style_chart(ax, grid_axis="y"):
 
 # ----------------------------------------------------------------------------- data
 def load(name):
-    return ls.load_raster(P.example_data(name))
+    return tf.load_raster(P.example_data(name))
 
 
 COST = load("cost")
@@ -329,7 +329,7 @@ def prio_spatial_tools():
     plain = base.add_highs_solver(gap=0.01).solve()
     neigh = base.add_neighbors_constraints(2).add_highs_solver(gap=0.01, time_limit=60).solve()
     contig = base.add_contiguity_constraints().add_highs_solver(gap=0.05, time_limit=120).solve()
-    term = ls.load_raster(P.example_data("terminals"))
+    term = tf.load_raster(P.example_data("terminals"))
     tc = np.zeros(c.shape)
     tv = np.nan_to_num(term.values)
     for i in range(c.shape[0]):
@@ -564,7 +564,7 @@ def prio_condition():
 @figure
 def prio_extinction():
     r = np.linspace(0, 1, 300)
-    from landschaft.prioritize._milp_compile import sar_lines
+    from terraflux.prioritize._milp_compile import sar_lines
 
     c, s = sar_lines(0.25, 6)
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.5))
@@ -749,8 +749,8 @@ def rest():
         inside = codes == code
         eco_props.values[:, inside] = np.nanmean(props.values[:, inside], axis=1)[:, None]
     d["eco_props"] = eco_props
-    d["veg"] = ls.original_vegetation(cover, NATURAL, ANTHROPIC, past=d["past_cover"], ecoregions=eco_props)
-    d["aoh"] = ls.sdm.area_of_habitat((FEATURES > 0).astype("float32"), cover, NATURAL, suitability=SUITABILITY,
+    d["veg"] = tf.original_vegetation(cover, NATURAL, ANTHROPIC, past=d["past_cover"], ecoregions=eco_props)
+    d["aoh"] = tf.sdm.area_of_habitat((FEATURES > 0).astype("float32"), cover, NATURAL, suitability=SUITABILITY,
                                       original=d["veg"])
     d["eco"] = P.ecosystem_areas(cover, NATURAL, ANTHROPIC, d["ecoregions"])
     d["reduction"] = ((4 * cover.sel(band="pasture") + 7 * cover.sel(band="cropland"))
@@ -929,8 +929,8 @@ def rest_plan():
 @figure
 def rest_intactness():
     d = rest()
-    q = ls.intactness(d["footprint"], radius=3)
-    g = ls.intactness_gradient(d["footprint"], d["reduction"], radius=3)
+    q = tf.intactness(d["footprint"], radius=3)
+    g = tf.intactness_gradient(d["footprint"], d["reduction"], radius=3)
     fig, axes = plt.subplots(1, 3, figsize=(14, 3.4))
     continuous(axes[0], d["footprint"].values, CMAP_THREAT, "A. Human footprint", "index", zero_empty=False)
     continuous(axes[1], q.values, CMAP_BIO, "B. Ecological intactness", "0-1", vmin=0, vmax=1, zero_empty=False)

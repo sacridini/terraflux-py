@@ -18,11 +18,11 @@ import pytest
 import scipy.ndimage as ndi
 import xarray as xr
 
-import landschaft as ls
+import terraflux as tf
 import scenes
 from conftest import mspa_input
 from gtb_reference import find_gdl
-from landschaft._core import detail as D
+from terraflux._core import detail as D
 
 
 # --- IDL routines -------------------------------------------------------------------
@@ -90,7 +90,7 @@ def two_squares(gap: int = 6):
 
 def test_influence_two_objects():
     a = two_squares(6)
-    r = ls.influence_zones(a, 50)
+    r = tf.influence_zones(a, 50)
     assert r.n_objects == 2 and r.object_area.tolist() == [100, 100]
     cls = np.asarray(r.classes)
     # the watershed line runs midway between the squares
@@ -110,9 +110,9 @@ def test_min_area_holes_missing_and_buffer():
     a[10:12, 10:12] = 1  # a hole
     a[14, 14] = 0  # missing inside the object
     a[0, 39] = 0
-    r0 = ls.influence_zones(a, 10)
+    r0 = tf.influence_zones(a, 10)
     assert (np.asarray(r0.classes)[10:12, 10:12] == 0).all() and (np.asarray(r0.ids)[10:12, 10:12] == -1).all()
-    r = ls.influence_zones(a, 10, buffer=3)
+    r = tf.influence_zones(a, 10, buffer=3)
     cls, ids = np.asarray(r.classes), np.asarray(r.ids)
     assert r.n_objects == 1
     assert (cls[10:12, 10:12] == 160).all()  # as in GTB, the buffer also covers holes near the object
@@ -122,12 +122,12 @@ def test_min_area_holes_missing_and_buffer():
     assert cls[26, 10] == 160 and ids[26, 10] == -6  # inside the buffer
     assert r.object_area.tolist() == [400 - 4 - 1]
     with pytest.raises(ValueError, match="too large"):
-        ls.influence_zones(a, 1000)
+        tf.influence_zones(a, 1000)
 
 
 def test_core_buffer():
     a = mspa_input((40, 60), foreground=[np.s_[5:35, 5:35], np.s_[5:9, 40:55]])
-    r = ls.influence_zones(a, 10, core_buffer=2)
+    r = tf.influence_zones(a, 10, core_buffer=2)
     cls = np.asarray(r.classes)
     assert r.n_objects == 1  # the thin strip has no core
     assert (cls[5:7, 10] == 176).all()  # the object rim is not part of the core
@@ -136,7 +136,7 @@ def test_core_buffer():
 
 def test_proximity_two_objects():
     a = two_squares(6)
-    r = ls.proximity(a, 50)
+    r = tf.proximity(a, 50)
     assert r.n_objects == 2
     cag = int(round(np.sqrt(2 * 100 * 100)))
     assert (r.lines["cag"] == cag).all() and (r.lines["nbr"] == 2).all()
@@ -154,22 +154,22 @@ def test_proximity_two_objects():
 
 
 def test_proximity_xarray_and_write(tmp_path):
-    da = ls.load_raster(ls.example_data("input"))
-    r = ls.proximity(da)
+    da = tf.load_raster(tf.example_data("input"))
+    r = tf.proximity(da)
     assert isinstance(r.cag, xr.DataArray) and r.cag.rio.crs == da.rio.crs
     assert r.source.endswith("input.tif")
-    path = ls.write_raster(r.classes, tmp_path / "prox.tif")
+    path = tf.write_raster(r.classes, tmp_path / "prox.tif")
     assert path.exists()
-    z = ls.influence_zones(da, buffer=10)
+    z = tf.influence_zones(da, buffer=10)
     assert z.classes.attrs["landschaft_product"] == "INFLUENCE_ZONES"
-    ls.write_raster(z.classes, tmp_path / "influ.tif")
+    tf.write_raster(z.classes, tmp_path / "influ.tif")
 
 
 def test_invalid_input():
-    with pytest.raises(ls.InvalidInputError):
-        ls.influence_zones(np.full((5, 5), 3, np.uint8))
+    with pytest.raises(tf.InvalidInputError):
+        tf.influence_zones(np.full((5, 5), 3, np.uint8))
     with pytest.raises(ValueError):
-        ls.proximity(two_squares(), 0)
+        tf.proximity(two_squares(), 0)
 
 
 # --- agreement with GDL (HIST_EQUAL) ---------------------------------------------

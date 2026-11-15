@@ -16,7 +16,7 @@ processes, in turn, reshape the arrangement.
     - two theories from biogeography that explain why spatial structure
       matters: island biogeography and metapopulations;
     - why *habitat* depends on the organism;
-    - how a landscape becomes a map, and the kinds of maps Landschaft reads.
+    - how a landscape becomes a map, and the kinds of maps Terraflux reads.
 
 ## A science of spatial heterogeneity
 
@@ -24,7 +24,7 @@ The term *Landschaftsökologie*, landscape ecology, was coined by the German
 geographer Carl Troll in 1939, while interpreting aerial photographs: seen
 from above, vegetation, soils, water and land use formed mosaics whose parts
 clearly influenced one another (Troll, 1939). The name of this package comes
-from the same word, *Landschaft*.
+from the same word, *Terraflux*.
 
 For decades the field grew mostly in Europe, close to geography, land-use
 planning and the study of cultural landscapes. In the 1980s a second
@@ -88,7 +88,7 @@ landscapes often change gradually: tree cover thins out, grazing pressure
 varies continuously, the matrix itself offers food and shelter to many
 species. The **gradient model** (McGarigal & Cushman, 2005) and the
 **variegation model** (McIntyre & Hobbs, 1999) describe landscapes as
-continuous surfaces rather than patches. Landschaft covers both views:
+continuous surfaces rather than patches. Terraflux covers both views:
 patch-based tools on categorical maps, and tools that work on continuous
 maps (percentage of tree cover, resistance to movement) where the gradient
 view fits better.
@@ -157,7 +157,7 @@ map propagate into every metric computed from it, sometimes strongly
 (Langford et al., 2006). Know your map: its source, date, resolution, legend
 and accuracy.
 
-Landschaft works on **raster** maps: grids of cells, each holding a number.
+Terraflux works on **raster** maps: grids of cells, each holding a number.
 Four kinds appear in this course ([core concepts](../getting-started/concepts.md)
 has the technical details):
 
@@ -175,9 +175,9 @@ European map with 44 classes, at 25 m resolution:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-landcover = ls.load_raster(ls.example_data("clc"))
+landcover = tf.load_raster(tf.example_data("clc"))
 landcover.shape, landcover.rio.resolution(), landcover.rio.crs
 ```
 
@@ -198,11 +198,11 @@ three forest classes; a grassland insect in pastures (18) and natural
 grassland (26):
 
 ```python
-forest = ls.reclassify(landcover, foreground=[23, 24, 25])
-grassland = ls.reclassify(landcover, foreground=[18, 26])
+forest = tf.reclassify(landcover, foreground=[23, 24, 25])
+grassland = tf.reclassify(landcover, foreground=[18, 26])
 
 for name, habitat in [("forest bird", forest), ("grassland insect", grassland)]:
-    table = ls.Landscape(habitat).class_metrics(["pland", "np", "area_mn"])
+    table = tf.Landscape(habitat).class_metrics(["pland", "np", "area_mn"])
     row = table[table["class"] == 2].iloc[0]          # class 2 = habitat
     print(f"{name:17s} {row.pland:5.1f}% of the map in {row.np:.0f} patches "
           f"of {row.area_mn:.0f} ha on average")
@@ -217,7 +217,7 @@ of patches and their mean area.
 
 ## Three ways of seeing a landscape
 
-The tools of Landschaft look at a landscape in three complementary ways,
+The tools of Terraflux look at a landscape in three complementary ways,
 which organise the rest of the course:
 
 | View | The landscape is... | Questions | Chapters |

@@ -43,10 +43,10 @@ def parse_table(text: str) -> tuple[list[str], list[list[str]]]:
 
 
 def run_case(name: str, tmp: Path, **overrides):
-    """Run a case with ls.prioritize.zonation on the rasters written as the harness writes them."""
+    """Run a case with tf.prioritize.zonation on the rasters written as the harness writes them."""
     import sys
 
-    import landschaft as ls
+    import terraflux as tf
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
     from make_reference_prioritize import write_raster
@@ -82,4 +82,4 @@ def run_case(name: str, tmp: Path, **overrides):
     kwargs.update(overrides)
     for r in case.extra:  # rasters named by link or post-processing files
         path(r)
-    return ls.prioritize.zonation([path(r) for r in case.layers], **kwargs)
+    return tf.prioritize.zonation([path(r) for r in case.layers], **kwargs)

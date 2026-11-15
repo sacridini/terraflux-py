@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.move against R's amt 0.3.1 (tests/move_cases.py, group "amt"; tools/amt_fixed.R)."""
+"""tf.move against R's amt 0.3.1 (tests/move_cases.py, group "amt"; tools/amt_fixed.R)."""
 
 import datetime
 from pathlib import Path
@@ -10,7 +10,7 @@ import pytest
 import xarray as xr
 from affine import Affine
 
-import landschaft as ls
+import terraflux as tf
 from move_cases import EXTRACT_RASTER
 from test_move import FISHERS, METRES, same, same_angle, same_libm, track_set
 
@@ -29,7 +29,7 @@ def inputs():
 
 @pytest.mark.parametrize("name", ["utm", "plain", "ll"])
 def test_steps_are_amts(ref, inputs, name):
-    s = ls.move.steps(track_set(inputs, name))
+    s = tf.move.steps(track_set(inputs, name))
     case = f"amt_steps_{name}"
     same_libm(s["sl_"], ref[f"{case}/sl"], "sl_", METRES if name == "ll" else 1e-14)
     same_angle(s["direction_p"], ref[f"{case}/dir"], s["sl_"], "direction_p")
@@ -42,28 +42,28 @@ def test_steps_are_amts(ref, inputs, name):
 def test_steps_columns(inputs):
     tr = track_set(inputs, "utm")
     tr["speed"] = np.arange(len(tr), dtype=float)
-    s = ls.move.steps(tr, keep_cols="both")
+    s = tf.move.steps(tr, keep_cols="both")
     assert list(s.columns) == ["track", "x1_", "x2_", "y1_", "y2_", "sl_", "direction_p", "ta_", "t1_", "t2_", "dt_",
                                "speed_start", "speed_end"]
     assert len(s) == len(tr) - 2  # two tracks
     same(s["speed_end"] - s["speed_start"], np.ones(len(s)))
     assert str(s["t1_"].dtype) == "datetime64[ns, UTC]"
-    assert list(ls.move.steps(tr, keep_cols="end").columns)[-1] == "speed"
+    assert list(tf.move.steps(tr, keep_cols="end").columns)[-1] == "speed"
 
 
 def test_resample_is_amts(ref, inputs):
     tr = track_set(inputs, "utm")
     t = lambda d: d["time"].astype("int64").to_numpy() / 1e9  # noqa: E731
-    a = ls.move.resample(tr, 60, 15)
+    a = tf.move.resample(tr, 60, 15)
     same(t(a), ref["amt_resample/t_a"])
     same(a["burst_"], ref["amt_resample/burst_a"])
-    b = ls.move.resample(tr, "15min", datetime.timedelta(minutes=2), start=2)
+    b = tf.move.resample(tr, "15min", datetime.timedelta(minutes=2), start=2)
     same(t(b), ref["amt_resample/t_b"])
     same(b["burst_"], ref["amt_resample/burst_b"])
-    f = ls.move.filter_min_n_burst(a, 4)
+    f = tf.move.filter_min_n_burst(a, 4)
     same(t(f), ref["amt_resample/t_f"])
     same(f["burst_"], ref["amt_resample/burst_f"])
-    s = ls.move.steps(a)
+    s = tf.move.steps(a)
     same_libm(s["sl_"], ref["amt_resample/sl"])
     same_libm(s["direction_p"], ref["amt_resample/dir"])
     same_libm(s["ta_"], ref["amt_resample/ta"])
@@ -72,29 +72,29 @@ def test_resample_is_amts(ref, inputs):
 
 def test_summaries_are_amts(ref, inputs):
     tr = track_set(inputs, "utm")
-    same(ls.move.nsd(tr), ref["amt_summaries_utm/nsd"])
-    same(ls.move.msd(tr), ref["amt_summaries_utm/msd"])
-    same(ls.move.cum_dist(tr), ref["amt_summaries_utm/cum"])
-    same(ls.move.tot_dist(tr), ref["amt_summaries_utm/tot"])
-    same(ls.move.straightness(tr), ref["amt_summaries_utm/straight"])
-    same_libm(ls.move.sinuosity(tr), ref["amt_summaries_utm/sinuosity"])
-    same_libm(ls.move.tac(tr), ref["amt_summaries_utm/tac"])
-    assert list(ls.move.tac(tr).index) == ["p1", "p2"]
+    same(tf.move.nsd(tr), ref["amt_summaries_utm/nsd"])
+    same(tf.move.msd(tr), ref["amt_summaries_utm/msd"])
+    same(tf.move.cum_dist(tr), ref["amt_summaries_utm/cum"])
+    same(tf.move.tot_dist(tr), ref["amt_summaries_utm/tot"])
+    same(tf.move.straightness(tr), ref["amt_summaries_utm/straight"])
+    same_libm(tf.move.sinuosity(tr), ref["amt_summaries_utm/sinuosity"])
+    same_libm(tf.move.tac(tr), ref["amt_summaries_utm/tac"])
+    assert list(tf.move.tac(tr).index) == ["p1", "p2"]
     ll = track_set(inputs, "ll")
-    same(ls.move.nsd(ll), ref["amt_summaries_ll/nsd"])
-    same(ls.move.msd(ll), ref["amt_summaries_ll/msd"])
-    same_libm(ls.move.cum_dist(ll), ref["amt_summaries_ll/cum"])
-    same_libm(ls.move.tot_dist(ll), ref["amt_summaries_ll/tot"])
+    same(tf.move.nsd(ll), ref["amt_summaries_ll/nsd"])
+    same(tf.move.msd(ll), ref["amt_summaries_ll/msd"])
+    same_libm(tf.move.cum_dist(ll), ref["amt_summaries_ll/cum"])
+    same_libm(tf.move.tot_dist(ll), ref["amt_summaries_ll/tot"])
 
 
 def test_fits_are_amts(ref, inputs):
-    s = ls.move.steps(track_set(inputs, "utm"))
+    s = tf.move.steps(track_set(inputs, "utm"))
     got = []
     for _, one in s.groupby("track", sort=False):
         sl, ta = one["sl_"].to_numpy(), one["ta_"].to_numpy()
-        g, v = ls.move.fit_distr(sl, "gamma"), ls.move.fit_distr(ta, "vonmises")
-        e, ln = ls.move.fit_distr(sl[sl > 0], "exp"), ls.move.fit_distr(sl[sl > 0], "lnorm")
-        h, u = ls.move.fit_distr(sl, "hnorm"), ls.move.fit_distr(ta, "unif")
+        g, v = tf.move.fit_distr(sl, "gamma"), tf.move.fit_distr(ta, "vonmises")
+        e, ln = tf.move.fit_distr(sl[sl > 0], "exp"), tf.move.fit_distr(sl[sl > 0], "lnorm")
+        h, u = tf.move.fit_distr(sl, "hnorm"), tf.move.fit_distr(ta, "unif")
         got += [g.params["shape"], g.params["scale"], *g.vcov.to_numpy().ravel(order="F"), v.params["kappa"],
                 v.vcov.iloc[0, 0], e.params["rate"], ln.params["meanlog"], ln.params["sdlog"], h.params["sd"],
                 u.params["min"], u.params["max"]]
@@ -105,30 +105,30 @@ def test_random_numbers_are_amts(ref):
     d = [("gamma", {"shape": 0.4, "scale": 120}), ("gamma", {"shape": 3.5, "scale": 20}), ("exp", {"rate": 0.02}),
          ("lnorm", {"meanlog": 3, "sdlog": 0.7}), ("hnorm", {"sd": 50}), ("unif", {}),
          ("vonmises", {"kappa": 0}), ("vonmises", {"kappa": 2.5})]
-    got = [ls.move.random_numbers(ls.move.make_distribution(n, **p), 300, seed=17) for n, p in d]
+    got = [tf.move.random_numbers(tf.move.make_distribution(n, **p), 300, seed=17) for n, p in d]
     same_libm(np.concatenate(got), ref["amt_random_numbers/draws"])
 
 
 def test_random_steps_are_amts(ref, inputs):
-    s = ls.move.steps(track_set(inputs, "utm"))
-    r = ls.move.random_steps(s, n_control=5, seed=42)
+    s = tf.move.steps(track_set(inputs, "utm"))
+    r = tf.move.random_steps(s, n_control=5, seed=42)
     for key, col in [("x2", "x2_"), ("y2", "y2_"), ("sl", "sl_"), ("ta", "ta_")]:
         same_libm(r[col], ref[f"amt_random_steps/{key}"], col)
     same(r["case_"], ref["amt_random_steps/case"])
     same(r["step_id_"], ref["amt_random_steps/id"])
     assert "direction_p" not in r.columns
-    sl = r.attrs["landschaft.move"]["sl_distr"]
+    sl = r.attrs["terraflux.move"]["sl_distr"]
     assert set(sl) == {"p1", "p2"} and sl["p1"].name == "gamma"
-    u = ls.move.random_steps(s, n_control=3, sl_distr=ls.move.make_distribution("exp", rate=0.01),
-                             ta_distr=ls.move.make_distribution("unif"), seed=3)
+    u = tf.move.random_steps(s, n_control=3, sl_distr=tf.move.make_distribution("exp", rate=0.01),
+                             ta_distr=tf.move.make_distribution("unif"), seed=3)
     for key, col in [("ux2", "x2_"), ("uy2", "y2_"), ("usl", "sl_"), ("uta", "ta_")]:
         same_libm(u[col], ref[f"amt_random_steps/{key}"], col)
 
 
 def test_random_steps_of_bursts_are_amts(ref, inputs):
-    b = ls.move.resample(track_set(inputs, "utm"), 60, 15)
+    b = tf.move.resample(track_set(inputs, "utm"), 60, 15)
     with pytest.warns(UserWarning, match="fewer than 3 steps"):
-        r = ls.move.random_steps(ls.move.steps(b), seed=7)
+        r = tf.move.random_steps(tf.move.steps(b), seed=7)
     for key, col in [("x2", "x2_"), ("y2", "y2_"), ("sl", "sl_"), ("ta", "ta_")]:
         same_libm(r[col], ref[f"amt_random_steps_bursts/{key}"], col)
     same(r["case_"], ref["amt_random_steps_bursts/case"])
@@ -143,15 +143,15 @@ def codes(c):
 
 def test_time_of_day_is_amts(ref, inputs):
     tr = track_set(inputs, "ll")
-    same(codes(ls.move.time_of_day(tr)), ref["amt_time_of_day/tod"])
-    same(codes(ls.move.time_of_day(tr, include_crepuscule=True)), ref["amt_time_of_day/crep"])
-    s = ls.move.steps(tr)
-    same(codes(ls.move.time_of_day(s, include_crepuscule=True)), ref["amt_time_of_day/end"])
-    same(codes(ls.move.time_of_day(s, where="start")), ref["amt_time_of_day/start"])
+    same(codes(tf.move.time_of_day(tr)), ref["amt_time_of_day/tod"])
+    same(codes(tf.move.time_of_day(tr, include_crepuscule=True)), ref["amt_time_of_day/crep"])
+    s = tf.move.steps(tr)
+    same(codes(tf.move.time_of_day(s, include_crepuscule=True)), ref["amt_time_of_day/end"])
+    same(codes(tf.move.time_of_day(s, where="start")), ref["amt_time_of_day/start"])
     assert np.isnan(ref["amt_time_of_day/tod"]).any()  # near the pole, days without a sunrise
-    f = ls.load_tracks(FISHERS, sort=False)
+    f = tf.load_tracks(FISHERS, sort=False)
     f = f[~f.geometry.is_empty]
-    same(codes(ls.move.time_of_day(f, include_crepuscule=True)), ref["amt_time_of_day_fishers/crep"])
+    same(codes(tf.move.time_of_day(f, include_crepuscule=True)), ref["amt_time_of_day_fishers/crep"])
 
 
 def test_extract_covariates_is_amts(ref, inputs):
@@ -165,38 +165,38 @@ def test_extract_covariates_is_amts(ref, inputs):
                          coords={"y": y1 - res * (np.arange(p["nrows"]) + 0.5),
                                  "x": x0 + res * (np.arange(p["ncols"]) + 0.5)})
     cover = cover.rio.write_crs("EPSG:32723").rio.write_transform(Affine(res, 0, x0, 0, -res, y1))
-    got = ls.move.extract_covariates(tr, cover)["cover"]
+    got = tf.move.extract_covariates(tr, cover)["cover"]
     same(got, ref["amt_extract/track"])
     assert np.isnan(ref["amt_extract/track"]).any() and not np.isnan(ref["amt_extract/track"]).all()
-    s = ls.move.steps(tr)
-    both = ls.move.extract_covariates(s, cover, where="both")
+    s = tf.move.steps(tr)
+    both = tf.move.extract_covariates(s, cover, where="both")
     same(both["cover_start"], ref["amt_extract/both_start"])
     same(both["cover_end"], ref["amt_extract/both_end"])
-    same(ls.move.extract_covariates(s, cover, where="start")["cover"], ref["amt_extract/start"])
-    r = ls.move.random_steps(s, n_control=5, seed=42)
-    same(ls.move.extract_covariates(r, {"cover": cover})["cover"], ref["amt_extract/random"])
+    same(tf.move.extract_covariates(s, cover, where="start")["cover"], ref["amt_extract/start"])
+    r = tf.move.random_steps(s, n_control=5, seed=42)
+    same(tf.move.extract_covariates(r, {"cover": cover})["cover"], ref["amt_extract/random"])
 
 
 def test_distributions():
-    g = ls.move.make_distribution("gamma", shape=2, rate=0.5)
+    g = tf.move.make_distribution("gamma", shape=2, rate=0.5)
     assert g.params == {"shape": 2, "rate": 0.5}
-    a = ls.move.random_numbers(g, 50, seed=1)
-    b = ls.move.random_numbers(ls.move.make_distribution("gamma", shape=2, scale=2.0), 50, seed=1)
+    a = tf.move.random_numbers(g, 50, seed=1)
+    b = tf.move.random_numbers(tf.move.make_distribution("gamma", shape=2, scale=2.0), 50, seed=1)
     same(a, b)
     with pytest.raises(ValueError, match="not implemented"):
-        ls.move.make_distribution("weibull")
+        tf.move.make_distribution("weibull")
     with pytest.raises(ValueError, match="parameters of exp"):
-        ls.move.make_distribution("exp", scale=3)
-    t = ls.move.random_numbers(ls.move.make_distribution("vonmises", kappa=4), 1000, seed=2)
+        tf.move.make_distribution("exp", scale=3)
+    t = tf.move.random_numbers(tf.move.make_distribution("vonmises", kappa=4), 1000, seed=2)
     assert t.min() > -np.pi and t.max() <= np.pi
     # exp: the maximum likelihood rate, where amt's BFGS fails (mean steps over 1000 m)
-    sl = ls.move.random_numbers(ls.move.make_distribution("exp", rate=1 / 2500), 400, seed=5)
-    assert np.isclose(ls.move.fit_distr(sl, "exp").params["rate"], 1 / np.mean(sl), rtol=1e-15)
+    sl = tf.move.random_numbers(tf.move.make_distribution("exp", rate=1 / 2500), 400, seed=5)
+    assert np.isclose(tf.move.fit_distr(sl, "exp").params["rate"], 1 / np.mean(sl), rtol=1e-15)
 
 
 def test_random_steps_survive_pandas_concat(inputs):
     # the fitted distributions in attrs hold a vcov DataFrame; pandas compares attrs when it concatenates
-    r = ls.move.random_steps(ls.move.steps(track_set(inputs, "utm")), n_control=5, seed=42)
+    r = tf.move.random_steps(tf.move.steps(track_set(inputs, "utm")), n_control=5, seed=42)
     both = pd.concat([r, r])
     assert both.attrs == r.attrs
     repr(r.iloc[:, :3].join(r.iloc[:, 3:]))
@@ -204,9 +204,9 @@ def test_random_steps_survive_pandas_concat(inputs):
 
 def test_random_steps_refuses_lonlat(inputs):
     with pytest.raises(ValueError, match="projected"):
-        ls.move.random_steps(ls.move.steps(track_set(inputs, "ll")))
+        tf.move.random_steps(tf.move.steps(track_set(inputs, "ll")))
 
 
 def test_time_of_day_needs_a_crs(inputs):
     with pytest.raises(ValueError, match="no CRS"):
-        ls.move.time_of_day(track_set(inputs, "plain"))
+        tf.move.time_of_day(track_set(inputs, "plain"))

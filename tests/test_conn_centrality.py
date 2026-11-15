@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from scipy.sparse.csgraph import shortest_path
 
-import landschaft as ls
+import terraflux as tf
 from test_conn_reference import SCENES
 
 REF = Path(__file__).parent / "data" / "reference" / "conn"
@@ -31,9 +31,9 @@ def test_centrality_matches_makurhini(grp):
     gpd = pytest.importorskip("geopandas")
     row = grp.iloc[0]
     if row["kind"] == "vector":
-        g = ls.HabitatGraph.from_vector(gpd.read_file(REF / "polygons.gpkg"), id="id", distance="centroid")
+        g = tf.HabitatGraph.from_vector(gpd.read_file(REF / "polygons.gpkg"), id="id", distance="centroid")
     else:
-        g = ls.HabitatGraph.from_raster(REF / "habitat_nodes_raster.tif", distance="centroid")
+        g = tf.HabitatGraph.from_raster(REF / "habitat_nodes_raster.tif", distance="centroid")
     probability = None if row["probability"] == "" else float(row["probability"])
     ours = g.centrality(float(row["distance"]), probability=probability, binary=row["binary"] == "TRUE")
     ours = ours.set_index("id")
@@ -54,7 +54,7 @@ def test_centrality_matches_makurhini(grp):
 
 def test_walktrap_needs_igraph():
     ids, a, D = SCENES["points60"]
-    frame = ls.HabitatGraph(a, D, ids=ids).centrality(8000)
+    frame = tf.HabitatGraph(a, D, ids=ids).centrality(8000)
     try:
         import igraph  # noqa: F401
     except ImportError:
@@ -98,7 +98,7 @@ def _brute_betweenness(W):
 def test_centrality_brute_force(binary):
     area, D = _random_graph()
     t = 2500.0
-    g = ls.HabitatGraph(area, D)
+    g = tf.HabitatGraph(area, D)
     ours = g.centrality(t, binary=binary)
     if binary:
         W = ((D < t) & (D > 0)).astype(float)
@@ -121,21 +121,21 @@ def test_centrality_brute_force(binary):
     else:
         np.testing.assert_allclose(ours["eigen"], lead, rtol=1e-10)
     # one thread and many agree to the bit
-    one = ls.HabitatGraph(area, D, n_threads=1).centrality(t, binary=binary)
+    one = tf.HabitatGraph(area, D, n_threads=1).centrality(t, binary=binary)
     pd.testing.assert_frame_equal(one, ours)
 
 
 def test_centrality_options():
     ids, a, D = SCENES["points60"]
-    g = ls.HabitatGraph(a, D, ids=ids)
+    g = tf.HabitatGraph(a, D, ids=ids)
     both = g.centrality([4000, 8000])
     assert list(both["distance"].unique()) == [4000.0, 8000.0]
     assert "strength" in g.centrality(8000, probability=0.5)  # a probability makes it weighted
-    conefor = ls.HabitatGraph(a, D, ids=ids, convention="conefor").centrality(float(D[0, 1]))
+    conefor = tf.HabitatGraph(a, D, ids=ids, convention="conefor").centrality(float(D[0, 1]))
     makurhini = g.centrality(float(D[0, 1]))
     assert conefor["degree"].sum() == makurhini["degree"].sum() + 2  # the pair at the threshold
     with pytest.raises(ValueError, match="kind='distance'"):
-        ls.HabitatGraph(a, np.exp(-D / 5000), ids=ids, kind="probability").centrality(0.1)
+        tf.HabitatGraph(a, np.exp(-D / 5000), ids=ids, kind="probability").centrality(0.1)
 
 
 # --------------------------------------------------------------- Conefor BC
@@ -161,7 +161,7 @@ def test_betweenness_matches_conefor(scene):
     ref = ref[ref["scene"] == scene]
     ids, a, D = SCENES[scene]
     d, p = float(ref["distance"].iloc[0]), float(ref["probability"].iloc[0])
-    g = ls.HabitatGraph(a, D, ids=ids, convention="conefor")
+    g = tf.HabitatGraph(a, D, ids=ids, convention="conefor")
     ours = g.node_importance(["BC", "BCIIC", "BCPC"], distance=d, probability=p).set_index("id").loc[ref["Node"]]
     # Conefor 2.7.1 prints 6 significant digits.
     for col in ("BC", "dBC_IIC", "varBC_IIC"):
@@ -183,7 +183,7 @@ def test_betweenness_matches_conefor(scene):
 def test_betweenness_matches_centrality():
     """Conefor's BC is igraph's betweenness of the links, normalised by (n - 1)(n - 2) / 2."""
     ids, a, D = SCENES["clusters50"]
-    g = ls.HabitatGraph(a, D, ids=ids, convention="conefor")
+    g = tf.HabitatGraph(a, D, ids=ids, convention="conefor")
     n = len(a)
     bc = g.node_importance(["BC"], distance=5000)["BC"].to_numpy()
     bwc = g.centrality(5000)["BWC"].to_numpy()

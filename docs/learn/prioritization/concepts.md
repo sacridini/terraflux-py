@@ -4,14 +4,14 @@
 
 Every prioritization, from a small watershed to a continent, is built from the same handful of
 ingredients. Once they are clear, any planning problem can be read as a list of answers to five
-questions, and any script of `ls.prioritize` as the same list written in code.
+questions, and any script of `tf.prioritize` as the same list written in code.
 
 !!! abstract "In this chapter"
     - planning units, features, costs, targets and decisions;
     - Serra Verde, the example region used in this part of the course;
-    - how a problem is written with `ls.prioritize`, one ingredient at a time.
+    - how a problem is written with `tf.prioritize`, one ingredient at a time.
 
-| Ingredient | The question it answers | In `ls.prioritize` |
+| Ingredient | The question it answers | In `tf.prioritize` |
 |---|---|---|
 | **Planning units** | Into which pieces is the landscape divided? | the cells of the cost raster, polygons, H3 cells or table rows |
 | **Features** | What should be conserved? | one raster (or column) per species, habitat or service |
@@ -22,18 +22,18 @@ questions, and any script of `ls.prioritize` as the same list written in code.
 ## Serra Verde
 
 The examples of these chapters use **Serra Verde**, an imaginary coastal region that ships with
-Landschaft (`ls.prioritize.example_data`). It is synthetic, but built to behave like real
+Terraflux (`tf.prioritize.example_data`). It is synthetic, but built to behave like real
 planning data: mountains in the north-west where land is cheap, a coastal plain with three cities,
 a highway and two rivers where land is dear, eight features from widespread to very rare, three
 protected areas, maps of habitat condition, carbon and two threats.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 print(cost.shape, "cells;", int(np.isfinite(cost.values).sum()), "planning units")
 [str(b) for b in features.band.values]
 ```
@@ -49,7 +49,7 @@ mountains, dear around the cities and along the roads.</figcaption>
 
 To decide *where*, the landscape is first cut into pieces. Each piece is a **planning unit**: the
 smallest area that can be selected or not. Planning units can be grid cells, properties,
-watersheds, municipalities or hexagons. In `ls.prioritize` they are:
+watersheds, municipalities or hexagons. In `tf.prioritize` they are:
 
 - the **cells of a raster** with a cost (cells without a value, NaN, are not planning units: the
   ocean of Serra Verde);
@@ -157,7 +157,7 @@ returns a new problem and leaves the old one untouched, so variants (other targe
 cheap to make and compare, and the order of the calls does not matter:
 
 ```python
-protected = ls.load_raster(P.example_data("protected"))
+protected = tf.load_raster(P.example_data("protected"))
 p = (P.problem(cost, features)
        .add_min_set_objective()              # the objective: next chapters
        .add_relative_targets(0.3)            # targets

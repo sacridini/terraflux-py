@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
-from landschaft.conn.graph import MAKURHINI_UNCONNECTED
+import terraflux as tf
+from terraflux.conn.graph import MAKURHINI_UNCONNECTED
 
 
 # ----------------------------------------------------------------------------
@@ -178,7 +178,7 @@ CASES = [
 def test_against_brute_force(n, seed, metric, t, P, pij_min, convention):
     a, D = _scene(n, seed, metric)
     la = 3 * a.sum()
-    g = ls.HabitatGraph(a, D, landscape_area=la, convention=convention)
+    g = tf.HabitatGraph(a, D, landscape_area=la, convention=convention)
     ov = g.overall(distance=t, probability=P, pij_min=pij_min).iloc[0]
     imp = g.node_importance(distance=t, probability=P, pij_min=pij_min)
     b_ov, b_imp = brute_force(a, D, t, P, pij_min, convention == "conefor", la)
@@ -190,7 +190,7 @@ def test_against_brute_force(n, seed, metric, t, P, pij_min, convention):
 
 def test_fractions_add_up():
     a, D = _scene(30, 11, False)
-    g = ls.HabitatGraph(a, D, landscape_area=10 * a.sum())
+    g = tf.HabitatGraph(a, D, landscape_area=10 * a.sum())
     ov = g.overall(distance=25.0, probability=0.4).iloc[0]
     for m in ("IIC", "PC"):
         total = ov[f"{m}intra(%)"] + ov[f"{m}direct(%)"] + ov[f"{m}step(%)"]
@@ -204,7 +204,7 @@ def test_fractions_add_up():
 def test_four_nodes_by_hand():
     a = np.array([1.0, 2, 3, 4])
     D = np.abs(np.subtract.outer(np.arange(4), np.arange(4))).astype(float)
-    g = ls.HabitatGraph(a, D, convention="conefor")
+    g = tf.HabitatGraph(a, D, convention="conefor")
     ov = g.overall(distance=1.5, probability=0.5).iloc[0]
     assert ov["NL"] == 3 and ov["NC"] == 1
     assert ov["H"] == pytest.approx(1 + 1 + 1 + 0.5 + 0.5 + 1 / 3)
@@ -219,12 +219,12 @@ def test_four_nodes_by_hand():
 def test_pairs_equal_matrix_and_ids():
     a, D = _scene(20, 21, True)
     ids = np.arange(20) * 7 + 3
-    dense = ls.HabitatGraph(a, D, ids=ids)
+    dense = tf.HabitatGraph(a, D, ids=ids)
     i, j = np.triu_indices(20, 1)
     # Pairs in any order and orientation, with repeats.
     table = pd.DataFrame({"from": ids[j], "to": ids[i], "d": D[i, j]})
     table = pd.concat([table, table.iloc[:5]]).sample(frac=1.0, random_state=1)
-    sparse = ls.HabitatGraph(a, table, ids=ids)
+    sparse = tf.HabitatGraph(a, table, ids=ids)
     pd.testing.assert_frame_equal(dense.node_importance(distance=30), sparse.node_importance(distance=30))
     assert list(dense.node_importance(distance=30)["id"]) == list(ids)
 
@@ -232,7 +232,7 @@ def test_pairs_equal_matrix_and_ids():
 def test_missing_pairs_are_unconnected():
     a = np.ones(4)
     table = np.array([[1, 2, 1.0], [2, 3, 1.0]])
-    g = ls.HabitatGraph(a, table, convention="conefor")
+    g = tf.HabitatGraph(a, table, convention="conefor")
     ov = g.overall(["NC", "NL"], distance=5).iloc[0]
     assert ov["NC"] == 2 and ov["NL"] == 2
     assert list(g.components(5)) == [1, 1, 1, 2]
@@ -240,14 +240,14 @@ def test_missing_pairs_are_unconnected():
 
 def test_threads_do_not_change_results():
     a, D = _scene(150, 31, False)
-    one = ls.HabitatGraph(a, D, n_threads=1).node_importance(distance=20.0, probability=0.5)
-    many = ls.HabitatGraph(a, D, n_threads=4).node_importance(distance=20.0, probability=0.5)
+    one = tf.HabitatGraph(a, D, n_threads=1).node_importance(distance=20.0, probability=0.5)
+    many = tf.HabitatGraph(a, D, n_threads=4).node_importance(distance=20.0, probability=0.5)
     pd.testing.assert_frame_equal(one, many, check_exact=True)
 
 
 def test_several_distances():
     a, D = _scene(20, 41, True)
-    g = ls.HabitatGraph(a, D)
+    g = tf.HabitatGraph(a, D)
     ov = g.overall(["PC", "NC"], distance=[10, 20, 40])
     assert list(ov["distance"]) == [10, 20, 40]
     assert ov["NC"].is_monotonic_decreasing
@@ -259,7 +259,7 @@ def test_several_distances():
 
 def test_default_distance_is_the_median():
     a, D = _scene(15, 51, True)
-    g = ls.HabitatGraph(a, D)
+    g = tf.HabitatGraph(a, D)
     assert g.overall("PC").iloc[0]["distance"] == pytest.approx(np.median(D))
 
 
@@ -268,60 +268,60 @@ def test_probability_and_link_kinds():
     t, P = 25.0, 0.5
     prob = np.exp(D * np.log(P) / t)
     np.fill_diagonal(prob, 1.0)
-    by_distance = ls.HabitatGraph(a, D, convention="conefor").node_importance(["PC", "F", "AWF"], distance=t,
+    by_distance = tf.HabitatGraph(a, D, convention="conefor").node_importance(["PC", "F", "AWF"], distance=t,
                                                                                probability=P)
-    by_prob = ls.HabitatGraph(a, prob, kind="probability", convention="conefor").node_importance(
+    by_prob = tf.HabitatGraph(a, prob, kind="probability", convention="conefor").node_importance(
         ["PC", "F", "AWF"], distance=0.5)
     for col in ("dPC", "dPCconnector", "dF", "dAWF"):
         np.testing.assert_allclose(by_prob[col], by_distance[col], rtol=1e-9, atol=1e-12)
     links = (D <= t).astype(float)
-    by_link = ls.HabitatGraph(a, links, kind="link", convention="conefor").node_importance(["IIC", "H", "NC"])
-    ref = ls.HabitatGraph(a, D, convention="conefor").node_importance(["IIC", "H", "NC"], distance=t)
+    by_link = tf.HabitatGraph(a, links, kind="link", convention="conefor").node_importance(["IIC", "H", "NC"])
+    ref = tf.HabitatGraph(a, D, convention="conefor").node_importance(["IIC", "H", "NC"], distance=t)
     for col in ("dIIC", "dH", "dNC"):
         np.testing.assert_allclose(by_link[col], ref[col], rtol=1e-12)
     with pytest.raises(ValueError, match="needs distances"):
-        ls.HabitatGraph(a, links, kind="link").overall("PC")
+        tf.HabitatGraph(a, links, kind="link").overall("PC")
 
 
 def test_landscape_area_caps_and_units():
     a, D = _scene(20, 71, True)
-    ov = ls.HabitatGraph(a, D).overall(["PC", "IIC", "LCP"], distance=30).iloc[0]
+    ov = tf.HabitatGraph(a, D).overall(["PC", "IIC", "LCP"], distance=30).iloc[0]
     assert np.isnan(ov["PC"]) and np.isnan(ov["IIC"]) and np.isnan(ov["LCP"])
     la = a.sum() * 2
-    ov = ls.HabitatGraph(a, D, landscape_area=la).overall(["PC"], distance=30).iloc[0]
+    ov = tf.HabitatGraph(a, D, landscape_area=la).overall(["PC"], distance=30).iloc[0]
     assert ov["PC"] == pytest.approx(ov["PCnum"] / la**2)
     assert ov["EC(PC)"] == pytest.approx(np.sqrt(ov["PCnum"]))
-    ov = ls.HabitatGraph(a, D, convention="conefor").overall(["PC"], distance=30).iloc[0]
+    ov = tf.HabitatGraph(a, D, convention="conefor").overall(["PC"], distance=30).iloc[0]
     assert ov["PC"] == ov["PCnum"]  # Conefor without a landscape area: LA = 1
 
 
 def test_conefor_files_round_trip(tmp_path):
     a, D = _scene(12, 81, True)
     D[0, 5] = D[5, 0] = np.nan
-    g = ls.HabitatGraph(a, D, ids=np.arange(12) + 10)
+    g = tf.HabitatGraph(a, D, ids=np.arange(12) + 10)
     g.to_conefor(tmp_path / "nodes.txt", tmp_path / "distances.txt")
-    back = ls.HabitatGraph.from_conefor(tmp_path / "nodes.txt", tmp_path / "distances.txt")
+    back = tf.HabitatGraph.from_conefor(tmp_path / "nodes.txt", tmp_path / "distances.txt")
     pd.testing.assert_frame_equal(g.node_importance(distance=40), back.node_importance(distance=40))
     np.savetxt(tmp_path / "matrix.txt", np.nan_to_num(D, nan=1e9))
-    matrix = ls.HabitatGraph.from_conefor(tmp_path / "nodes.txt", tmp_path / "matrix.txt")
+    matrix = tf.HabitatGraph.from_conefor(tmp_path / "nodes.txt", tmp_path / "matrix.txt")
     assert matrix.n_nodes == 12
 
 
 def test_invalid_input():
     with pytest.raises(ValueError, match="at least one"):
-        ls.HabitatGraph([], np.zeros((0, 0)))
+        tf.HabitatGraph([], np.zeros((0, 0)))
     with pytest.raises(ValueError, match="non-negative"):
-        ls.HabitatGraph([1.0, -1.0], np.zeros((2, 2)))
+        tf.HabitatGraph([1.0, -1.0], np.zeros((2, 2)))
     with pytest.raises(ValueError, match="convention"):
-        ls.HabitatGraph([1.0, 1.0], np.zeros((2, 2)), convention="x")
+        tf.HabitatGraph([1.0, 1.0], np.zeros((2, 2)), convention="x")
     with pytest.raises(ValueError, match="unknown metric"):
-        ls.HabitatGraph([1.0, 1.0], np.ones((2, 2))).overall("XYZ", distance=1)
+        tf.HabitatGraph([1.0, 1.0], np.ones((2, 2))).overall("XYZ", distance=1)
     with pytest.raises(ValueError, match="not nodes"):
-        ls.HabitatGraph([1.0, 1.0], np.array([[1, 3, 2.0]]))
+        tf.HabitatGraph([1.0, 1.0], np.array([[1, 3, 2.0]]))
     with pytest.raises(ValueError, match="different values"):
-        ls.HabitatGraph([1.0, 1.0], np.array([[1, 2, 2.0], [2, 1, 3.0]]))
+        tf.HabitatGraph([1.0, 1.0], np.array([[1, 2, 2.0], [2, 1, 3.0]]))
     with pytest.raises(ValueError, match="give the distance"):
-        ls.HabitatGraph([1.0, 1.0], np.ones((2, 2)), convention="conefor").overall()
+        tf.HabitatGraph([1.0, 1.0], np.ones((2, 2)), convention="conefor").overall()
 
 
 def test_large_graph_runs_quickly():
@@ -329,7 +329,7 @@ def test_large_graph_runs_quickly():
     n = 2000
     xy = rng.uniform(0, 100_000, (n, 2))
     D = np.hypot(*(xy[:, None] - xy[None]).transpose(2, 0, 1))
-    g = ls.HabitatGraph(rng.lognormal(0, 1, n), D)
+    g = tf.HabitatGraph(rng.lognormal(0, 1, n), D)
     imp = g.node_importance(["PC", "IIC"], distance=3_000)
     assert len(imp) == n and np.all(imp["dPC"] >= 0)
 
@@ -350,7 +350,7 @@ def _numerators(a, D, t, P, pij_min, conefor, alive=None, pc_cut=None):
 def test_link_change_brute_force(metric):
     a, D = _scene(18, 91, False)
     t, P = 25.0, 0.5
-    g = ls.HabitatGraph(a, D)
+    g = tf.HabitatGraph(a, D)
     rng = np.random.default_rng(3)
     i, j = np.triu_indices(18, 1)
     pick = rng.choice(len(i), 25, replace=False)
@@ -386,7 +386,7 @@ def test_nodes_to_add_brute_force(convention):
     conefor = convention == "conefor"
     restoration = np.ones(22, int)
     restoration[[3, 10, 17, 21]] = 0
-    g = ls.HabitatGraph(a, D, restoration=restoration, convention=convention)
+    g = tf.HabitatGraph(a, D, restoration=restoration, convention=convention)
     imp = g.node_importance(distance=t, probability=P, pij_min=pmin).set_index("id")
     base = restoration == 1
     b = _numerators(a, D, t, P, pmin, conefor, alive=base)
@@ -414,13 +414,13 @@ def test_nodes_to_add_brute_force(convention):
     if convention == "conefor":
         assert np.isnan(imp.loc[1, "dPCadd"]) and np.isfinite(imp.loc[1, "dPC"])
     with pytest.raises(ValueError, match="restoration"):
-        ls.HabitatGraph(a, D, restoration=np.full(22, 2))
+        tf.HabitatGraph(a, D, restoration=np.full(22, 2))
 
 
 def test_link_importance_threads_and_errors():
     a, D = _scene(150, 97, False)
-    one = ls.HabitatGraph(a, D, n_threads=1).link_importance("PC", distance=20.0)
-    many = ls.HabitatGraph(a, D, n_threads=4).link_importance("PC", distance=20.0)
+    one = tf.HabitatGraph(a, D, n_threads=1).link_importance("PC", distance=20.0)
+    many = tf.HabitatGraph(a, D, n_threads=4).link_importance("PC", distance=20.0)
     pd.testing.assert_frame_equal(one, many, check_exact=True)
     with pytest.raises(ValueError, match="IIC' or 'PC"):
-        ls.HabitatGraph(a, D).link_importance("H", distance=20.0)
+        tf.HabitatGraph(a, D).link_importance("H", distance=20.0)

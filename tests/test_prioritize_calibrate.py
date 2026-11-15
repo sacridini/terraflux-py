@@ -12,9 +12,9 @@ import optimize_cases as oc
 import pytest
 from optimize_reference import result
 
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 @pytest.fixture(autouse=True)

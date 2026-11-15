@@ -6,6 +6,7 @@
 //
 // Function names follow fsp.c so the two can be read side by side.
 
+#include "env.hpp"
 #include "mspa.hpp"
 
 #include <algorithm>
@@ -33,10 +34,10 @@ namespace {
 // DEF_PEDU in frag.h, passed to fsp() as a float.
 const float kEdu = static_cast<float>(std::sqrt(2.0));
 
-// Prints the duration of each stage to stderr when LANDSCHAFT_PROFILE is set.
+// Prints the duration of each stage to stderr when TERRAFLUX_PROFILE (or LANDSCHAFT_PROFILE) is set.
 class StageTimer {
 public:
-    StageTimer() : enabled_(std::getenv("LANDSCHAFT_PROFILE") != nullptr), last_(Clock::now()) {}
+    StageTimer() : enabled_(tfenv::is_set("PROFILE")), last_(Clock::now()) {}
     void operator()(const char* stage) {
         if (!enabled_) return;
         const auto now = Clock::now();

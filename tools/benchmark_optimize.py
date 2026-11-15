@@ -10,7 +10,7 @@ For every family and size (planning units), writes seeded synthetic inputs
 (features: Gaussian random fields above a quantile, species-like; cost: a
 field from 1 to 10; prioriactions tables on a grid of units), builds the
 model in R with prioritizr or prioriactions (``tools/optimize_benchmark.R``,
-timing ``compile()``, the baseline of landschaft's model compiler) and solves
+timing ``compile()``, the baseline of terraflux's model compiler) and solves
 the same matrices on every solver, each solve in its own process (HiGHS keeps
 a global thread scheduler per process). Families:
 
@@ -25,7 +25,7 @@ a global thread scheduler per process). Families:
   features' totals), max utility with one budget.
 
 Solvers: ``highs`` (highspy, development environment only), ``builtin`` (the
-HiGHS built into landschaft, patched, on the compiled model), ``zones`` (landschaft's
+HiGHS built into terraflux, patched, on the compiled model), ``zones`` (terraflux's
 zones engine, zone minimum sets), ``gurobi``
 (gurobipy) and ``prioritizr`` (the package's own solve on Gurobi, build +
 solve). Experiments, at ``--experiment-gap`` (10% by default, prioritizr's
@@ -64,17 +64,17 @@ OCCUPIED = 0.3
 # ----------------------------------------------------------------------------- inputs
 
 def _field(side: int, seed: int) -> np.ndarray:
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.nlm.gaussian_field(side, side, autocorr_range=max(side / 25, 2), seed=seed).values
+    return tf.nlm.gaussian_field(side, side, autocorr_range=max(side / 25, 2), seed=seed).values
 
 
 def _write(path: Path, values: np.ndarray) -> None:
     from optimize_cases import grid
 
-    import landschaft as ls
+    import terraflux as tf
 
-    ls.write_raster(grid(values, res=1.0), path, compress="none")
+    tf.write_raster(grid(values, res=1.0), path, compress="none")
 
 
 def raster_inputs(work: Path, side: int) -> tuple[Path, list[Path]]:
@@ -318,8 +318,8 @@ def solve_gurobi(m, threads: int, gap: float, time_limit: float, log: bool = Fal
 
 
 def solve_builtin(m, threads: int, gap: float, time_limit: float, log: bool = False, log_file: str = "") -> dict:
-    """The HiGHS built into landschaft (patched) on the compiled model, as Problem.solve calls it."""
-    from landschaft import _core
+    """The HiGHS built into terraflux (patched) on the compiled model, as Problem.solve calls it."""
+    from terraflux import _core
 
     a = m.csr()
     lo, hi = _row_bounds_of(m)
@@ -335,8 +335,8 @@ def solve_builtin(m, threads: int, gap: float, time_limit: float, log: bool = Fa
 
 
 def solve_zones_engine(m, threads: int, gap: float, time_limit: float, log: bool = False, log_file: str = "") -> dict:
-    """landschaft's zones engines on a three-zone model: opt/zones.cpp (minimum sets), else opt/zones_wide.cpp."""
-    from landschaft import _core
+    """terraflux's zones engines on a three-zone model: opt/zones.cpp (minimum sets), else opt/zones_wide.cpp."""
+    from terraflux import _core
 
     a = m.csr()
     lo, hi = _row_bounds_of(m)
@@ -348,8 +348,8 @@ def solve_zones_engine(m, threads: int, gap: float, time_limit: float, log: bool
           "verbose": log, "relaxation": False, "initial": None}
     units = _zone_units_of(m)
     if m.obj.size > 3 * units:  # pair columns (boundary penalties): the zones cut engine
-        from landschaft.prioritize._milp import OptimizationProblem
-        from landschaft.prioritize._zones import solve_zone_cut, zone_cut_model
+        from terraflux.prioritize._milp import OptimizationProblem
+        from terraflux.prioritize._zones import solve_zone_cut, zone_cut_model
 
         nnz = np.diff(a.indptr)
         ids = np.where((nnz == 3) & (hi == 1.0), "pu_zone", np.where(nnz == 2, "b1", "spp_target"))
@@ -496,7 +496,7 @@ def main() -> None:
     if args.run_instances:
         return instances_experiment(args)
 
-    import landschaft as ls
+    import terraflux as tf
 
     if args.cpus:
         import psutil
@@ -505,7 +505,7 @@ def main() -> None:
             range(int(part.split("-")[0]), int(part.split("-")[1]) + 1) if "-" in part else [part])]
         psutil.Process().cpu_affinity(cpus)  # R and the solver processes inherit it
     # all the processors given (the default leaves one free: Python on Windows does not see the affinity)
-    threads = args.threads or (len(cpus) if args.cpus else ls.default_threads())
+    threads = args.threads or (len(cpus) if args.cpus else tf.default_threads())
     work = Path(args.work)
     work.mkdir(parents=True, exist_ok=True)
     results_file = work / "results.json"

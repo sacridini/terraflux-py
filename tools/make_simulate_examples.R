@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Writes the example data of lulcc (GPL >= 2, Moulds 2015) shipped as
-# ls.simulate.example_data(): Plum Island Ecosystems (Pontius & Parmentier
+# tf.simulate.example_data(): Plum Island Ecosystems (Pontius & Parmentier
 # 2014) and Sibuyan Island (Verburg et al. 2002), as GeoTIFFs and a CSV.
 #
 #   Rscript tools/make_simulate_examples.R path/to/lulcc/data out_dir

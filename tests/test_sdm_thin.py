@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.thin against spThin::thin.algorithm (same records for the same seed)."""
+"""tf.sdm.thin against spThin::thin.algorithm (same records for the same seed)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import sdm_cases
 import sdm_reference
 from conftest import BITWISE
@@ -27,7 +27,7 @@ def test_thin_matches_spthin(case):
 def test_kept_records_are_far_enough():
     rng = np.random.default_rng(3)
     occ = pd.DataFrame({"lon": rng.uniform(-60, -40, 3000), "lat": rng.uniform(-20, 0, 3000)})
-    kept = ls.sdm.thin(occ, 100_000, reps=3, seed=1)
+    kept = tf.sdm.thin(occ, 100_000, reps=3, seed=1)
     from pyproj import Geod
 
     lon, lat = kept.lon.to_numpy(), kept.lat.to_numpy()
@@ -41,7 +41,7 @@ def test_kept_records_are_far_enough():
 def test_neighbours_match_brute_force():
     rng = np.random.default_rng(5)
     lon, lat = rng.uniform(-180, 180, 400), rng.uniform(-90, 90, 400)
-    from landschaft import _core
+    from terraflux import _core
 
     start, index = _core.sdm_earth_neighbours(lon, lat, 2000.0)
     a = np.deg2rad(np.column_stack([lat, lon]))

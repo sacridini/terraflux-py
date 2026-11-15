@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Multi-action problems with boundaries in ls.prioritize against Gurobi, to gap 0.
+"""Multi-action problems with boundaries in tf.prioritize against Gurobi, to gap 0.
 
 The inputs of ``tools/benchmark_optimize.py``'s ``actions`` family (prioriactions tables on a side x side
 grid: 10 features and 3 threats, fields above a quantile; monitoring costs 1 to 3, action costs 1 to 5;
-recovery targets 30 % of every feature's threatened amount), built here with ``ls.prioritize.actions_data``,
+recovery targets 30 % of every feature's threatened amount), built here with ``tf.prioritize.actions_data``,
 plus the grid's boundaries (shared edges of length 1, every cell's perimeter of 4), ``blm`` and every
 threat's ``blm_actions``.
 
-Solvers: ``landschaft`` (``ActionsProblem.solve`` on HiGHS: the closure engine, then the MIP) and ``gurobi``
+Solvers: ``terraflux`` (``ActionsProblem.solve`` on HiGHS: the closure engine, then the MIP) and ``gurobi``
 (the same equivalent model on Gurobi). Every run: objective, bound, gap and seconds.
 """
 
@@ -23,13 +23,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 def _field(side: int, seed: int) -> np.ndarray:
-    return ls.nlm.gaussian_field(side, side, autocorr_range=max(side / 25, 2), seed=seed).values
+    return tf.nlm.gaussian_field(side, side, autocorr_range=max(side / 25, 2), seed=seed).values
 
 
 def _presence(side: int, seed: int, share: float) -> np.ndarray:
@@ -68,7 +68,7 @@ def actions_problem(side: int, blm: float, blm_actions: float):
 
 
 def run(p, solver: str, gap: float, time_limit: float, threads: int) -> dict:
-    q = (p.add_highs_solver if solver == "landschaft" else p.add_gurobi_solver)(gap=gap, time_limit=time_limit,
+    q = (p.add_highs_solver if solver == "terraflux" else p.add_gurobi_solver)(gap=gap, time_limit=time_limit,
                                                                                  n_threads=threads)
     t0 = time.perf_counter()
     s = q.solve()
@@ -79,7 +79,7 @@ def run(p, solver: str, gap: float, time_limit: float, threads: int) -> dict:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sides", nargs="+", type=int, default=[32, 100])
-    ap.add_argument("--solvers", nargs="+", default=["landschaft", "gurobi"])
+    ap.add_argument("--solvers", nargs="+", default=["terraflux", "gurobi"])
     ap.add_argument("--blm", type=float, default=1.0)
     ap.add_argument("--blm-actions", type=float, default=0.5)
     ap.add_argument("--gap", type=float, default=0.0)

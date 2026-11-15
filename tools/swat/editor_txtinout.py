@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Run the SWAT+ Editor itself on QSWAT+ tables: the reference of ls.hydro.swat.from_tables.
+"""Run the SWAT+ Editor itself on QSWAT+ tables: the reference of tf.hydro.swat.from_tables.
 
 The SWAT+ Editor 4.0.2 (github.com/swat-model/swatplus-editor, public domain) turns
 QSWAT+'s project database (``gis_*`` tables, soils) into a SWAT+ 62 TxtInOut folder:
 ``setup_project`` (copies the datasets database and imports the GIS tables),
 ``import_weather`` (observed files in SWAT+ format, then the stations matched to the
 objects) and ``write_files``. This script builds such a project database from the
-tables of :class:`ls.hydro.swat.SwatWatershed` and the weather files of a project,
+tables of :class:`tf.hydro.swat.SwatWatershed` and the weather files of a project,
 runs those steps headless and returns the files the editor writes.
 
 Needs the editor's sources (``src/api``) and its datasets database

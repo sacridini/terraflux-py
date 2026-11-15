@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""R's stats::kmeans (landschaft._core.sdm_kmeans) against R 4.4.2, bit for bit.
+"""R's stats::kmeans (terraflux._core.sdm_kmeans) against R 4.4.2, bit for bit.
 
 The references (CASES, AS_CHARACTER) come from tools/kmeans_reference.R; the
 data sets are rebuilt here with R's generator (_core.RRandom), and each case
@@ -14,7 +14,7 @@ import re
 import numpy as np
 import pytest
 
-from landschaft import _core
+from terraflux import _core
 
 QTRAN = "1200100001202112122002221020221120222201022100012210221212220021201221112221201121222221212012222111"
 

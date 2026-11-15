@@ -6,12 +6,12 @@ and link, protected-area connectivity (ProtConn), grids and time series, and
 the network of MSPA cores and bridges. Tutorial:
 [habitat networks](../tutorials/habitat-networks.md).
 
-The graph class is `ls.HabitatGraph`; the other functions are in the
-`ls.conn` module (`import landschaft as ls`, then `ls.conn.protconn(...)`).
+The graph class is `tf.HabitatGraph`; the other functions are in the
+`tf.conn` module (`import terraflux as tf`, then `tf.conn.protconn(...)`).
 
 ## Habitat graphs
 
-::: landschaft.HabitatGraph
+::: terraflux.HabitatGraph
     options:
       members:
         - from_raster
@@ -31,61 +31,61 @@ The graph class is `ls.HabitatGraph`; the other functions are in the
 
 ## Nodes and distances
 
-::: landschaft.conn.node_table
+::: terraflux.conn.node_table
 
-::: landschaft.conn.distance_table
+::: terraflux.conn.distance_table
 
-::: landschaft.conn.settlement_probabilities
+::: terraflux.conn.settlement_probabilities
 
-::: landschaft.conn.boundary_vertices
+::: terraflux.conn.boundary_vertices
 
 ## Protected-area connectivity
 
-::: landschaft.conn.protconn
+::: terraflux.conn.protconn
 
-::: landschaft.conn.protconn_regions
+::: terraflux.conn.protconn_regions
 
-::: landschaft.conn.protconn_raster
+::: terraflux.conn.protconn_raster
 
-::: landschaft.conn.protconn_nodes
+::: terraflux.conn.protconn_nodes
 
-::: landschaft.conn.ProtConnNodes
+::: terraflux.conn.ProtConnNodes
     options:
       members: false
 
-::: landschaft.conn.protconn_indicators
+::: terraflux.conn.protconn_indicators
 
 ## Grids
 
-::: landschaft.conn.make_grid
+::: terraflux.conn.make_grid
 
-::: landschaft.conn.connectivity_grid
+::: terraflux.conn.connectivity_grid
 
-::: landschaft.conn.eca_change_grid
+::: terraflux.conn.eca_change_grid
 
 ## Change and neighbourhoods
 
-::: landschaft.conn.eca_change
+::: terraflux.conn.eca_change
 
-::: landschaft.conn.focal_nodes
+::: terraflux.conn.focal_nodes
 
 ## Metapopulations
 
 Hanski's incidence function model as R's MetaLandSim (`spom`) iterates it: the colonisation and extinction of the
 patches of a network over time, the same run as R's for a seed.
 
-::: landschaft.conn.metapopulation
+::: terraflux.conn.metapopulation
 
-::: landschaft.conn.Metapopulation
+::: terraflux.conn.Metapopulation
 
 ## Networks of MSPA cores and bridges
 
-::: landschaft.gtn_components
+::: terraflux.gtn_components
 
-::: landschaft.GTNComponentsResult
+::: terraflux.GTNComponentsResult
 
-::: landschaft.gtn_importance
+::: terraflux.gtn_importance
 
-::: landschaft.GTNImportanceResult
+::: terraflux.GTNImportanceResult
 
-::: landschaft.conefor_inputs
+::: terraflux.conefor_inputs

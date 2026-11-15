@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Distances and routes on grids: least-cost, random-walk and randomised shortest paths.
+
+A port of the R package gdistance (van Etten 2017): a raster becomes a graph
+of neighbouring cells whose connections carry a conductance (a *transition*),
+over which cost surfaces, least-cost distances and paths, commute distances,
+passages of random walks and randomised shortest paths are computed, with
+the same results as gdistance, in C++ with OpenMP.
+
+Typical use::
+
+    import terraflux as tf
+
+    dem = tf.load_raster(tf.cost.example_data("maungawhau"))
+    slope = tf.cost.geo_correction(tf.cost.transition(dem, "diff", 8, symmetric=False))
+    speed = slope.map(lambda s: 6 * np.exp(-3.5 * np.abs(s + 0.05)), pairs="all")
+    conductance = tf.cost.geo_correction(speed)      # Tobler's hiking function
+"""
+
+from ._examples import example_data
+from ._lcp import acc_cost, cost_distance, shortest_path
+from ._pathinc import areas, barriers, nonoverlap, overlap, path_inc
+from ._randomwalk import commute_distance, passage, rsp_distance
+from ._transition import Transition, geo_correction, normalize, sum_reciprocal, transition
+
+__all__ = [
+    "Transition",
+    "acc_cost",
+    "areas",
+    "barriers",
+    "commute_distance",
+    "cost_distance",
+    "example_data",
+    "geo_correction",
+    "nonoverlap",
+    "normalize",
+    "overlap",
+    "passage",
+    "path_inc",
+    "rsp_distance",
+    "shortest_path",
+    "sum_reciprocal",
+    "transition",
+]

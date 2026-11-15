@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""FUTURES (ls.simulate phase 5a): patch growing, development pressure and demand against GRASS GIS."""
+"""FUTURES (tf.simulate phase 5a): patch growing, development pressure and demand against GRASS GIS."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _curves(lines):

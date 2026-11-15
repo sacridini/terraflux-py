@@ -2,7 +2,7 @@
 //
 // Biodiverse's spatial conditions: neighbourhoods of groups.
 //
-// A condition arrives compiled from its Perl text (landschaft/bio/_conditions.py)
+// A condition arrives compiled from its Perl text (terraflux/bio/_conditions.py)
 // as a small expression tree evaluated for each (processing group, candidate
 // neighbour) pair with Biodiverse's semantics: its distances (d, D, c, C
 // rounded to 1e-10), its sp_* functions, Perl's truth and mingw's x87 maths

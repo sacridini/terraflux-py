@@ -15,7 +15,7 @@ import pytest
 
 import nlm_cases
 from conftest import assert_same_bits
-from landschaft import _core
+from terraflux import _core
 
 REF = Path(__file__).parent / "data" / "reference" / "nlm" / "rng.npz"
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of MaxNet (landschaft._core.sdm_maxnet_*): the fit returns
+// Python bindings of MaxNet (terraflux._core.sdm_maxnet_*): the fit returns
 // the model as plain arrays (kept by ls.sdm.MaxNet, which pickles), the
 // prediction takes them back.
 

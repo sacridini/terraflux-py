@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Expander and Patcher (ls.simulate phase 5c): Dinamica's transition functions, written from the publications.
+"""Expander and Patcher (tf.simulate phase 5c): Dinamica's transition functions, written from the publications.
 
 Dinamica EGO's code is closed and its functors crash for patches of more than one cell (8.13), so the
 comparison is statistical, on one-cell patches: the Expander's acceptance by the number of target-class
@@ -17,9 +17,9 @@ import simulate_cases
 import simulate_reference
 from scipy import ndimage
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _nj(t0):
@@ -120,7 +120,7 @@ def test_expander_stays_next_to_patches():
 def test_patch_size_units():
     land, prob = _landscape()
     alloc = S.ExpanderPatcher(steps=1, expansion=0.0, patcher=(0.9, 0.0, 2.0), size_unit="hectares")
-    assert alloc._cells(0.9, ls.simulate._maps.read_map(land)) == pytest.approx(10.0)  # 30 m cells: 0.09 ha
+    assert alloc._cells(0.9, tf.simulate._maps.read_map(land)) == pytest.approx(10.0)  # 30 m cells: 0.09 ha
     sim = S.Model({(1, 2): prob}, {(1, 2): 0.05}, alloc).run(land, seed=2)
     assert sim.steps.loc[1, "patches_1_2"] < sim.steps.loc[1, "requested_1_2"] / 3
 

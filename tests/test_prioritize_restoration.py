@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The restoration problem (ls.prioritize.restoration_problem): plangea's procedure (method="steps")
+"""The restoration problem (tf.prioritize.restoration_problem): plangea's procedure (method="steps")
 against plangea's own loop, the risk of ecosystem collapse against multi_calc_ec, the exact solution
 against an independent optimiser, and the evaluation of the risk reduction."""
 
@@ -14,11 +14,11 @@ import pytest
 import scipy.sparse as sp
 from test_plangea_reference import REF, _vegetation
 
-import landschaft as ls
-from landschaft.prioritize import _restoration as R
-from landschaft.sdm._habitat import HabitatAreas
+import terraflux as tf
+from terraflux.prioritize import _restoration as R
+from terraflux.sdm._habitat import HabitatAreas
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 @pytest.fixture(scope="module")
@@ -34,7 +34,7 @@ def case():
     """bd_absent: the vegetation, the areas of habitat and the restoration problem with its risk benefit."""
     cover, veg = _vegetation(pc.OA_CASES["oa_past_er"])
     names, r = pc.ranges()
-    aoh = ls.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
+    aoh = tf.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
                                  original=veg)
     p = P.restoration_problem(veg).add_extinction_risk_benefit(aoh)
     return cover, veg, aoh, p
@@ -277,7 +277,7 @@ def test_intactness_benefit_is_its_gradient():
     hfi = rng.random((8, 9)) * 20
     red = rng.random((8, 9)) * 4
     p = P.restoration_problem(up, cell_area=1.0).add_intactness_benefit(hfi, red, radius=2, cell_size=1.0)
-    g = ls.intactness_gradient(hfi, red, 2, cell_size=1.0).values.ravel()[p.index]
+    g = tf.intactness_gradient(hfi, red, 2, cell_size=1.0).values.ravel()[p.index]
     np.testing.assert_array_equal(p.benefits[0].coef, g)
     q = p.add_area_target(5.0)
     assert q.solve().benefit >= q.solve(method="steps", steps=3).benefit - 1e-9
@@ -384,7 +384,7 @@ def natural_case(case):
     """bd_absent's habitats with their loss, and the natural share of every cell."""
     cover, veg, _, _ = case
     names, r = pc.ranges()
-    aoh = ls.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
+    aoh = tf.sdm.area_of_habitat(pc.grid(r, names=names), cover, pc.NATURAL, suitability=pc.habitat_table(),
                                  original=veg, loss=True)
     nat = sum(np.nan_to_num(cover.values[k]) for k in range(len(pc.NATURAL)))
     return aoh, pc.grid(nat)
@@ -570,7 +570,7 @@ def test_intactness_of_conversion_and_conservation(kind):
             h[p.index] += inc.ravel()[p.index] * x
         else:
             h[p.index] += inc.ravel()[p.index] * threat * (share.ravel()[p.index] - x)
-        return float(ls.intactness(h.reshape(shape), 2, cell_size=1.0).values.sum())
+        return float(tf.intactness(h.reshape(shape), 2, cell_size=1.0).values.sum())
 
     for k in (0, 5, p.n - 1):
         e = np.zeros(p.n)
@@ -820,7 +820,7 @@ def _intactness_problem(shape=(8, 9), seed=12, low=3.0, high=20.0, red=(1.0, 6.0
 def test_intactness_minorant_and_secant_bound():
     """The tangent minorant never overestimates the total intactness and touches it at its point; the
     secant majorant (C++) never underestimates it over the plans' box."""
-    from landschaft import _core
+    from terraflux import _core
 
     p, hfi, _, kw = _intactness_problem(low=0.0, red=(2.0, 30.0))  # footprints that can reach 0
     q = p.add_intactness_benefit(hfi, radius=2, cell_size=1.0, form="exact", **kw)
@@ -836,7 +836,7 @@ def test_intactness_minorant_and_secant_bound():
     rng = np.random.default_rng(13)
     x0 = rng.random(q.n) * q.upper
     t0 = np.minimum(amat @ x0, h0[cells])
-    g = -ls.intactness_gradient(h0.reshape(q.shape) - np.bincount(cells, t0, h0.size).reshape(q.shape),
+    g = -tf.intactness_gradient(h0.reshape(q.shape) - np.bincount(cells, t0, h0.size).reshape(q.shape),
                                 -np.ones(q.shape), 2, cell_size=1.0).values.ravel()
     T0 = R._intactness_total(q, fp, x0)
     for _ in range(20):
@@ -914,8 +914,8 @@ def test_exact_intactness_with_other_benefits_and_conversion(case):
 def test_knapsack_vertex_is_the_linear_program(sense):
     """The vertex of plans with one row (C++ weighted selection) has the linear program's value, with
     least shares, free units (a = 0), ties and units worth nothing or less."""
-    from landschaft import _core
-    from landschaft.prioritize._milp import OptimizationProblem
+    from terraflux import _core
+    from terraflux.prioritize._milp import OptimizationProblem
 
     rng = np.random.default_rng(16)
     n = 3000
@@ -943,7 +943,7 @@ def test_knapsack_vertex_is_the_linear_program(sense):
 def test_sparse_products_and_column_selection():
     """G x, G' y and the selection of columns (C++, in parallel) against scipy, with int32 and int64
     indices and empty rows."""
-    from landschaft import _core
+    from terraflux import _core
 
     rng = np.random.default_rng(17)
     g = sp.random(300, 5000, density=0.05, format="csr", random_state=1)

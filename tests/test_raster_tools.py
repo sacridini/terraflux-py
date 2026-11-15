@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-import landschaft as ls
+import terraflux as tf
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +35,7 @@ def test_cell_stats_are_numpys(stack, threads):
     want["range"] = want["max"] - want["min"]
     want["sum"] = np.where(want["count"] > 0, np.nansum(stack, 0), np.nan)
     for stat, w in want.items():
-        got = ls.stats.cell_stats(stack, stat, n_threads=threads).values
+        got = tf.stats.cell_stats(stack, stat, n_threads=threads).values
         np.testing.assert_allclose(got, w, rtol=1e-12, atol=1e-12, err_msg=stat)
     flat = stack.reshape(k, -1)
     arg = {"argmax": np.full(flat.shape[1], np.nan), "argmin": np.full(flat.shape[1], np.nan)}
@@ -50,18 +50,18 @@ def test_cell_stats_are_numpys(stack, threads):
         vals, counts = np.unique(v[~np.isnan(v)], return_counts=True)
         maj[c], mino[c], uni[c] = vals[np.argmax(counts)], vals[np.argmin(counts)], len(vals)
     for stat, w in [*arg.items(), ("majority", maj), ("minority", mino), ("unique", uni)]:
-        np.testing.assert_array_equal(ls.stats.cell_stats(stack, stat, n_threads=threads).values.ravel(), w,
+        np.testing.assert_array_equal(tf.stats.cell_stats(stack, stat, n_threads=threads).values.ravel(), w,
                                       err_msg=stat)
-    assert ls.stats.cell_stats(stack, "argmax").values[1, 1] == 3.0  # the first of a tie
+    assert tf.stats.cell_stats(stack, "argmax").values[1, 1] == 3.0  # the first of a tie
 
 
 def test_cell_stats_of_maps_keep_the_grid(stack):
     maps = [xr.DataArray(m, dims=("y", "x"), coords={"y": np.arange(30.0)[::-1], "x": np.arange(40.0)})
             .rio.write_crs("EPSG:32723") for m in stack]
-    out = ls.stats.cell_stats(maps, "argmax")
+    out = tf.stats.cell_stats(maps, "argmax")
     assert out.rio.crs == maps[0].rio.crs and out.name == "argmax"
     with pytest.raises(ValueError, match="unknown statistic"):
-        ls.stats.cell_stats(maps, "mode")
+        tf.stats.cell_stats(maps, "mode")
 
 
 def _local(x, y, r, circle, least):
@@ -98,13 +98,13 @@ def test_local_correlation_is_the_window_regression(radius, shape, least):
     y = 0.5 * x + g.normal(size=x.shape) * 3
     x[g.random(x.shape) < 0.1] = np.nan
     y[g.random(y.shape) < 0.1] = np.nan
-    lc = ls.stats.local_correlation(x, y, radius=radius, shape=shape, min_cells=least, n_threads=2)
+    lc = tf.stats.local_correlation(x, y, radius=radius, shape=shape, min_cells=least, n_threads=2)
     want = _local(x, y, radius, shape == "circle", least)
     for k, name in enumerate(("correlation", "slope", "intercept", "r2")):
         got = getattr(lc, name).values
         np.testing.assert_array_equal(np.isnan(got), np.isnan(want[k]), err_msg=name)
         np.testing.assert_allclose(got, want[k], rtol=1e-9, atol=1e-9, err_msg=name)
-    a = ls.stats.local_correlation(x, y, radius=radius, shape=shape, min_cells=least, n_threads=1)
+    a = tf.stats.local_correlation(x, y, radius=radius, shape=shape, min_cells=least, n_threads=1)
     np.testing.assert_array_equal(a.slope.values, lc.slope.values)
 
 
@@ -173,12 +173,12 @@ def test_viewshed_is_terrafluxs(reach, curvature, target):
     extent = (0.0, 50 * rw, 0.0, 40 * rh)
     obs = [(3, 4), (20, 25), (39, 49), (10, 40)]
     xy = np.array([[(c + 0.5) * rw, extent[3] - (r + 0.5) * rh] for r, c in obs])
-    got = ls.surface.viewshed(z, xy, extent=extent, radius=None if math.isinf(reach) else reach,
+    got = tf.surface.viewshed(z, xy, extent=extent, radius=None if math.isinf(reach) else reach,
                               curvature=curvature, target_height=target, n_threads=2).values
     want = sum(_viewshed_one(z, r, c, rw, rh, 2.0, target, reach, curvature).astype(float) for r, c in obs)
     want = np.where(np.isnan(z), np.nan, want)
     np.testing.assert_array_equal(got, want)
-    one = ls.surface.viewshed(z, xy[1], extent=extent, n_threads=1).values
+    one = tf.surface.viewshed(z, xy[1], extent=extent, n_threads=1).values
     np.testing.assert_array_equal(one, np.where(np.isnan(z), np.nan, _viewshed_one(z, 20, 25, rw, rh, 2.0, 0.0,
                                                                                      math.inf, False)))
 
@@ -189,9 +189,9 @@ def test_viewshed_of_points():
     dem = xr.DataArray(np.zeros((10, 10)), dims=("y", "x"),
                        coords={"y": 9.5 - np.arange(10.0), "x": np.arange(10.0) + 0.5}).rio.write_crs("EPSG:32723")
     pts = gpd.GeoDataFrame(geometry=gpd.points_from_xy([2.5, 7.5, 50.0], [2.5, 7.5, 50.0]), crs="EPSG:32723")
-    v = ls.surface.viewshed(dem, pts)
+    v = tf.surface.viewshed(dem, pts)
     assert (v.values == 2).all() and v.rio.crs == dem.rio.crs  # flat: both see everything; the third is off the map
-    near = ls.surface.viewshed(dem, (0.5, 9.5), radius=3)
+    near = tf.surface.viewshed(dem, (0.5, 9.5), radius=3)
     assert near.values[0, 3] == 1 and near.values[0, 4] == 0 and near.values[3, 3] == 0
 
 
@@ -201,28 +201,28 @@ def test_zonal_map_and_tabulate_area():
     vals = xr.DataArray(g.normal(size=(100, 120)), dims=("y", "x"), coords=coords).rio.write_crs("EPSG:32723")
     zones = xr.DataArray(g.integers(1, 6, size=(100, 120)).astype(np.int32), dims=("y", "x"), coords=coords)
     zones = zones.rio.write_crs("EPSG:32723").rio.write_nodata(5)
-    t = ls.zonal_stats(vals, zones, ["mean", "p90"])
-    m = ls.zonal_map(vals, zones, "p90")
+    t = tf.zonal_stats(vals, zones, ["mean", "p90"])
+    m = tf.zonal_map(vals, zones, "p90")
     z = zones.values
     for _, row in t.iterrows():
         assert np.all(m.values[z == row.zone] == row.p90)
     assert np.isnan(m.values[z == 5]).all() and 5 not in t.zone.to_numpy()
     st = xr.concat([vals, vals * 2], dim="band").assign_coords(band=[1, 2])
-    ms = ls.zonal_map(st, zones, "mean")
+    ms = tf.zonal_map(st, zones, "mean")
     assert ms.shape == (2, 100, 120)
-    np.testing.assert_allclose(ms.values[1], 2 * ls.zonal_map(vals, zones).values, rtol=1e-12)
+    np.testing.assert_allclose(ms.values[1], 2 * tf.zonal_map(vals, zones).values, rtol=1e-12)
 
     classes = xr.DataArray(g.integers(10, 13, size=(100, 120)).astype(np.int32), dims=("y", "x"), coords=coords)
     classes = classes.rio.write_crs("EPSG:32723")
-    cells = ls.tabulate_area(zones, classes)
-    want = ls.simulate.crosstab(zones, classes)
+    cells = tf.tabulate_area(zones, classes)
+    want = tf.simulate.crosstab(zones, classes)
     assert list(cells.zone) == [1, 2, 3, 4] and list(cells.columns) == ["zone", "class_10", "class_11", "class_12",
                                                                       "total"]
     np.testing.assert_array_equal(cells.iloc[:, 1:4].to_numpy(), want.loc[[1, 2, 3, 4], [10, 11, 12]].to_numpy())
     assert (cells.total == cells.iloc[:, 1:4].sum(axis=1)).all()
-    ha = ls.tabulate_area(zones, classes, units="hectares")
+    ha = tf.tabulate_area(zones, classes, units="hectares")
     np.testing.assert_allclose(ha.total, cells.total / 10_000)
-    share = ls.tabulate_area(zones, classes, units="share")
+    share = tf.tabulate_area(zones, classes, units="share")
     np.testing.assert_allclose(share.total, 1.0)
     with pytest.raises(ValueError, match="units"):
-        ls.tabulate_area(zones, classes, units="acres")
+        tf.tabulate_area(zones, classes, units="acres")

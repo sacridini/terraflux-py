@@ -21,9 +21,9 @@ for most tools; a three-class land-cover map for the landscape mosaic; a
 percentage map for the grayscale tools.
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))
+forest = tf.load_raster(tf.example_data("input"))
 ```
 
 ## Habitat density in a moving window
@@ -34,8 +34,8 @@ habitat among the valid pixels of a square window centred on it. A window of
 (45.6 ha).
 
 ```python
-result = ls.fad(forest, window_size=27)
-ls.plot(result)       # the FAD map in GuidosToolbox's colours, its chart and numbers
+result = tf.fad(forest, window_size=27)
+tf.plot(result)       # the FAD map in GuidosToolbox's colours, its chart and numbers
 result.stats
 ```
 
@@ -62,8 +62,8 @@ The densities are grouped in six classes, the standard way to report them:
 Save the density map with its standard colours:
 
 ```python
-ls.write_raster(result.density, "fad27.tif")   # colour table of the six classes
-ls.save(result, "fad27")                       # or the whole result: maps, tables and numbers
+tf.write_raster(result.density, "fad27.tif")   # colour table of the six classes
+tf.save(result, "fad27")                       # or the whole result: maps, tables and numbers
 ```
 
 ## Several observation scales
@@ -73,7 +73,7 @@ The same pixel can be interior at a short distance and patchy at a long one.
 (7, 13, 27, 81 and 243 pixels by default) and combines them:
 
 ```python
-multi = ls.fad_multiscale(forest)
+multi = tf.fad_multiscale(forest)
 multi.stats[["observation_scale", "intact_%", "interior_%", "rare_%", "average_fad"]]
 ```
 
@@ -98,7 +98,7 @@ scale and `multi.multiscale_map` the combined map.
 and 6 classes (as above) or 5 (intact merged into interior):
 
 ```python
-fos = ls.fos(forest, window_size=27, method="FAC", classes=5)
+fos = tf.fos(forest, window_size=27, method="FAC", classes=5)
 fos.stats
 ```
 
@@ -114,8 +114,8 @@ patch statistics of the whole map: `fos.n_patches`, `fos.average_patch_size`,
 percent count as habitat; the density is the mean percentage in the window:
 
 ```python
-cover = ls.load_raster(ls.example_data("gscinput"))   # 0-100, 255 missing
-gray = ls.fos(cover, window_size=27, gray_threshold=30)
+cover = tf.load_raster(tf.example_data("gscinput"))   # 0-100, 255 missing
+gray = tf.fos(cover, window_size=27, gray_threshold=30)
 gray.grayscale, gray.stats
 ```
 
@@ -132,45 +132,45 @@ artificial surfaces, 12–22 agriculture, 23–34 forest and semi-natural areas,
 35–44 wetlands and water):
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
-three = ls.reclassify(landcover, [(1, 12, 3),     # artificial surfaces: developed
+landcover = tf.load_raster(tf.example_data("clc"))
+three = tf.reclassify(landcover, [(1, 12, 3),     # artificial surfaces: developed
                                   (12, 23, 1),    # agriculture
                                   (23, 35, 2)],   # forest and natural vegetation
                       others=0)                   # wetlands and water: missing
 
-mosaic = ls.landscape_mosaic(three, window_size=27)
-ls.plot(mosaic)
+mosaic = tf.landscape_mosaic(three, window_size=27)
+tf.plot(mosaic)
 ```
 
 ![Land cover in three classes and its landscape mosaic](../assets/figures/frag_mosaic.png)
 
-`ls.LM19_CLASSES` names the 19 classes and `ls.lm_colormap()` colours them.
+`tf.LM19_CLASSES` names the 19 classes and `tf.lm_colormap()` colours them.
 With `output_classes=103` every window is placed in one of 103 finer cells of
 the composition triangle. The share of the map in each of those cells, the
 *heat map* of the landscape, comes from:
 
 ```python
-heat = ls.landscape_mosaic_heatmap(three, window_size=27)
+heat = tf.landscape_mosaic_heatmap(three, window_size=27)
 heat.to_csv("mosaic_heatmap.csv")
 ```
 
-and `ls.landscape_mosaic_stats(three)` returns the same frequencies as a
+and `tf.landscape_mosaic_stats(three)` returns the same frequencies as a
 table.
 
 ## Other window statistics
 
 | Function | Result |
 |---|---|
-| `ls.contagion_pff(forest, window_size=7)` | contagion: probability that a neighbour of a habitat pixel is habitat |
-| `ls.clustering_fac(forest, window_size=7)` | clustering: share of all joins that are habitat–habitat |
-| `ls.spatial_entropy(forest)` | one index (0–100%) of the disorder of the habitat pattern |
-| `ls.spatial_entropy_map(forest, window_size=50)` | the same in a moving window |
-| `ls.gray_spatial_convolution(cover, metric="mean", window_size=7)` | window mean, median, majority, min, max, range, standard deviation, Shannon diversity and evenness, or contagion of a percentage map |
+| `tf.contagion_pff(forest, window_size=7)` | contagion: probability that a neighbour of a habitat pixel is habitat |
+| `tf.clustering_fac(forest, window_size=7)` | clustering: share of all joins that are habitat–habitat |
+| `tf.spatial_entropy(forest)` | one index (0–100%) of the disorder of the habitat pattern |
+| `tf.spatial_entropy_map(forest, window_size=50)` | the same in a moving window |
+| `tf.gray_spatial_convolution(cover, metric="mean", window_size=7)` | window mean, median, majority, min, max, range, standard deviation, Shannon diversity and evenness, or contagion of a percentage map |
 
 ```python
-entropy = ls.spatial_entropy(forest)
-contagion = ls.contagion_pff(forest, window_size=13, as_byte=False)   # 0-1, NaN off habitat
-smooth = ls.gray_spatial_convolution(cover, metric="stddev", window_size=9)
+entropy = tf.spatial_entropy(forest)
+contagion = tf.contagion_pff(forest, window_size=13, as_byte=False)   # 0-1, NaN off habitat
+smooth = tf.gray_spatial_convolution(cover, metric="stddev", window_size=9)
 round(entropy.entropy_index, 1)
 ```
 

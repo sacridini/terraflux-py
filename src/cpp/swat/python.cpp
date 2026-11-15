@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the SWAT+ port (landschaft._core.swat_*).
+// Python bindings of the SWAT+ port (terraflux._core.swat_*).
 
 #include "swat/python.hpp"
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Reading R data files without R (landschaft._rdata), on files written by R 4.4."""
+"""Reading R data files without R (terraflux._rdata), on files written by R 4.4."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from landschaft import _rdata
+from terraflux import _rdata
 
 DATA = Path(__file__).parent / "data" / "rdata"
 

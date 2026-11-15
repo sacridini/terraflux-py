@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of InVEST's nutrient delivery ratio model (natcap.invest) for ls.services.ndr.
+"""Generate golden outputs of InVEST's nutrient delivery ratio model (natcap.invest) for tf.services.ndr.
 
 Usage::
 

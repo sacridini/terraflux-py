@@ -8,54 +8,54 @@ the original vegetation of converted land and ecological intactness. Tutorial:
 
 ## Distance to the habitat
 
-::: landschaft.euclidean_distance
+::: terraflux.euclidean_distance
 
-::: landschaft.EuclideanDistanceResult
+::: terraflux.EuclideanDistanceResult
 
-::: landschaft.distance_to_resistance
+::: terraflux.distance_to_resistance
 
 ## Restoration status
 
-::: landschaft.restoration_status
+::: terraflux.restoration_status
 
-::: landschaft.RestorationStatusResult
+::: terraflux.RestorationStatusResult
 
 ## Costs, paths and corridors
 
-::: landschaft.cost_distance
+::: terraflux.cost_distance
 
-::: landschaft.least_cost_path
+::: terraflux.least_cost_path
 
-::: landschaft.LeastCostPathResult
+::: terraflux.LeastCostPathResult
 
-::: landschaft.restoration_corridor
+::: terraflux.restoration_corridor
 
-::: landschaft.RestorationCorridorResult
+::: terraflux.RestorationCorridorResult
 
-::: landschaft.isochrone_map
+::: terraflux.isochrone_map
 
-::: landschaft.isochrone_map_ab
+::: terraflux.isochrone_map_ab
 
-::: landschaft.IsochroneResult
+::: terraflux.IsochroneResult
 
 ## Zones of influence
 
-::: landschaft.influence_zones
+::: terraflux.influence_zones
 
-::: landschaft.InfluenceZonesResult
+::: terraflux.InfluenceZonesResult
 
-::: landschaft.proximity
+::: terraflux.proximity
 
-::: landschaft.ProximityResult
+::: terraflux.ProximityResult
 
 ## Original vegetation
 
-::: landschaft.original_vegetation
+::: terraflux.original_vegetation
 
-::: landschaft.OriginalVegetation
+::: terraflux.OriginalVegetation
 
 ## Ecological intactness
 
-::: landschaft.intactness
+::: terraflux.intactness
 
-::: landschaft.intactness_gradient
+::: terraflux.intactness_gradient

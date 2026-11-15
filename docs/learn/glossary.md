@@ -270,7 +270,7 @@ Minimum shortfall
 :   The budget objective that minimizes the sum of the targets' shortfalls, each as a share of its target. [Ch. 12.4](prioritization/optimization.md#budget-objectives)
 
 Mixed integer linear program (MILP)
-:   An optimization problem with a linear objective, linear constraints and some whole-number variables, such as a decision of 0 or 1 per planning unit; the model of every `ls.prioritize` problem. [Ch. 12.4](prioritization/optimization.md#inside-the-solver)
+:   An optimization problem with a linear objective, linear constraints and some whole-number variables, such as a decision of 0 or 1 per planning unit; the model of every `tf.prioritize` problem. [Ch. 12.4](prioritization/optimization.md#inside-the-solver)
 
 MOP
 :   Mobility-oriented parity: the distance from each cell to its nearest reference conditions, and whether it is outside their ranges. [Ch. 13](sdm.md#projection-and-extrapolation)

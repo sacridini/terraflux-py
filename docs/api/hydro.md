@@ -3,7 +3,7 @@
 Where water goes on a terrain: depressions filled so that every cell drains,
 the direction each cell drains to, how much area drains through it, the
 stream network, the height above the nearest drainage (HAND) and the wetness,
-stream power and sediment transport indices. They live in the `ls.hydro`
+stream power and sediment transport indices. They live in the `tf.hydro`
 module.
 
 The directions and accumulations are those of WhiteboxTools 2.4 cell for cell
@@ -20,33 +20,33 @@ as `fill`.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-dem = ls.load_raster("srtm.tif")
-filled = ls.hydro.fill(dem)
-acc = ls.hydro.flow_accumulation(filled)                 # D8, in cells
-rivers = ls.hydro.streams(acc, 1000)
-height = ls.hydro.hand(filled, rivers)                   # height above the drainage
-wetness = ls.hydro.twi(filled)                           # FD8 contributing area
+dem = tf.load_raster("srtm.tif")
+filled = tf.hydro.fill(dem)
+acc = tf.hydro.flow_accumulation(filled)                 # D8, in cells
+rivers = tf.hydro.streams(acc, 1000)
+height = tf.hydro.hand(filled, rivers)                   # height above the drainage
+wetness = tf.hydro.twi(filled)                           # FD8 contributing area
 ```
 
 ## Conditioning
 
-::: landschaft.hydro.fill
+::: terraflux.hydro.fill
 
-::: landschaft.hydro.breach
+::: terraflux.hydro.breach
 
 ## Flow
 
-::: landschaft.hydro.flow_direction
+::: terraflux.hydro.flow_direction
 
-::: landschaft.hydro.flow_accumulation
+::: terraflux.hydro.flow_accumulation
 
-::: landschaft.hydro.streams
+::: terraflux.hydro.streams
 
-::: landschaft.hydro.distance_to_channel
+::: terraflux.hydro.distance_to_channel
 
-`ls.hydro.D8_CODES` maps the D8 codes to their directions: 1 east, 2
+`tf.hydro.D8_CODES` maps the D8 codes to their directions: 1 east, 2
 south-east, 4 south, 8 south-west, 16 west, 32 north-west, 64 north, 128
 north-east (0: no lower neighbour).
 
@@ -55,13 +55,13 @@ north-east (0: no lower neighbour).
 The division of a stream network into links (between junctions and outlets),
 the area that drains to each seed and outlets moved onto the streams: the
 delineation steps of the watershed model (see
-[`ls.hydro.swat.watershed`](swat.md#from-the-landscape)).
+[`tf.hydro.swat.watershed`](swat.md#from-the-landscape)).
 
-::: landschaft.hydro.stream_links
+::: terraflux.hydro.stream_links
 
-::: landschaft.hydro.watersheds
+::: terraflux.hydro.watersheds
 
-::: landschaft.hydro.snap_outlets
+::: terraflux.hydro.snap_outlets
 
 ## Rivers as a network
 
@@ -73,44 +73,44 @@ the river between points, the stretches up and down the river from each point,
 the centrality of the links, and the dendritic connectivity index of a network
 cut by barriers (Cote et al. 2009) with the gain of removing each barrier.
 
-::: landschaft.hydro.snap_points
+::: terraflux.hydro.snap_points
 
-::: landschaft.hydro.upstream
+::: terraflux.hydro.upstream
 
-::: landschaft.hydro.Upstream
+::: terraflux.hydro.Upstream
 
-::: landschaft.hydro.upstream_catchment
+::: terraflux.hydro.upstream_catchment
 
-::: landschaft.hydro.Catchments
+::: terraflux.hydro.Catchments
 
-::: landschaft.hydro.network_distance
+::: terraflux.hydro.network_distance
 
-::: landschaft.hydro.along_network
+::: terraflux.hydro.along_network
 
-::: landschaft.hydro.NetworkReach
+::: terraflux.hydro.NetworkReach
 
-::: landschaft.hydro.centrality
+::: terraflux.hydro.centrality
 
-::: landschaft.hydro.dci
+::: terraflux.hydro.dci
 
-::: landschaft.hydro.DCI
+::: terraflux.hydro.DCI
 
 ## Height above the nearest drainage
 
-::: landschaft.hydro.hand
+::: terraflux.hydro.hand
 
 ## Topographic indices
 
-::: landschaft.hydro.twi
+::: terraflux.hydro.twi
 
-::: landschaft.hydro.spi
+::: terraflux.hydro.spi
 
-::: landschaft.hydro.sti
+::: terraflux.hydro.sti
 
 ## Sediment connectivity
 
 The index of connectivity of Borselli et al. (2008) and Cavalli et al. (2013), as
 InVEST's sediment delivery ratio model computes it
-([`ls.services.sdr`](services.md#sediment-delivery-ratio)).
+([`tf.services.sdr`](services.md#sediment-delivery-ratio)).
 
-::: landschaft.hydro.connectivity_index
+::: terraflux.hydro.connectivity_index

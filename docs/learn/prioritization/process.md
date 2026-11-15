@@ -4,7 +4,7 @@
 
 Running a solver is a small part of a conservation plan. Most of the work, and most of the value, lies in
 framing the problem well and in discussing the results with the people who will live with them. This
-chapter places `ls.prioritize` in a real planning project, collects good practices and common mistakes,
+chapter places `tf.prioritize` in a real planning project, collects good practices and common mistakes,
 and ends with recipes for common planning questions.
 
 !!! abstract "In this chapter"
@@ -12,7 +12,7 @@ and ends with recipes for common planning questions.
     - scenarios rather than "the answer";
     - good practices and common mistakes;
     - recipes: 30x30, restoration, offsets, regions, carbon, threats, marine plans, phases;
-    - `ls.prioritize` for users of prioritizr, prioriactions, Marxan and Zonation.
+    - `tf.prioritize` for users of prioritizr, prioriactions, Marxan and Zonation.
 
 ## The stages of a plan
 
@@ -51,7 +51,7 @@ A common misunderstanding is to expect one definitive map. Planners produce **sc
 - What if the plan must be compact, or connected?
 
 Comparing scenarios shows which places are selected *whatever the assumptions*, strong candidates for
-immediate action, and which depend on them, open to negotiation. In `ls.prioritize` scenarios are cheap:
+immediate action, and which depend on them, open to negotiation. In `tf.prioritize` scenarios are cheap:
 every `add_` returns a new problem, so one base problem gives many variants
 ([chapter 12.6](tradeoffs.md#scenarios-and-sensitivity)).
 
@@ -59,11 +59,11 @@ every `add_` returns a new problem, so one base problem gives many variants
 import numpy as np
 import pandas as pd
 import xarray as xr
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 base = P.problem(cost, features).add_min_set_objective().add_binary_decisions()
 
 plans = {t: base.add_relative_targets(t).solve() for t in (0.2, 0.3, 0.4)}
@@ -76,14 +76,14 @@ print("cells selected in all three scenarios:", int(always.sum()))
 - **Document every choice.** Why this cost layer, these targets, this penalty? A short table of
   assumptions makes a plan defensible.
 - **Look at the inputs before solving.** Most surprising results come from a misaligned raster, a wrong
-  unit or a wrong NoData value. `ls.plot(cost)` and `ls.plot(features)` take a second.
+  unit or a wrong NoData value. `tf.plot(cost)` and `tf.plot(features)` take a second.
 - **Ask for a small gap for final results** (`add_highs_solver(gap=0.01)` or less). The default of 10 % is for
   exploring, not for reporting.
 - **Calibrate penalties** rather than copying values from other studies ([chapter 12.6](tradeoffs.md)).
 - **Test sensitivity**: alternative costs, targets and data, and portfolios of near-optimal plans.
 - **Report target coverage, not only maps**: `eval_target_coverage_summary` says what each scenario achieves
   for each feature ([chapter 12.7](evaluation.md)).
-- **Share the outputs** as GeoTIFFs (`sol.save(...)` or `ls.write_raster(sol.selection, ...)`) and as a
+- **Share the outputs** as GeoTIFFs (`sol.save(...)` or `tf.write_raster(sol.selection, ...)`) and as a
   report (`P.report`), so that others can inspect them.
 
 ## Common mistakes
@@ -126,8 +126,8 @@ translates into a problem, and code on Serra Verde that you can adapt to your ow
 a minimum set that builds on the existing reserves and excludes land that is not available:
 
 ```python
-protected = ls.load_raster(P.example_data("protected"))
-urban = ls.load_raster(P.example_data("urban"))
+protected = tf.load_raster(P.example_data("protected"))
+urban = tf.load_raster(P.example_data("urban"))
 p = base.add_relative_targets(0.3)
 
 gap = P.eval_target_coverage_summary(p, protected)        # what the reserves hold today
@@ -145,7 +145,7 @@ restoring is the **gain**, not the habitat present today. Here the gain of a cel
 degradation, and any share of a cell can be restored:
 
 ```python
-condition = ls.load_raster(P.example_data("condition"))
+condition = tf.load_raster(P.example_data("condition"))
 gain = features * (1 - condition)                           # habitat that restoration would bring back
 restore = (P.problem(cost, gain).add_max_utility_objective(5_000)
              .add_proportion_decisions().solve())
@@ -178,7 +178,7 @@ effort where land is cheapest. **Subregional targets** require 30 % of each feat
 difference in cost is the **price of fairness**:
 
 ```python
-regions = ls.load_raster(P.example_data("regions"))          # 1, 2, 3
+regions = tf.load_raster(P.example_data("regions"))          # 1, 2, 3
 names = [str(n) for n in features.band.values]
 targets = pd.DataFrame([{"region": r, "feature": f, "target": 0.3} for r in (1, 2, 3) for f in names])
 fair = base.add_relative_targets(0.0).add_subregional_targets(regions, targets).solve()
@@ -195,7 +195,7 @@ two plans select.
 with a target, it is required:
 
 ```python
-carbon = ls.load_raster(P.example_data("carbon"))
+carbon = tf.load_raster(P.example_data("carbon"))
 with_carbon = xr.concat([features, carbon.expand_dims(band=["carbon"])], dim="band")
 pc = P.problem(cost, with_carbon).add_min_set_objective().add_binary_decisions()
 species_only = pc.add_relative_targets([0.3] * 8 + [0.0]).solve()
@@ -223,10 +223,10 @@ must be simple to enforce:
 
 <!-- no-run -->
 ```python
-effort = ls.load_raster("fishing_effort.tif")             # the cost: fishing displaced
-habitats = ls.load_raster("habitats.tif")                 # reefs, seagrass, spawning areas
+effort = tf.load_raster("fishing_effort.tif")             # the cost: fishing displaced
+habitats = tf.load_raster("habitats.tif")                 # reefs, seagrass, spawning areas
 plan = (P.problem(effort, habitats).add_min_set_objective().add_relative_targets(0.2)
-          .add_binary_decisions().add_locked_out_constraints(ls.load_raster("shipping_lanes.tif"))
+          .add_binary_decisions().add_locked_out_constraints(tf.load_raster("shipping_lanes.tif"))
           .add_boundary_penalties(calibrated_value, edge_factor=1.0)
           .solve())
 ```
@@ -242,9 +242,9 @@ extinction risk objective ([chapter 12.4](optimization.md#extinction-risk-instea
 
 ## Coming from R or Marxan
 
-`ls.prioritize` follows the vocabulary of prioritizr, so most scripts translate line by line:
+`tf.prioritize` follows the vocabulary of prioritizr, so most scripts translate line by line:
 
-| prioritizr (R) | `ls.prioritize` |
+| prioritizr (R) | `tf.prioritize` |
 |---|---|
 | `problem(cost, features)` | `P.problem(cost, features)` |
 | `add_min_set_objective()` and the others | the same names, as methods: `p.add_min_set_objective()` |
@@ -261,7 +261,7 @@ Pipes (`%>%`) become method chains, and every method returns a new problem. Exte
 subregional targets, corridors, minimum extinction risk, calibration helpers, and the comparison with
 Zonation.
 
-| Other tools | In `ls.prioritize` |
+| Other tools | In `tf.prioritize` |
 |---|---|
 | prioriactions (`inputData`, `problem`, `solve`) | `actions_data`, `ActionsData.problem`, `ActionsProblem.solve` |
 | Marxan (`input.dat`, `pu.dat`, `spec.dat`, `puvspr.dat`) | `P.marxan(pu, spec, puvspr, bound, blm=...)`, the same tables |

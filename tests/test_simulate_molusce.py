@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""MOLUSCE's weights of evidence and simulator (ls.simulate phase 7b), bit for bit with the plugin."""
+"""MOLUSCE's weights of evidence and simulator (tf.simulate phase 7b), bit for bit with the plugin."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _same(ref, ours, keys):

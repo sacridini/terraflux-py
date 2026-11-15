@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import scenes
 from gtb_reference import FAD_SCALES, find_gdl, find_spatcon, run_gtb_fad_change, run_gtb_fad_mscale
 
@@ -38,12 +38,12 @@ def fad_map(values) -> np.ndarray:
 @pytest.fixture
 def single_scale_change(monkeypatch):
     """The change of two FAD maps that stand for every observation scale."""
-    from landschaft import fad_change
+    from terraflux import fad_change
 
     def run(a, b):
         maps = {"A": {k: a for k in KEYS}, "B": {k: b for k in KEYS}}
         monkeypatch.setattr(fad_change, "_fad_ms_maps", lambda src, *_: maps[src])
-        return ls.fad_multiscale_change("A", "B").scales["mscale"]
+        return tf.fad_multiscale_change("A", "B").scales["mscale"]
 
     return run
 
@@ -77,7 +77,7 @@ def test_direction_of_fragmentation_change(single_scale_change):
 
 def test_identical_times():
     data = scenes.blobs(3, shape=(260, 270))
-    res = ls.fad_multiscale_change(data, data)
+    res = tf.fad_multiscale_change(data, data)
     for sc in res.scales.values():
         assert sc.changed == 0 and np.isnan(sc.frag_decrease_pct)
         assert sc.net_change == 0 and sc.fg_area_a == sc.forcom
@@ -92,31 +92,31 @@ def test_identical_times():
 def test_inputs_and_checks(tmp_path):
     a = scenes.blobs(5, shape=(260, 260))
     b = scenes.blobs(6, shape=(260, 260))
-    from_maps = ls.fad_multiscale_change(a, b)
-    from_results = ls.fad_multiscale_change(ls.fad_multiscale(a), ls.fad_multiscale(b))
+    from_maps = tf.fad_multiscale_change(a, b)
+    from_results = tf.fad_multiscale_change(tf.fad_multiscale(a), tf.fad_multiscale(b))
     for k in KEYS:
         np.testing.assert_array_equal(from_maps.scales[k].matrix, from_results.scales[k].matrix)
 
     # GTB output files: <name>_fad_mscale.tif next to <name>_fad_<window>.tif
     for name, data in (("a", a), ("b", b)):
-        res = ls.fad_multiscale(data)
+        res = tf.fad_multiscale(data)
         for w in FAD_SCALES:
-            ls.write_raster(res.single_scales[w], tmp_path / f"{name}_fad_{w}.tif", colormap=None)
-        ls.write_raster(res.multiscale_map, tmp_path / f"{name}_fad_mscale.tif", colormap=None)
-    from_files = ls.fad_multiscale_change(tmp_path / "a_fad_mscale.tif", tmp_path / "b_fad_mscale.tif")
+            tf.write_raster(res.single_scales[w], tmp_path / f"{name}_fad_{w}.tif", colormap=None)
+        tf.write_raster(res.multiscale_map, tmp_path / f"{name}_fad_mscale.tif", colormap=None)
+    from_files = tf.fad_multiscale_change(tmp_path / "a_fad_mscale.tif", tmp_path / "b_fad_mscale.tif")
     for k in KEYS:
         np.testing.assert_array_equal(from_files.scales[k].matrix, from_maps.scales[k].matrix)
 
     with pytest.raises(ValueError, match="different dimensions"):
-        ls.fad_multiscale_change(a, a[:, :255])
+        tf.fad_multiscale_change(a, a[:, :255])
     special = a.copy()
     special[special == 1][:10] = 4
     special[0, :5] = 4
     with pytest.raises(ValueError, match="non-fragmenting"):
-        ls.fad_multiscale_change(special, b)
+        tf.fad_multiscale_change(special, b)
     with pytest.raises(ValueError, match="window sizes"):
-        ls.fad_multiscale_change(ls.fad_multiscale(a, (7, 13)), b)
-    small = ls.fad_multiscale_change(ls.fad_multiscale(a, (7, 13)), ls.fad_multiscale(b, (7, 13)),
+        tf.fad_multiscale_change(tf.fad_multiscale(a, (7, 13)), b)
+    small = tf.fad_multiscale_change(tf.fad_multiscale(a, (7, 13)), tf.fad_multiscale(b, (7, 13)),
                                      window_sizes=(7, 13))
     assert list(small.scales) == [7, 13, "mscale"]
 
@@ -126,7 +126,7 @@ def test_fad_multiscale_special_background_codes():
     data[data == 1][:0] = 3
     data[0:3, 0:3] = 3
     data[5:8, 5:8] = 4
-    res = ls.fad_multiscale(data, (7, 13))
+    res = tf.fad_multiscale(data, (7, 13))
     for m in (*res.single_scales.values(), res.multiscale_map):
         m = np.asarray(m)
         assert (m[0:3, 0:3] == 105).all() and (m[5:8, 5:8] == 106).all()
@@ -159,7 +159,7 @@ def assert_change_matches(res, change, perc, sums, delta_fad_av, delta_avcon):
         expected = list(sums[i])
         if sc.changed == 0:
             # 0 changed pixels: perc is 0/0 = NaN and IDL's TOTAL keeps the NaN; GDL's TOTAL
-            # (unlike IDL's) skips NaN and reports 0. landschaft follows IDL.
+            # (unlike IDL's) skips NaN and reports 0. terraflux follows IDL.
             assert np.isnan(got[0]) and np.isnan(got[1])
             got[:2] = expected[:2]
         np.testing.assert_allclose(np.nan_to_num(got, nan=-1.0), expected, rtol=1e-12, err_msg=f"scale {key}")
@@ -175,7 +175,7 @@ def assert_change_matches(res, change, perc, sums, delta_fad_av, delta_avcon):
 def test_fad_multiscale_matches_stored_gtb_outputs(reference_inputs, case):
     data = reference_inputs[case["input"]]
     assert digest(data) == case["input_sha256"], "reference input changed: rerun tools/make_reference_idl.py"
-    res = ls.fad_multiscale(data)
+    res = tf.fad_multiscale(data)
     maps = {**{str(w): res.single_scales[w] for w in FAD_SCALES}, "mscale": res.multiscale_map}
     for key, sha in case["sha256"].items():
         assert digest(maps[key]) == sha, f"FAD map at scale {key} differs from GTB"
@@ -188,7 +188,7 @@ def test_fad_multiscale_matches_stored_gtb_outputs(reference_inputs, case):
 @pytest.mark.reference
 @pytest.mark.parametrize("case", _reference("fad_change"), ids=lambda c: f"{c['a']}-{c['b']}")
 def test_fad_change_matches_stored_gtb_outputs(reference_inputs, case):
-    res = ls.fad_multiscale_change(reference_inputs[case["a"]], reference_inputs[case["b"]])
+    res = tf.fad_multiscale_change(reference_inputs[case["a"]], reference_inputs[case["b"]])
     assert_change_matches(res, case["change"], case["perc"], case["sums"], case["delta_fad_av"],
                           case["delta_avcon"])
 
@@ -218,12 +218,12 @@ def test_fad_change_live_against_gtb(gtb_tools, seed):
 
     gdl, spatcon = gtb_tools
     ms = run_gtb_fad_mscale(gdl, spatcon, a)
-    res_a = ls.fad_multiscale(a)
+    res_a = tf.fad_multiscale(a)
     for w in FAD_SCALES:
         np.testing.assert_array_equal(np.asarray(res_a.single_scales[w]), ms["maps"][w], err_msg=f"scale {w}")
     np.testing.assert_array_equal(np.asarray(res_a.multiscale_map), ms["maps"]["mscale"])
 
     ref = run_gtb_fad_change(gdl, spatcon, a, b)
-    res = ls.fad_multiscale_change(res_a, b)
+    res = tf.fad_multiscale_change(res_a, b)
     assert_change_matches(res, ref["change"], np.nan_to_num(ref["perc"], nan=-1.0),
                           np.nan_to_num(ref["sums"], nan=-1.0), ref["delta_fad_av"], ref["delta_avcon"])

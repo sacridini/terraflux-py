@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Reference outputs of Circuitscape 6.1 for landschaft's circuit module;
+# Reference outputs of Circuitscape 6.1 for terraflux's circuit module;
 # called by tools/make_reference_circuitscape.py.
 #
 #   julia circuitscape_reference.jl <root> <outdir> <ini> [<ini> ...]

@@ -8,53 +8,53 @@ benchmark from that distance, or an alternative map such as a transition
 potential), the relative frequency of deforestation per class and subdivision,
 the allocation of the activity data never above a cell, and the assessment of
 the predicted against the actual deforestation in an assessment grid. The
-`ls.redd` module.
+`tf.redd` module.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster("forest_2015.tif")            # 1 forest at the start of the calibration
-cal = ls.load_raster("deforestation_2015_2020.tif")   # 1 deforested in the calibration period
-juris = ls.load_raster("jurisdiction.tif")            # non-zero inside
-states = ls.load_raster("states.tif")                 # subdivisions (ids 0-999)
+forest = tf.load_raster("forest_2015.tif")            # 1 forest at the start of the calibration
+cal = tf.load_raster("deforestation_2015_2020.tif")   # 1 deforested in the calibration period
+juris = tf.load_raster("jurisdiction.tif")            # non-zero inside
+states = tf.load_raster("states.tif")                 # subdivisions (ids 0-999)
 
-d = ls.redd.edge_distance(forest)
-t = ls.redd.nrt(d, cal, mask=juris)                   # negligible risk threshold (m)
-classes = ls.redd.benchmark(d, t, mask=juris)
-f = ls.redd.fit(classes, cal, subdivisions=states)
+d = tf.redd.edge_distance(forest)
+t = tf.redd.nrt(d, cal, mask=juris)                   # negligible risk threshold (m)
+classes = tf.redd.benchmark(d, t, mask=juris)
+f = tf.redd.fit(classes, cal, subdivisions=states)
 
 # confirm the model on a later period, then allocate the activity data
-cnf = ls.redd.allocate(classes_2020, f, deforestation=cnf_2020_2023, subdivisions=states)
-ls.redd.assess(cnf.density, cnf_2020_2023, grid_area=10_000, mask=juris).metrics
-a = ls.redd.allocate(classes_2023, f, expected=12_000, subdivisions=states)
-ls.write_raster(a.density, "expected_deforestation_ha.tif")
+cnf = tf.redd.allocate(classes_2020, f, deforestation=cnf_2020_2023, subdivisions=states)
+tf.redd.assess(cnf.density, cnf_2020_2023, grid_area=10_000, mask=juris).metrics
+a = tf.redd.allocate(classes_2023, f, expected=12_000, subdivisions=states)
+tf.write_raster(a.density, "expected_deforestation_ha.tif")
 ```
 
 ## Distance and threshold
 
-::: landschaft.redd.edge_distance
+::: terraflux.redd.edge_distance
 
-::: landschaft.redd.nrt
+::: terraflux.redd.nrt
 
 ## Vulnerability
 
-::: landschaft.redd.benchmark
+::: terraflux.redd.benchmark
 
-::: landschaft.redd.alternative
+::: terraflux.redd.alternative
 
 ## Fit and allocation
 
-::: landschaft.redd.fit
+::: terraflux.redd.fit
 
-::: landschaft.redd.Fit
+::: terraflux.redd.Fit
 
-::: landschaft.redd.allocate
+::: terraflux.redd.allocate
 
-::: landschaft.redd.Allocation
+::: terraflux.redd.Allocation
 
 ## Assessment
 
-::: landschaft.redd.assess
+::: terraflux.redd.assess
 
-::: landschaft.redd.Assessment
+::: terraflux.redd.Assessment

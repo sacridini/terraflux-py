@@ -26,7 +26,7 @@ al., 2012) gathered them into a standard library with standard definitions,
 and became the reference for thousands of studies. The R package
 landscapemetrics reimplemented them in open source (Hesselbarth et al.,
 2019), and added information-theory metrics of complexity (Nowosad &
-Stepinski, 2019). Landschaft reproduces the definitions of landscapemetrics
+Stepinski, 2019). Terraflux reproduces the definitions of landscapemetrics
 and FRAGSTATS ([accuracy](../benchmarks.md#accuracy)), so its values can be
 compared with the literature.
 
@@ -54,7 +54,7 @@ needs a rule: the **4-neighbour rule** joins cells sharing a side; the
 **8-neighbour rule** also joins cells touching at a corner. The rule changes
 the number and size of patches ([chapter 3](fragmentation.md#thresholds-and-percolation)),
 so report it. FRAGSTATS and landscapemetrics default to 8, as does
-Landschaft (`directions=8`).
+Terraflux (`directions=8`).
 
 Metrics exist at three **levels**:
 
@@ -81,7 +81,7 @@ enough to see how the main metrics work:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
 toy = np.array([
     [1, 1, 1, 2, 2, 2],
@@ -91,7 +91,7 @@ toy = np.array([
     [3, 1, 1, 1, 1, 1],
     [3, 3, 1, 1, 1, 1],
 ])
-small = ls.Landscape(toy, res=10)
+small = tf.Landscape(toy, res=10)
 small.patch_metrics(["area", "perim"])
 ```
 
@@ -177,12 +177,12 @@ landscapes with different amounts ([chapter 3](fragmentation.md)).
 
 ## The families of metrics
 
-Beyond the examples above, metrics fall into six families. Landschaft
-lists them with `ls.list_metrics()`, and every tool selects them by the
+Beyond the examples above, metrics fall into six families. Terraflux
+lists them with `tf.list_metrics()`, and every tool selects them by the
 same `level`, `metric` and `type` filters.
 
 ```python
-catalogue = ls.list_metrics()
+catalogue = tf.list_metrics()
 catalogue.groupby(["type", "level"]).size().unstack(fill_value=0)
 ```
 
@@ -229,11 +229,11 @@ et al., 2008).
 We can see it on the example map, cut into a grid of 100 zones of 5 km:
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
-zones = ls.grid_zones(landcover, 5000)
+landcover = tf.load_raster(tf.example_data("clc"))
+zones = tf.grid_zones(landcover, 5000)
 names = ["np", "pd", "te", "ed", "lsi", "lpi", "ai", "contag",
          "division", "mesh", "shdi", "sidi", "pr"]
-per_zone = ls.zonal_metrics(landcover, zones, level="landscape", metric=names)
+per_zone = tf.zonal_metrics(landcover, zones, level="landscape", metric=names)
 
 corr = per_zone[names].corr(method="spearman")
 upper = corr.where(np.triu(np.ones(corr.shape, dtype=bool), k=1)).stack()
@@ -246,8 +246,8 @@ Some pairs are identical by definition over zones of equal area: `np` and
 `lsi`, `division` and `mesh`. Others are nearly so because they measure
 the same property: aggregation (`ai`) is the mirror image of edge
 density, the largest patch (`lpi`) of division. Reporting all of them adds
-columns, not information. `ls.calculate_correlation` and
-`ls.show_correlation` compute and draw such matrices for any metric table.
+columns, not information. `tf.calculate_correlation` and
+`tf.show_correlation` compute and draw such matrices for any metric table.
 
 ## Pitfalls
 

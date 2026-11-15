@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python functions of the restoration planning inputs (landschaft._core.rest_*): original
+// Python functions of the restoration planning inputs (terraflux._core.rest_*): original
 // vegetation, area of habitat, ecological intactness.
 #pragma once
 

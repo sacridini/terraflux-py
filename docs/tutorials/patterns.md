@@ -18,9 +18,9 @@ spatial pattern of habitat pixel by pixel and object by object.
 the package.
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster(ls.example_data("input"))
+forest = tf.load_raster(tf.example_data("input"))
 forest.shape
 ```
 
@@ -42,11 +42,11 @@ width, the **edge width**, and gives every habitat pixel one of seven roles:
 ### Run it
 
 ```python
-morph = ls.mspa(forest, edge_width=2)
-ls.plot(morph)        # GuidosToolbox's colours and class names
+morph = tf.mspa(forest, edge_width=2)
+tf.plot(morph)        # GuidosToolbox's colours and class names
 ```
 
-`ls.plot` draws a result on an interactive map over satellite imagery (in a
+`tf.plot` draws a result on an interactive map over satellite imagery (in a
 notebook, or a window of its own from a script); see [plotting](../getting-started/plotting.md).
 
 The result has the same shape and georeferencing as the input, with a class
@@ -56,7 +56,7 @@ missing data becomes 129.
 ### How much of each class?
 
 ```python
-stats = ls.mspa_stats(morph)
+stats = tf.mspa_stats(morph)
 stats
 ```
 
@@ -73,11 +73,11 @@ ecology of the species or process you study and the pixel size: with 25 m
 pixels, `edge_width=4` means that edge effects reach 100 m into the forest.
 
 ```python
-narrow = ls.mspa(forest, edge_width=1)
-wide = ls.mspa(forest, edge_width=5)
+narrow = tf.mspa(forest, edge_width=1)
+wide = tf.mspa(forest, edge_width=5)
 core_share = {
-    "edge_width=1": ls.mspa_stats(narrow).loc["Core", "pct_foreground"],
-    "edge_width=5": ls.mspa_stats(wide).loc["Core", "pct_foreground"],
+    "edge_width=1": tf.mspa_stats(narrow).loc["Core", "pct_foreground"],
+    "edge_width=5": tf.mspa_stats(wide).loc["Core", "pct_foreground"],
 }
 core_share
 ```
@@ -97,22 +97,22 @@ larger patches.
 | `transition` | True | loops and bridges that cross an edge are drawn in their own colours (changes only the colour table) |
 | `internal` | True | features inside holes of a core get +100, and holes are labelled core-opening (100) or border-opening (220) |
 
-The full list of class codes is in `ls.MSPA_CLASSES`:
+The full list of class codes is in `tf.MSPA_CLASSES`:
 
 ```python
-ls.MSPA_CLASSES
+tf.MSPA_CLASSES
 ```
 
 ### Save and display
 
 ```python
-ls.write_raster(morph, "forest_mspa.tif")   # GeoTIFF with the MSPA colour table
-ls.save(stats, "forest_mspa_stats.csv")      # the table
+tf.write_raster(morph, "forest_mspa.tif")   # GeoTIFF with the MSPA colour table
+tf.save(stats, "forest_mspa_stats.csv")      # the table
 ```
 
 To draw the classes with their colours in Python, use the `show_classes`
 helper of [core concepts](../getting-started/concepts.md#plotting-maps) with
-`ls.mspa_colormap()`.
+`tf.mspa_colormap()`.
 
 ## Simplified pattern analysis (SPA)
 
@@ -128,11 +128,11 @@ linear features" (SPA2) to a split close to MSPA (SPA6):
 | SPA6 | core, edge, perforation, margin, islet |
 
 ```python
-spa = ls.spa(forest, variant=5)
+spa = tf.spa(forest, variant=5)
 spa.stats
 ```
 
-`spa.map` is the class map (`ls.SPA_CLASSES` names the codes), `spa.stats`
+`spa.map` is the class map (`tf.SPA_CLASSES` names the codes), `spa.stats`
 the class areas and `spa.porosity` the ratio of the core-openings to the
 core area. `print(spa.summary())` gives a full report.
 
@@ -145,8 +145,8 @@ pixels) and groups them into size classes. It answers questions like "how
 much of the forest is in large, intact blocks and how much in fragments?".
 
 ```python
-acc = ls.accounting(forest, thresholds=(50, 250, 1000, 5000, 20000))
-ls.plot(acc)          # the size classes, their chart and numbers
+acc = tf.accounting(forest, thresholds=(50, 250, 1000, 5000, 20000))
+tf.plot(acc)          # the size classes, their chart and numbers
 acc.stats
 ```
 
@@ -161,7 +161,7 @@ The result also has:
 
 | Attribute | Content |
 |---|---|
-| `acc.classes` | map of size classes (colours: `ls.accounting_colormap()`) |
+| `acc.classes` | map of size classes (colours: `tf.accounting_colormap()`) |
 | `acc.ids` | map of object numbers |
 | `acc.area` | map where every object pixel holds the area of its object |
 | `acc.object_area` | area of every object |
@@ -177,7 +177,7 @@ Parcellation treats every connected region of the same value (habitat or
 background) as a parcel and measures how finely the landscape is cut:
 
 ```python
-parcels = ls.parcellation(forest)
+parcels = tf.parcellation(forest)
 parcels.stats
 ```
 
@@ -190,7 +190,7 @@ parcels.stats
 | `PARC` | degree of parcellation, % |
 
 `parcels.global_stats` holds the same values for the whole landscape, and
-`ls.parcellation(forest, return_labels=True).parcel_labels` a map of the
+`tf.parcellation(forest, return_labels=True).parcel_labels` a map of the
 parcels.
 
 ## Contortion: how convoluted are the boundaries?
@@ -200,7 +200,7 @@ relative to its size: compact objects score low, elongated or dendritic ones
 high.
 
 ```python
-contortion = ls.contortion(forest, min_area=100)
+contortion = tf.contortion(forest, min_area=100)
 int(contortion.max())
 ```
 

@@ -77,9 +77,9 @@ Checked by hand on the first three locations of a fisher, projected to metres:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-tracks = ls.load_tracks(ls.move.example_data("fishers"))
+tracks = tf.load_tracks(tf.move.example_data("fishers"))
 tracks = tracks[~tracks.geometry.is_empty]
 f2 = tracks[tracks["individual-local-identifier"] == "F2"].to_crs("EPSG:5070")
 
@@ -87,14 +87,14 @@ x, y = f2.geometry.x.to_numpy()[:3], f2.geometry.y.to_numpy()[:3]
 length = np.hypot(np.diff(x), np.diff(y))
 heading = np.arctan2(np.diff(y), np.diff(x))
 turn = (heading[1] - heading[0] + np.pi) % (2 * np.pi) - np.pi
-s = ls.move.steps(f2)
-print(f"lengths by hand {length.round(3)}, ls.move.steps {s['sl_'].to_numpy()[:2].round(3)}")
-print(f"turn by hand {turn:.6f}, ls.move.steps {s['ta_'].iloc[1]:.6f}")
+s = tf.move.steps(f2)
+print(f"lengths by hand {length.round(3)}, tf.move.steps {s['sl_'].to_numpy()[:2].round(3)}")
+print(f"turn by hand {turn:.6f}, tf.move.steps {s['ta_'].iloc[1]:.6f}")
 ```
 
 ```text
-lengths by hand [472.745 620.115], ls.move.steps [472.745 620.115]
-turn by hand -0.698614, ls.move.steps -0.698614
+lengths by hand [472.745 620.115], tf.move.steps [472.745 620.115]
+turn by hand -0.698614, tf.move.steps -0.698614
 ```
 
 The simplest model of movement with these two ingredients is the
@@ -120,7 +120,7 @@ fisher at five rates:
 ```python
 rows = {}
 for rate, tolerance in [("2min", "20s"), ("10min", "1min"), ("30min", "3min"), ("1h", "6min"), ("2h", "12min")]:
-    st = ls.move.steps(ls.move.resample(f2, rate, tolerance))
+    st = tf.move.steps(tf.move.resample(f2, rate, tolerance))
     hours = st["dt_"].dt.total_seconds().sum() / 3600
     rows[rate] = {"steps": len(st), "metres_per_hour": st["sl_"].sum() / hours,
                   "mean_abs_turn_deg": np.degrees(st["ta_"].abs().mean())}
@@ -178,16 +178,16 @@ Checked by hand for the same fisher, every 30 minutes (the steps of the
 whole resampled track, gaps included):
 
 ```python
-b = ls.move.resample(f2, "30min", "3min").drop(columns="burst_")
-st = ls.move.steps(b)
+b = tf.move.resample(f2, "30min", "3min").drop(columns="burst_")
+st = tf.move.steps(b)
 p, cv = st["sl_"].mean(), st["sl_"].std() / st["sl_"].mean()
 c, s = np.nanmean(np.cos(st["ta_"])), np.nanmean(np.sin(st["ta_"]))
 by_hand = 2 * (p * ((1 - c**2 - s**2) / ((1 - c) ** 2 + s**2) + cv**2)) ** -0.5
-print(f"sinuosity by hand {by_hand:.6f}, ls.move.sinuosity {ls.move.sinuosity(b).iloc[0]:.6f}")
+print(f"sinuosity by hand {by_hand:.6f}, tf.move.sinuosity {tf.move.sinuosity(b).iloc[0]:.6f}")
 ```
 
 ```text
-sinuosity by hand 0.089913, ls.move.sinuosity 0.089913
+sinuosity by hand 0.089913, tf.move.sinuosity 0.089913
 ```
 
 ## Used and available

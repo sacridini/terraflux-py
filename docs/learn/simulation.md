@@ -55,7 +55,7 @@ pasture), succession after abandonment.
 | Patch-generating CA (PLUS, Liang et al. 2021) | areas per class | random forests on the areas that expanded | competition with random seeds and a decreasing threshold | multi-class urban and rural change |
 | Patch growing (FUTURES, Meentemeyer et al. 2013) | population per region | mixed-effects regression | patches of observed sizes grown with compactness | urban growth |
 
-Landschaft's `ls.simulate` builds all of them from the same pieces: a
+Terraflux's `tf.simulate` builds all of them from the same pieces: a
 **demand**, a **potential**, an **allocation** and **rules**, put together in
 a `Model`. The pieces can be mixed: weights of evidence with the competition
 of CLUE-S, a random forest with Expander and Patcher.
@@ -75,11 +75,11 @@ CLUE-S:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
-lu = ls.load_raster(S.example_data("sibuyan_landuse"))      # 1997 and 2011
-drivers = ls.load_raster(S.example_data("sibuyan_drivers"))
+S = tf.simulate
+lu = tf.load_raster(S.example_data("sibuyan_landuse"))      # 1997 and 2011
+drivers = tf.load_raster(S.example_data("sibuyan_drivers"))
 drivers = drivers.sel(band=["dist_sea", "dist_roads", "elevation", "slope"])
 t0, t1 = lu[0].where(lu[0] != 255), lu[1].where(lu[1] != 255)
 

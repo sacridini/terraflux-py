@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden Biodiverse outputs for the ``landschaft.bio`` tests.
+"""Generate golden Biodiverse outputs for the ``terraflux.bio`` tests.
 
 Usage::
 
@@ -208,13 +208,13 @@ def make_export(unsorted: bool) -> None:
 
 
 def make_dependencies(unsorted: bool) -> None:
-    """Biodiverse's calculation metadata used by landschaft (pre_calc order, neighbour sets)."""
+    """Biodiverse's calculation metadata used by terraflux (pre_calc order, neighbour sets)."""
     import json
 
     spec = dict(bio_cases.BASEDATA_CASES["site_100k"]["biodiverse"])
     spec["file"] = _path(spec["file"])
     meta = run({"basedata": spec, "tasks": [{"type": "metadata", "name": "metadata"}]}, unsorted)["metadata"]
-    out = ROOT / "src" / "landschaft" / "bio" / "data" / "biodiverse_dependencies.json"
+    out = ROOT / "src" / "terraflux" / "bio" / "data" / "biodiverse_dependencies.json"
     out.write_text(json.dumps(meta, indent=0, sort_keys=True) + "\n", encoding="utf-8")
     print(f"wrote {out}")
 

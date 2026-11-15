@@ -11,7 +11,7 @@ import rasterio.features
 import xarray as xr
 from rasterio.transform import from_origin
 
-import landschaft as ls
+import terraflux as tf
 
 gpd = pytest.importorskip("geopandas")
 from shapely.geometry import Point, Polygon, box  # noqa: E402
@@ -71,7 +71,7 @@ def test_zonal_stats_match_numpy_and_gdal(raster, all_touched):
     polys = random_polygons(rng, 60) + [box(499000, 4497000, 500500, 4499000)]  # partly outside
     zones = gpd.GeoDataFrame({"id": range(len(polys))}, geometry=polys, crs=CRS)
     stats = ["count", "nodata", "sum", "mean", "min", "max", "range", "std", "var", "median", "p10", "p95.5"]
-    out = ls.zonal_stats(raster, zones, stats, all_touched=all_touched)
+    out = tf.zonal_stats(raster, zones, stats, all_touched=all_touched)
     assert list(out.columns[:2]) == ["id", "geometry"] and len(out) == len(polys)
     values = raster.values
     for i, g in enumerate(polys):
@@ -91,7 +91,7 @@ def test_zonal_stats_match_numpy_and_gdal(raster, all_touched):
 def test_overlapping_and_empty_zones(raster):
     a = box(500300, 4497500, 501500, 4499600)
     zones = gpd.GeoSeries([a, a.buffer(-200), box(0, 0, 10, 10)], crs=CRS)  # nested, outside
-    out = ls.zonal_stats(raster, zones, ["count", "mean"])
+    out = tf.zonal_stats(raster, zones, ["count", "mean"])
     assert out["count"].iloc[0] > out["count"].iloc[1] > 0
     assert out["count"].iloc[2] == 0 and np.isnan(out["mean"].iloc[2])
     assert out["count"].dtype == np.int64
@@ -104,14 +104,14 @@ def test_majority_minority_unique_on_classes():
     v[:, 45:] = 255  # NoData
     v[0, 0] = 9
     da = grid(v, nodata=255)
-    out = ls.zonal_stats(da, box(500000, 4498500, 501500, 4500000), ["majority", "minority", "unique", "nodata"])
+    out = tf.zonal_stats(da, box(500000, 4498500, 501500, 4500000), ["majority", "minority", "unique", "nodata"])
     assert out[["majority", "minority", "unique", "nodata"]].iloc[0].tolist() == [7, 9, 3, 250]
 
 
 def test_zonal_stats_of_a_stack_and_zones_in_another_crs(raster):
     stack = xr.concat([raster, raster * 2], dim="band").assign_coords(band=["a", "b"])
     zone = gpd.GeoDataFrame(geometry=[box(500300, 4497500, 501500, 4499600)], crs=CRS).to_crs("EPSG:4326")
-    out = ls.zonal_stats(stack, zone, ["mean", "max"])
+    out = tf.zonal_stats(stack, zone, ["mean", "max"])
     assert {"a_mean", "a_max", "b_mean", "b_max"} <= set(out.columns)
     assert out["b_mean"].iloc[0] == pytest.approx(2 * out["a_mean"].iloc[0], rel=1e-6)
 
@@ -120,7 +120,7 @@ def test_zones_from_a_raster_of_labels(raster):
     labels = np.repeat(np.arange(10, dtype=np.int32), 10)[:, None] * np.ones((1, 120), np.int32)
     labels[:, :5] = -1
     zones = grid(labels, nodata=-1)
-    out = ls.zonal_stats(raster, zones, ["count", "mean", "median"])
+    out = tf.zonal_stats(raster, zones, ["count", "mean", "median"])
     assert out["zone"].tolist() == list(range(10))
     for z in range(10):
         v, _ = reference(raster.values, labels == z)
@@ -128,7 +128,7 @@ def test_zones_from_a_raster_of_labels(raster):
         assert out["mean"].iloc[z] == pytest.approx(v.mean(), rel=1e-12)
         assert out["median"].iloc[z] == pytest.approx(np.median(v), rel=1e-12)
     coarse = grid(labels[::2, ::2], transform=from_origin(500000.0, 4500000.0, 60.0, 60.0), nodata=-1)
-    assert ls.zonal_stats(raster, coarse, "count")["zone"].tolist() == list(range(10))  # put on the grid
+    assert tf.zonal_stats(raster, coarse, "count")["zone"].tolist() == list(range(10))  # put on the grid
 
 
 def test_zonal_stats_types_and_threads():
@@ -137,14 +137,14 @@ def test_zonal_stats_types_and_threads():
     base = rng.integers(0, 200, (100, 100))
     results = {}
     for dt in ("uint8", "int16", "int32", "int64", "float32", "float64"):
-        results[dt] = ls.zonal_stats(grid(base.astype(dt)), zone, ["sum", "mean", "std", "p50"])
+        results[dt] = tf.zonal_stats(grid(base.astype(dt)), zone, ["sum", "mean", "std", "p50"])
     first = results["uint8"].drop(columns="geometry")
     for out in results.values():
         pd.testing.assert_frame_equal(out.drop(columns="geometry"), first)
     big = grid(rng.random((800, 800)).astype(np.float32), transform=from_origin(500000.0, 4524000.0, 30.0, 30.0))
     zone = [box(500000, 4500000, 524000, 4524000)]
-    one = ls.zonal_stats(big, zone, ["sum", "mean", "std"], n_threads=1)
-    many = ls.zonal_stats(big, zone, ["sum", "mean", "std"], n_threads=8)
+    one = tf.zonal_stats(big, zone, ["sum", "mean", "std"], n_threads=1)
+    many = tf.zonal_stats(big, zone, ["sum", "mean", "std"], n_threads=8)
     assert one.drop(columns="geometry").equals(many.drop(columns="geometry"))  # bit for bit
     assert one["mean"].iloc[0] == pytest.approx(float(big.values.astype(np.float64).mean()), rel=1e-12)
 
@@ -160,17 +160,17 @@ def test_every_numpy_variant_of_a_type(dtype):
     ref, r = grid(base.astype(canonical)), grid(base.astype(dtype))
     zones = [box(500000, 4499100, 500600, 4500000), box(500300, 4498800, 501200, 4499700)]
     stats = ["sum", "median", "majority"]
-    pd.testing.assert_frame_equal(ls.zonal_stats(r, zones, stats), ls.zonal_stats(ref, zones, stats))
-    pd.testing.assert_frame_equal(ls.zonal_stats(ref, grid((base // 10).astype(dtype)), ["sum"]),
-                                  ls.zonal_stats(ref, grid((base // 10).astype(canonical)), ["sum"]))
+    pd.testing.assert_frame_equal(tf.zonal_stats(r, zones, stats), tf.zonal_stats(ref, zones, stats))
+    pd.testing.assert_frame_equal(tf.zonal_stats(ref, grid((base // 10).astype(dtype)), ["sum"]),
+                                  tf.zonal_stats(ref, grid((base // 10).astype(canonical)), ["sum"]))
     pts = gpd.GeoDataFrame(geometry=gpd.points_from_xy([500100, 500700], [4499100, 4499500]), crs=CRS)
-    pd.testing.assert_frame_equal(ls.extract(r, pts), ls.extract(ref, pts))
+    pd.testing.assert_frame_equal(tf.extract(r, pts), tf.extract(ref, pts))
     gdf = gpd.GeoDataFrame({"v": [3, 4]}, geometry=zones, crs=CRS)
-    np.testing.assert_array_equal(ls.rasterize(gdf, r, field="v", dtype=np.dtype(dtype).newbyteorder("=")),
-                                  ls.rasterize(gdf, r, field="v", dtype=canonical))
-    np.testing.assert_array_equal(ls.reproject(r, "EPSG:3035", resampling="nearest"),
-                                  ls.reproject(ref, "EPSG:3035", resampling="nearest"))
-    np.testing.assert_array_equal(ls.reclassify(r, {3: 100}, others=0), ls.reclassify(ref, {3: 100}, others=0))
+    np.testing.assert_array_equal(tf.rasterize(gdf, r, field="v", dtype=np.dtype(dtype).newbyteorder("=")),
+                                  tf.rasterize(gdf, r, field="v", dtype=canonical))
+    np.testing.assert_array_equal(tf.reproject(r, "EPSG:3035", resampling="nearest"),
+                                  tf.reproject(ref, "EPSG:3035", resampling="nearest"))
+    np.testing.assert_array_equal(tf.reclassify(r, {3: 100}, others=0), tf.reclassify(ref, {3: 100}, others=0))
 
 
 @pytest.mark.parametrize("dtype", ["float32", "int16", "uint8"])
@@ -188,8 +188,8 @@ def test_percentiles_of_zones_over_a_million_cells_match_numpy(dtype):
     whole = box(500000, 4500000, 536000, 4536000)  # 1.44 million cells
     small = box(500000, 4530000, 503000, 4536000)  # 20 000 cells: values gathered
     stats = ["count", "median", "p0", "p2.5", "p50", "p90", "p99.99", "p100", "mean"]
-    one = ls.zonal_stats(raster, [whole, small], stats, n_threads=1).drop(columns="geometry")
-    many = ls.zonal_stats(raster, [whole, small], stats, n_threads=8).drop(columns="geometry")
+    one = tf.zonal_stats(raster, [whole, small], stats, n_threads=1).drop(columns="geometry")
+    many = tf.zonal_stats(raster, [whole, small], stats, n_threads=8).drop(columns="geometry")
     assert one.equals(many)  # bit for bit
     for z, g in enumerate((whole, small)):
         mask = rasterio.features.geometry_mask([g], out_shape=v.shape, transform=t, invert=True)
@@ -202,14 +202,14 @@ def test_percentiles_of_zones_over_a_million_cells_match_numpy(dtype):
 
 def test_zonal_stats_errors(raster):
     with pytest.raises(ValueError, match="unknown statistic"):
-        ls.zonal_stats(raster, box(500000, 4499000, 500300, 4500000), "average")
+        tf.zonal_stats(raster, box(500000, 4499000, 500300, 4500000), "average")
     with pytest.raises(ValueError, match="polygons"):
-        ls.zonal_stats(raster, gpd.GeoSeries([Point(500100, 4499900)], crs=CRS))
+        tf.zonal_stats(raster, gpd.GeoSeries([Point(500100, 4499900)], crs=CRS))
     with pytest.raises(ValueError, match="already have"):
-        ls.zonal_stats(raster, gpd.GeoDataFrame({"mean": [1]}, geometry=[box(500000, 4499000, 500300, 4500000)],
+        tf.zonal_stats(raster, gpd.GeoDataFrame({"mean": [1]}, geometry=[box(500000, 4499000, 500300, 4500000)],
                                                 crs=CRS), "mean")
     with pytest.raises(TypeError, match="georeferenced DataArray"):
-        ls.zonal_stats(np.zeros((3, 3)), box(0, 0, 1, 1))
+        tf.zonal_stats(np.zeros((3, 3)), box(0, 0, 1, 1))
 
 
 # --- extract -------------------------------------------------------------------------
@@ -219,7 +219,7 @@ def test_extract_nearest_and_bilinear(raster):
     rng = np.random.default_rng(2)
     x = rng.uniform(499900, 503700, 500)  # some outside
     y = rng.uniform(4496900, 4500100, 500)
-    out = ls.extract(raster, (x, y))
+    out = tf.extract(raster, (x, y))
     col = np.floor((x - T.c) / T.a).astype(int)
     row = np.floor((y - T.f) / T.e).astype(int)
     inside = (col >= 0) & (col < 120) & (row >= 0) & (row < 100)
@@ -230,7 +230,7 @@ def test_extract_nearest_and_bilinear(raster):
     xb = rng.uniform(500100, 503400, 200)
     yb = rng.uniform(4497100, 4499900, 200)
     full = grid(np.add.outer(np.arange(100.0) * 3, np.arange(120.0)))  # a plane: bilinear is exact
-    got = ls.extract(full, np.c_[xb, yb], method="bilinear")["v"].to_numpy()
+    got = tf.extract(full, np.c_[xb, yb], method="bilinear")["v"].to_numpy()
     fx, fy = (xb - T.c) / T.a - 0.5, (yb - T.f) / T.e - 0.5
     np.testing.assert_allclose(got, fy * 3 + fx, atol=1e-9)
 
@@ -241,11 +241,11 @@ def test_extract_points_in_another_crs_stacks_and_nodata():
     stack = grid(np.stack([v, v * 2]), nodata=-9, names=["a", "b"])
     pts = gpd.GeoDataFrame({"name": ["p", "q"]}, crs=CRS,
                            geometry=[Point(500000 + 3.5 * 30, 4500000 - 2.5 * 30), Point(500000 + 15, 4500000 - 15)])
-    out = ls.extract(stack, pts.to_crs("EPSG:4326"))
+    out = tf.extract(stack, pts.to_crs("EPSG:4326"))
     assert np.isnan(out["a"].iloc[0]) and out[["a", "b"]].iloc[1].tolist() == [0.0, 0.0]
     assert out.crs.to_epsg() == 32633 and out["name"].tolist() == ["p", "q"]
     with pytest.raises(ValueError, match="takes points"):
-        ls.extract(stack, gpd.GeoSeries([box(0, 0, 1, 1)], crs=CRS))
+        tf.extract(stack, gpd.GeoSeries([box(0, 0, 1, 1)], crs=CRS))
 
 
 def test_extract_from_a_lazy_raster_reads_only_blocks_with_points(raster):
@@ -254,18 +254,18 @@ def test_extract_from_a_lazy_raster_reads_only_blocks_with_points(raster):
     rng = np.random.default_rng(4)
     pts = np.c_[rng.uniform(500000, 503600, 300), rng.uniform(4497000, 4500000, 300)]
     for method in ("nearest", "bilinear"):
-        a = ls.extract(raster, pts, method=method)["v"].to_numpy()
-        b = ls.extract(lazy, pts, method=method)["v"].to_numpy()
+        a = tf.extract(raster, pts, method=method)["v"].to_numpy()
+        b = tf.extract(lazy, pts, method=method)["v"].to_numpy()
         np.testing.assert_array_equal(a, b)
 
 
 def test_extract_with_buffer_is_zonal_stats_of_circles(raster):
     pts = gpd.GeoDataFrame({"site": [1, 2]}, geometry=[Point(501000, 4498000), Point(502500, 4499000)], crs=CRS)
-    got = ls.extract(raster, pts, buffer=150, stats=["mean", "count"])
-    ref = ls.zonal_stats(raster, pts.buffer(150), ["mean", "count"])
+    got = tf.extract(raster, pts, buffer=150, stats=["mean", "count"])
+    ref = tf.zonal_stats(raster, pts.buffer(150), ["mean", "count"])
     np.testing.assert_array_equal(got["mean"].to_numpy(), ref["mean"].to_numpy())
     assert got.geometry.geom_type.tolist() == ["Point", "Point"]
-    plain = ls.extract(raster, np.array([[501000, 4498000]]), buffer=150)
+    plain = tf.extract(raster, np.array([[501000, 4498000]]), buffer=150)
     assert list(plain.columns) == ["x", "y", "mean"]
 
 
@@ -274,18 +274,18 @@ def test_extract_with_buffer_is_zonal_stats_of_circles(raster):
 
 def test_clip_crops_and_masks(raster):
     circle = Point(501500, 4498500).buffer(600)
-    out = ls.clip(raster, circle)
+    out = tf.clip(raster, circle)
     assert out.shape == (40, 40)
     tr = out.rio.transform()
     assert (tr.c, tr.f) == (500900.0, 4499100.0)
     expected = rasterio.features.geometry_mask([circle], out_shape=raster.shape, transform=T, invert=True)
     assert int(out.notnull().sum()) == int((expected & raster.notnull().values).sum())
     np.testing.assert_array_equal(out.x.values, raster.x.values[30:70])
-    touched = ls.clip(raster, circle, all_touched=True)
+    touched = tf.clip(raster, circle, all_touched=True)
     assert int(touched.notnull().sum()) > int(out.notnull().sum())
-    kept = ls.clip(raster, circle, crop=False)
+    kept = tf.clip(raster, circle, crop=False)
     assert kept.shape == raster.shape
-    hole = ls.clip(raster, circle, invert=True)
+    hole = tf.clip(raster, circle, invert=True)
     assert hole.shape == raster.shape and int(hole.notnull().sum()) + int(kept.notnull().sum()) == int(
         raster.notnull().sum())
 
@@ -307,82 +307,82 @@ def test_clip_and_rasterize_match_gdal_on_polygons_with_many_vertices(raster, al
     region = jagged_polygon(rng, 5000, 501800, 4498500, 1900)  # beyond the raster on every side
     gdal = rasterio.features.rasterize([(region, 1)], out_shape=raster.shape, transform=T, dtype="uint8",
                                        all_touched=all_touched).astype(bool)
-    burnt = ls.rasterize(gpd.GeoSeries([region], crs=CRS), raster, all_touched=all_touched).values
+    burnt = tf.rasterize(gpd.GeoSeries([region], crs=CRS), raster, all_touched=all_touched).values
     np.testing.assert_array_equal(burnt, gdal)
-    kept = ls.clip(raster, region, crop=False, all_touched=all_touched)
+    kept = tf.clip(raster, region, crop=False, all_touched=all_touched)
     np.testing.assert_array_equal(kept.notnull().values, gdal & raster.notnull().values)
-    hole = ls.clip(raster, region, invert=True, all_touched=all_touched)
+    hole = tf.clip(raster, region, invert=True, all_touched=all_touched)
     np.testing.assert_array_equal(hole.notnull().values, ~gdal & raster.notnull().values)
-    stats = ls.zonal_stats(raster, [region], ["count", "sum"], all_touched=all_touched)
+    stats = tf.zonal_stats(raster, [region], ["count", "sum"], all_touched=all_touched)
     v, _ = reference(raster.values, gdal)
     assert stats["count"].iloc[0] == v.size and np.isclose(stats["sum"].iloc[0], v.sum(), rtol=1e-12)
 
 
 def test_clip_class_maps_keep_their_type(tmp_path):
     classes = grid(np.full((50, 50), 7, np.uint8))
-    out = ls.clip(classes, box(500300, 4498800, 500900, 4499700))
+    out = tf.clip(classes, box(500300, 4498800, 500900, 4499700))
     assert out.dtype == np.uint8 and out.rio.nodata == 255 and set(np.unique(out.values)) == {7}
     with_nd = grid(np.full((50, 50), 7, np.int16), nodata=-1)
-    masked = ls.clip(with_nd, Point(500750, 4499250).buffer(300))
+    masked = tf.clip(with_nd, Point(500750, 4499250).buffer(300))
     assert masked.dtype == np.int16 and set(np.unique(masked.values)) == {-1, 7}
-    back = ls.load_raster(ls.write_raster(masked, tmp_path / "c.tif"))
+    back = tf.load_raster(tf.write_raster(masked, tmp_path / "c.tif"))
     assert back.rio.nodata == -1 and back.rio.transform() == masked.rio.transform()
 
 
 def test_clip_regions(raster):
-    assert ls.clip(raster, (500300, 4497000, 501200, 4499100)).shape == (70, 30)
+    assert tf.clip(raster, (500300, 4497000, 501200, 4499100)).shape == (70, 30)
     other = gpd.GeoDataFrame(geometry=[box(500300, 4497000, 501200, 4499100)], crs=CRS).to_crs("EPSG:4326")
-    assert abs(ls.clip(raster, other).shape[1] - 30) <= 1
+    assert abs(tf.clip(raster, other).shape[1] - 30) <= 1
     with pytest.raises(ValueError, match="does not overlap"):
-        ls.clip(raster, box(0, 0, 10, 10))
+        tf.clip(raster, box(0, 0, 10, 10))
     with pytest.raises(TypeError, match="load_vector"):
-        ls.clip(raster, "area.gpkg")
+        tf.clip(raster, "area.gpkg")
 
 
 def test_georeferencing_results_does_not_copy_or_touch_the_input(raster):
     before = (raster.rio.transform(), raster.rio.nodata, dict(raster.attrs))
-    crop = ls.clip(raster, (500300, 4497000, 501200, 4499100))
+    crop = tf.clip(raster, (500300, 4497000, 501200, 4499100))
     assert np.shares_memory(crop.values, raster.values) and crop.rio.transform().c == 500300
-    assert np.shares_memory(ls.match_grid(raster, raster).values, raster.values)
-    masked = ls.clip(raster, Point(501500, 4498500).buffer(600))
+    assert np.shares_memory(tf.match_grid(raster, raster).values, raster.values)
+    masked = tf.clip(raster, Point(501500, 4498500).buffer(600))
     assert np.isnan(masked.rio.nodata) and not np.shares_memory(masked.values, raster.values)
     assert (raster.rio.transform(), raster.rio.nodata, dict(raster.attrs)) == before
 
 
 def test_clip_is_lazy_on_dask(raster):
     pytest.importorskip("dask")
-    lazy = ls.clip(raster.chunk({"y": 25}), Point(501500, 4498500).buffer(600))
+    lazy = tf.clip(raster.chunk({"y": 25}), Point(501500, 4498500).buffer(600))
     assert lazy.chunks is not None
-    np.testing.assert_array_equal(lazy.values, ls.clip(raster, Point(501500, 4498500).buffer(600)).values)
+    np.testing.assert_array_equal(lazy.values, tf.clip(raster, Point(501500, 4498500).buffer(600)).values)
 
 
 # --- load_raster: clip= and stacks on a grid ----------------------------------------------
 
 
 def test_load_raster_clip_reads_the_window(tmp_path, raster):
-    path = ls.write_raster(raster, tmp_path / "r.tif")
+    path = tf.write_raster(raster, tmp_path / "r.tif")
     region = Point(501500, 4498500).buffer(600)
-    a = ls.load_raster(path, clip=region)
-    b = ls.clip(ls.load_raster(path), region)
+    a = tf.load_raster(path, clip=region)
+    b = tf.clip(tf.load_raster(path), region)
     np.testing.assert_array_equal(a.values, b.values)
     assert a.rio.transform() == b.rio.transform()
-    assert ls.load_raster(path, clip=(500300, 4497000, 501200, 4499100)).shape == (70, 30)
+    assert tf.load_raster(path, clip=(500300, 4497000, 501200, 4499100)).shape == (70, 30)
 
 
 def test_load_raster_list_like_stacks_any_grids(tmp_path, raster):
-    ls.write_raster(raster, tmp_path / "sp_a.tif")
-    ls.write_raster(raster.rio.reproject("EPSG:4326"), tmp_path / "sp_b.tif")
-    ls.write_raster(raster[::2, ::2], tmp_path / "sp_c.tif")
-    stack = ls.load_raster(tmp_path, like=raster)
+    tf.write_raster(raster, tmp_path / "sp_a.tif")
+    tf.write_raster(raster.rio.reproject("EPSG:4326"), tmp_path / "sp_b.tif")
+    tf.write_raster(raster[::2, ::2], tmp_path / "sp_c.tif")
+    stack = tf.load_raster(tmp_path, like=raster)
     assert stack.dims == ("band", "y", "x") and stack.band.values.tolist() == ["sp_a", "sp_b", "sp_c"]
     assert stack.shape == (3, 100, 120) and (stack.x.values == raster.x.values).all()
     np.testing.assert_array_equal(stack.sel(band="sp_a").values, raster.values)
-    small = ls.load_raster(tmp_path, like=raster, clip=(500300, 4497000, 501200, 4499100))
+    small = tf.load_raster(tmp_path, like=raster, clip=(500300, 4497000, 501200, 4499100))
     assert small.shape == (3, 100, 120) and int(small.notnull().sum()) < int(stack.notnull().sum())
-    with pytest.raises(ls.InvalidInputError, match="share the same grid"):
-        ls.load_raster(tmp_path, stack=True)
+    with pytest.raises(tf.InvalidInputError, match="share the same grid"):
+        tf.load_raster(tmp_path, stack=True)
     with pytest.raises(ValueError, match="needs like="):
-        ls.load_raster(tmp_path, clip=(0, 0, 1, 1))
+        tf.load_raster(tmp_path, clip=(0, 0, 1, 1))
 
 
 # --- reclassify with a table ----------------------------------------------------------
@@ -395,27 +395,27 @@ def classes():
 
 
 def test_reclassify_pairs_dicts_frames(classes):
-    d = ls.reclassify(classes, {1: 100, 2: 200, 23: 5})
+    d = tf.reclassify(classes, {1: 100, 2: 200, 23: 5})
     assert d.dtype == np.uint8 and d.values.tolist() == [[100, 200, 3], [5, 24, 255]] and d.rio.nodata == 255
-    big = ls.reclassify(classes, {1: 1000}, others=1)
+    big = tf.reclassify(classes, {1: 1000}, others=1)
     assert big.dtype == np.uint16 and big.values.tolist() == [[1000, 1, 1], [1, 1, 255]]
     assert big.rio.nodata == 255  # the input's NoData, which the type holds
     frame = pd.DataFrame({"classe": [1, 23], "resistencia": [1.5, 9.0]})
-    f = ls.reclassify(classes, frame, others="nodata")
+    f = tf.reclassify(classes, frame, others="nodata")
     assert f.dtype == np.float32 and np.isnan(f.values[0, 1]) and f.values[0, 0] == 1.5 and np.isnan(f.values[1, 2])
-    pairs = ls.reclassify(classes, [(1, 7), (2, 8)])
+    pairs = tf.reclassify(classes, [(1, 7), (2, 8)])
     assert pairs.values[0].tolist() == [7, 8, 3]
     with pytest.raises(ValueError, match="twice"):
-        ls.reclassify(classes, [(1, 7), (1, 8)])
+        tf.reclassify(classes, [(1, 7), (1, 8)])
 
 
 def test_reclassify_ranges_first_wins_and_nan():
     v = np.array([[0.0, 3.9, 4.0], [10.0, 99.0, np.nan]])
-    out = ls.reclassify(v, [(0, 4, 1), (4, 10, 2), (10, np.inf, 3), (0, 100, 9)])
+    out = tf.reclassify(v, [(0, 4, 1), (4, 10, 2), (10, np.inf, 3), (0, 100, 9)])
     np.testing.assert_array_equal(out, [[1, 1, 2], [3, 3, np.nan]])
-    ints = ls.reclassify(v, [(0, 4, 1), (4, np.inf, 2)], others=0, dtype="uint8")
+    ints = tf.reclassify(v, [(0, 4, 1), (4, np.inf, 2)], others=0, dtype="uint8")
     assert ints.dtype == np.uint8 and ints.tolist() == [[1, 1, 2], [2, 2, 255]]
-    mixed = ls.reclassify(v, {(0, 4): 1, 99.0: 5})
+    mixed = tf.reclassify(v, {(0, 4): 1, 99.0: 5})
     np.testing.assert_array_equal(mixed, [[1, 1, 4], [10, 5, np.nan]])
 
 
@@ -433,41 +433,41 @@ def test_reclassify_every_type_and_path_agrees(dtype, shape):
     v = values.astype(dtype)
     keys = values.astype(np.float64)
     expected = np.vectorize(lambda x: table.get(x, 0))(keys)
-    np.testing.assert_array_equal(ls.reclassify(v, table, others=0), expected)
+    np.testing.assert_array_equal(tf.reclassify(v, table, others=0), expected)
     kept = np.vectorize(lambda x: table.get(x, x))(keys)
-    np.testing.assert_array_equal(ls.reclassify(v, table), kept)
+    np.testing.assert_array_equal(tf.reclassify(v, table), kept)
     # without the wide value, 32- and 64-bit integers go through a table of their span
     narrow = np.where(values == 10**6, 7, values).astype(dtype)
-    np.testing.assert_array_equal(ls.reclassify(narrow, table, others=0),
+    np.testing.assert_array_equal(tf.reclassify(narrow, table, others=0),
                                   np.vectorize(lambda x: table.get(x, 0))(narrow.astype(np.float64)))
 
 
 def test_reclassify_kept_values_and_threads():
     big = np.array([[2**53 + 1, 5, -(2**62) - 3]], np.int64)  # not through float64: exact
-    assert ls.reclassify(big, {5: 1}).tolist() == [[2**53 + 1, 1, -(2**62) - 3]]
+    assert tf.reclassify(big, {5: 1}).tolist() == [[2**53 + 1, 1, -(2**62) - 3]]
     neg = np.array([[1, 2, 40000]], np.uint16)  # kept in int32 (the type of -5 and of uint16)
-    out = ls.reclassify(neg, {1: -5})
+    out = tf.reclassify(neg, {1: -5})
     assert out.dtype == np.int32 and out.tolist() == [[-5, 2, 40000]]
     v = np.random.default_rng(1).random((400, 300)) * 50
     ranges = [(0, 10, 1), (5, 30, 2), (30, np.inf, 3)]
-    one = ls.reclassify(v, ranges, others="nodata", n_threads=1)
-    np.testing.assert_array_equal(one, ls.reclassify(v, ranges, others="nodata", n_threads=4))
+    one = tf.reclassify(v, ranges, others="nodata", n_threads=1)
+    np.testing.assert_array_equal(one, tf.reclassify(v, ranges, others="nodata", n_threads=4))
     np.testing.assert_array_equal(one, np.where(v < 10, 1, np.where(v < 30, 2, 3)))
 
 
 def test_reclassify_lazy_and_habitat_mode(classes):
     pytest.importorskip("dask")
-    lazy = ls.reclassify(classes.chunk({"y": 1}), {1: 100})
+    lazy = tf.reclassify(classes.chunk({"y": 1}), {1: 100})
     assert lazy.chunks is not None and lazy.values.tolist() == [[100, 2, 3], [23, 24, 255]]
-    habitat = ls.reclassify(classes, [23, 24])  # a list of values: the habitat of a habitat map
+    habitat = tf.reclassify(classes, [23, 24])  # a list of values: the habitat of a habitat map
     assert habitat.values.tolist() == [[1, 1, 1], [2, 2, 0]]
-    lazy_habitat = ls.reclassify(classes.chunk({"y": 1}), foreground=[23, 24], missing=[1], background=[2, 3])
+    lazy_habitat = tf.reclassify(classes.chunk({"y": 1}), foreground=[23, 24], missing=[1], background=[2, 3])
     assert lazy_habitat.chunks is not None and lazy_habitat.values.tolist() == [[0, 1, 1], [2, 2, 0]]
-    assert ls.reclassify(classes, foreground=23).values.tolist() == [[1, 1, 1], [2, 1, 0]]
+    assert tf.reclassify(classes, foreground=23).values.tolist() == [[1, 1, 1], [2, 1, 0]]
     with pytest.raises(ValueError, match="habitat maps"):
-        ls.reclassify(classes, {1: 2}, missing=[3])
+        tf.reclassify(classes, {1: 2}, missing=[3])
     with pytest.raises(TypeError, match="needs a table"):
-        ls.reclassify(classes)
+        tf.reclassify(classes)
 
 
 @pytest.mark.external_reference
@@ -492,7 +492,7 @@ def test_rasterize_matches_gdal_on_edges_through_cell_centres():
         if g.is_empty or g.geom_type not in ("Polygon", "MultiPolygon"):
             continue
         for touched in (False, True):
-            ours = ls.rasterize(gpd.GeoSeries([g], crs=CRS), like, all_touched=touched).values
+            ours = tf.rasterize(gpd.GeoSeries([g], crs=CRS), like, all_touched=touched).values
             ref = rasterio.features.rasterize([(g, 1)], out_shape=(10, 10), transform=t, dtype="uint8",
                                               all_touched=touched)
             np.testing.assert_array_equal(ours, ref, err_msg=f"{g.wkt} all_touched={touched}")
@@ -509,7 +509,7 @@ def test_rasterize_points_lines_and_order_match_gdal():
                            geometry=gpd.points_from_xy(rng.uniform(499900, 502500, 3000),
                                                        rng.uniform(4498100, 4500100, 3000)))
     for merge, alg in (("replace", rasterio.enums.MergeAlg.replace), ("add", rasterio.enums.MergeAlg.add)):
-        ours = ls.rasterize(pts, like, field="v", merge=merge, dtype="int32").values
+        ours = tf.rasterize(pts, like, field="v", merge=merge, dtype="int32").values
         ref = rasterio.features.rasterize(zip(pts.geometry, pts.v), out_shape=(60, 80), transform=t, merge_alg=alg,
                                           dtype="int32")
         np.testing.assert_array_equal(ours, ref)
@@ -517,4 +517,4 @@ def test_rasterize_points_lines_and_order_match_gdal():
         box(500300, 4498500, 501500, 4499700), LineString([(500000, 4498200), (502400, 4500000)]),
         Point(500900, 4499100)])
     ref = rasterio.features.rasterize(zip(mixed.geometry, mixed.v), out_shape=(60, 80), transform=t, dtype="uint8")
-    np.testing.assert_array_equal(ls.rasterize(mixed, like, field="v").values, ref)
+    np.testing.assert_array_equal(tf.rasterize(mixed, like, field="v").values, ref)

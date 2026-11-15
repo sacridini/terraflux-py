@@ -1,17 +1,17 @@
 ---
-title: Landschaft
+title: Terraflux
 description: Fast, exact landscape pattern, fragmentation, landscape-metric and connectivity analysis for Python.
 hide:
   - navigation
   - toc
 ---
 
-# Landschaft
+# Terraflux
 
 <div class="ls-hero" markdown>
 
-![Landschaft](assets/images/logo-stacked.svg#only-light){ .ls-hero__logo }
-![Landschaft](assets/images/logo-stacked-dark.svg#only-dark){ .ls-hero__logo }
+![Terraflux](assets/images/logo-stacked.svg#only-light){ .ls-hero__logo }
+![Terraflux](assets/images/logo-stacked-dark.svg#only-dark){ .ls-hero__logo }
 
 <p class="ls-hero__tagline">
 Fast, exact landscape analysis for Python. Map habitat structure, measure
@@ -23,7 +23,7 @@ from a single raster on a laptop to continental maps larger than memory.
 [Get started](getting-started/index.md){ .md-button .md-button--primary }
 [Tutorials](tutorials/index.md){ .md-button }
 [Learn](learn/index.md){ .md-button }
-[GitHub :fontawesome-brands-github:](https://github.com/sacridini/landschaft){ .md-button }
+[GitHub :fontawesome-brands-github:](https://github.com/sacridini/terraflux-py){ .md-button }
 </div>
 
 <p class="ls-hero__meta">
@@ -126,29 +126,29 @@ Python 3.10+ · C++17 / OpenMP core · numpy · xarray · dask · GPL-3.0-or-lat
 === "Habitat patterns"
 
     ```python
-    import landschaft as ls
+    import terraflux as tf
 
-    forest = ls.load_raster(ls.example_data("input"))  # 0 missing, 1 background, 2 forest
-    morph = ls.mspa(forest, edge_width=2)              # cores, edges, bridges, loops...
-    ls.mspa_stats(morph)                                # area of every class
+    forest = tf.load_raster(tf.example_data("input"))  # 0 missing, 1 background, 2 forest
+    morph = tf.mspa(forest, edge_width=2)              # cores, edges, bridges, loops...
+    tf.mspa_stats(morph)                                # area of every class
     ```
 
 === "Landscape metrics"
 
     ```python
-    import landschaft as ls
+    import terraflux as tf
 
-    landcover = ls.load_raster(ls.example_data("clc"))
-    ls.landscape_metrics(landcover, level="landscape", metric=["shdi", "contag", "ed"])
+    landcover = tf.load_raster(tf.example_data("clc"))
+    tf.landscape_metrics(landcover, level="landscape", metric=["shdi", "contag", "ed"])
     ```
 
 === "Habitat networks"
 
     ```python
-    import landschaft as ls
+    import terraflux as tf
 
-    landcover = ls.load_raster(ls.example_data("clc"))
-    graph = ls.HabitatGraph.from_raster(
+    landcover = tf.load_raster(tf.example_data("clc"))
+    graph = tf.HabitatGraph.from_raster(
         landcover, habitat=[23, 24, 25],          # forest classes
         distance="edge", max_distance=2000,       # edge-to-edge distances, metres
         landscape_area=landcover.size * 25 * 25,  # 25 m cells
@@ -159,16 +159,16 @@ Python 3.10+ · C++17 / OpenMP core · numpy · xarray · dask · GPL-3.0-or-lat
 === "Circuit connectivity"
 
     ```python
-    import landschaft as ls
+    import terraflux as tf
 
-    landcover = ls.load_raster(ls.example_data("clc"))[:600, :600]
-    resistance = ls.reclassify(landcover, {23: 1.0, 24: 1.0, 25: 1.0},   # forest is easy to cross
+    landcover = tf.load_raster(tf.example_data("clc"))[:600, :600]
+    resistance = tf.reclassify(landcover, {23: 1.0, 24: 1.0, 25: 1.0},   # forest is easy to cross
                                others=25.0, dtype="float64")
-    flow = ls.omniscape(resistance, radius=30, block_size=5)
-    ls.plot(flow)                     # on an interactive map over satellite imagery
+    flow = tf.omniscape(resistance, radius=30, block_size=5)
+    tf.plot(flow)                     # on an interactive map over satellite imagery
     ```
 
-## Why Landschaft
+## Why Terraflux
 
 <div class="ls-principles" markdown>
 
@@ -217,7 +217,7 @@ parallel within a memory budget, and all cores but one by default.
 
 <div class="ls-validation" markdown>
 
-Landschaft reproduces the methods of GuidosToolbox (MSPA, fragmentation,
+Terraflux reproduces the methods of GuidosToolbox (MSPA, fragmentation,
 accounting, restoration planning), the R package landscapemetrics and
 FRAGSTATS (landscape metrics), Conefor Sensinode and Makurhini (habitat
 networks), Circuitscape and Omniscape (circuit connectivity), gdistance (routes on

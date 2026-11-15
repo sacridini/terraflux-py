@@ -14,9 +14,9 @@ import pytest
 import scipy.sparse as sp
 from optimize_reference import result
 
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +105,7 @@ def test_ferrier_and_rarity():
 
 
 def test_pnorm_is_r():
-    from landschaft import _core
+    from terraflux import _core
 
     x = np.array([-40, -37.6, -10, -5.7, -5.6, -1, -0.6744, -1e-17, 0, 0.3, 0.6745, 2.5, 5.65, 6, 8.3, 40, np.inf,
                   -np.inf])
@@ -157,7 +157,7 @@ def test_landscape_of_the_solution():
     sol = p.solve()
     t = P.eval_landscape_metrics(sol, level="class", metric=["np", "ca"])
     assert set(t["metric"]) == {"np", "ca"} and (t["class"] == 1).all()
-    ref = ls.lsm.landscape_metrics(P._milp_eval._selection_map(sol), level="class", metric=["ca"], nodata=np.nan)
+    ref = tf.lsm.landscape_metrics(P._milp_eval._selection_map(sol), level="class", metric=["ca"], nodata=np.nan)
     assert t.loc[t["metric"] == "ca", "value"].item() == ref.loc[ref["class"] == 1, "value"].item()
     m, stats = P.eval_mspa(sol)
     assert stats["pixels"].sum() == oc.NY * oc.NX

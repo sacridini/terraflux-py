@@ -90,40 +90,40 @@ def run_page(path: Path) -> list[str]:
 
 
 def public_objects():
-    """(qualified name, object) of the public API: landschaft, landschaft.conn,
-    landschaft.circuit, landschaft.nlm, landschaft.bio, landschaft.cost, ... and the public
+    """(qualified name, object) of the public API: terraflux, terraflux.conn,
+    terraflux.circuit, terraflux.nlm, terraflux.bio, terraflux.cost, ... and the public
     methods of their classes."""
     import inspect
 
-    import landschaft
-    import landschaft.accuracy
-    import landschaft.bio
-    import landschaft.circuit
-    import landschaft.conn
-    import landschaft.cost
-    import landschaft.download
-    import landschaft.hydro
-    import landschaft.hydro.swat
-    import landschaft.move
-    import landschaft.nlm
-    import landschaft.parallel
-    import landschaft.forest_code
-    import landschaft.prioritize
-    import landschaft.redd
-    import landschaft.sdm
-    import landschaft.sensitivity
-    import landschaft.services
-    import landschaft.simulate
-    import landschaft.stats
-    import landschaft.surface
-    import landschaft.uncertainty
+    import terraflux
+    import terraflux.accuracy
+    import terraflux.bio
+    import terraflux.circuit
+    import terraflux.conn
+    import terraflux.cost
+    import terraflux.download
+    import terraflux.hydro
+    import terraflux.hydro.swat
+    import terraflux.move
+    import terraflux.nlm
+    import terraflux.parallel
+    import terraflux.forest_code
+    import terraflux.prioritize
+    import terraflux.redd
+    import terraflux.sdm
+    import terraflux.sensitivity
+    import terraflux.services
+    import terraflux.simulate
+    import terraflux.stats
+    import terraflux.surface
+    import terraflux.uncertainty
 
     seen = set()
-    for mod in (landschaft, landschaft.conn, landschaft.circuit, landschaft.nlm, landschaft.bio, landschaft.cost,
-                landschaft.surface, landschaft.hydro, landschaft.hydro.swat, landschaft.parallel, landschaft.prioritize, landschaft.sdm,
-                landschaft.simulate, landschaft.uncertainty, landschaft.services, landschaft.accuracy,
-                landschaft.sensitivity, landschaft.stats, landschaft.redd,
-                landschaft.forest_code, landschaft.download, landschaft.move):
+    for mod in (terraflux, terraflux.conn, terraflux.circuit, terraflux.nlm, terraflux.bio, terraflux.cost,
+                terraflux.surface, terraflux.hydro, terraflux.hydro.swat, terraflux.parallel, terraflux.prioritize, terraflux.sdm,
+                terraflux.simulate, terraflux.uncertainty, terraflux.services, terraflux.accuracy,
+                terraflux.sensitivity, terraflux.stats, terraflux.redd,
+                terraflux.forest_code, terraflux.download, terraflux.move):
         for name in getattr(mod, "__all__", []):
             obj = getattr(mod, name)
             if id(obj) in seen or not callable(obj):
@@ -184,7 +184,7 @@ def run_api(filter_text: str = "") -> list[str]:
 
 
 def main() -> None:
-    os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")  # the examples' ls.plot must not open windows
+    os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")  # the examples' tf.plot must not open windows
     if sys.argv[1:2] == ["--api"]:
         errors = run_api(sys.argv[2] if len(sys.argv) > 2 else "")
         for e in errors:

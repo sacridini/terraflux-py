@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate the SWAT+ reference runs for ls.hydro.swat.
+"""Generate the SWAT+ reference runs for tf.hydro.swat.
 
 Usage::
 
@@ -18,12 +18,12 @@ LGPL-2.1) with ``tools/swat/swat_reference.patch`` applied: a binary daily dump
 made exact (the reference's binary search misses names of unsorted lists) and three
 REAL array indices declared INTEGER (flang rejects them; outside the ported subset).
 Build it with conda-forge's flang 22.1.8 and the MSVC linker against the dynamic UCRT,
-without optimisation, so it calls the same C library maths as landschaft's MSVC
+without optimisation, so it calls the same C library maths as terraflux's MSVC
 build::
 
     git clone https://github.com/swat-model/swatplus && cd swatplus && git checkout 62.0.1
     git config core.autocrlf false        # then strip the CR line ends of src/*.f90
-    git apply <landschaft>/tools/swat/swat_reference.patch
+    git apply <terraflux>/tools/swat/swat_reference.patch
     conda create -n swat-ref22 -c conda-forge flang=22.1.8 flang_win-64=22.1.8 cmake ninja
     # in a VS x64 prompt, with the env's Library\\bin first on PATH:
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_Fortran_COMPILER=flang
@@ -76,7 +76,7 @@ def read_inputs(src: Path) -> dict[str, bytes]:
 
 def set_period(files: dict[str, bytes], start: int, end: int) -> None:
     files["time.sim"] = (
-        "time.sim: landschaft test period\n"
+        "time.sim: terraflux test period\n"
         "day_start  yrc_start   day_end   yrc_end      step\n"
         f"       0      {start}         0      {end}         0\n"
     ).encode()
@@ -160,7 +160,7 @@ def ames(start: int, end: int):
 
 
 def landscape(landuse: dict | None = None, period: tuple | None = None):
-    """ls.hydro.swat.from_rasters' case (tests/swat_landscape.py): our delineation and HRUs
+    """tf.hydro.swat.from_rasters' case (tests/swat_landscape.py): our delineation and HRUs
     (QSWAT+'s tables), the project written by the SWAT+ Editor 4.0.2 itself
     (tools/swat/editor_txtinout.py, LANDSCHAFT_SWAT_EDITOR), then the reference run.
     ``landuse``: another land use lookup; ``period``: (start, end) instead of the
@@ -172,14 +172,14 @@ def landscape(landuse: dict | None = None, period: tuple | None = None):
         import swat_landscape as case
         from editor_txtinout import run_editor
 
-        import landschaft as ls
-        from landschaft.hydro.swat._weather import _time_sim, wgn_records
+        import terraflux as tf
+        from terraflux.hydro.swat._weather import _time_sim, wgn_records
 
         dem, lu, so = case.rasters()
-        w = ls.hydro.swat.watershed(dem, lu, so, landuse_lookup=landuse or case.LANDUSE, soil_lookup=case.SOILS,
+        w = tf.hydro.swat.watershed(dem, lu, so, landuse_lookup=landuse or case.LANDUSE, soil_lookup=case.SOILS,
                                     soil_table=case.soil_table(), **case.OPTIONS)
         stations, pcp, tmax, tmin, monthly = case.weather()
-        c = ls.hydro.swat.climate(stations, pcp=pcp, tmax=tmax, tmin=tmin, monthly=monthly)
+        c = tf.hydro.swat.climate(stations, pcp=pcp, tmax=tmax, tmin=tmin, monthly=monthly)
         weather, _ = c.files()
         files = run_editor(w.tables, {k: v.encode() for k, v in weather.items()}, wgn_records(c),
                            _time_sim(*(period or c.period())))
@@ -207,7 +207,7 @@ CASES = {
     "hubbard_brook_musk": hubbard_brook(2000, 2001, {"rte_cha": "1"}),
     "ames": ames(1975, 1979),
     # the landscape case with ero_cfactor's old method (the plants' minimum C; env SWAT_CFAC_PLANT
-    # of the reference, c_factor="plant" of ls.hydro.swat.run)
+    # of the reference, c_factor="plant" of tf.hydro.swat.run)
     "landscape_cplant": stored("landscape"),
 }
 # environment of the reference run of a case

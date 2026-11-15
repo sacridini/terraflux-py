@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cases shared by tools/make_reference_simulate.py and the ls.simulate tests.
+"""Cases shared by tools/make_reference_simulate.py and the tf.simulate tests.
 
 Every input is built in Python (a DataFrame or a raster DataArray). A case
 runs on one reference engine:
@@ -44,9 +44,9 @@ class Case:
 
 @cache
 def _example(name: str):
-    import landschaft as ls
+    import terraflux as tf
 
-    return ls.load_raster(ls.simulate.example_data(name))
+    return tf.load_raster(tf.simulate.example_data(name))
 
 
 def pie():
@@ -377,10 +377,10 @@ INPUTS.update({
 })
 
 
-def _ls():
-    import landschaft as ls
+def _tf():
+    import terraflux as tf
 
-    return ls
+    return tf
 
 
 def _names(v):
@@ -390,13 +390,13 @@ def _names(v):
 # ----------------------------------------------------------------------------- lulcc, diffeR crosstab
 
 def _lulcc_py(pie):
-    ch = _ls().simulate.changes(pie, times=[0, 6, 14])
+    ch = _tf().simulate.changes(pie, times=[0, 6, 14])
     return {"ct06": ch.matrix(0, 6).to_numpy(float), "ct014": ch.matrix(0, 14).to_numpy(float),
             "total": ch.areas.to_numpy(float)}
 
 
 def _crosstabm_py(series):
-    ct = _ls().simulate.crosstab(series[0], series[3]).to_numpy(float)
+    ct = _tf().simulate.crosstab(series[0], series[3]).to_numpy(float)
     return {"ct": ct, "pc": ct / ct.sum() * 100}
 
 
@@ -442,7 +442,7 @@ def _r_order(df, keys):
 def _openland_py(maps, gain, loss, pixel, pixels=False):
     import pandas as pd
 
-    ch = _ls().simulate.changes(maps, cell_area=float(pixel) ** 2)
+    ch = _tf().simulate.changes(maps, cell_area=float(pixel) ** 2)
     ia = ch.intensity(gain=gain, loss=loss)
     out = {}
     for name, t in (("multi", ch.table), ("one", ch.one_step)):
@@ -517,7 +517,7 @@ list(table = diffTablej(ct), table_change = diffTablej(ct, analysis = "change"),
 
 
 def _differ_table_py(a, b):
-    sim = _ls().simulate
+    sim = _tf().simulate
     ct = sim.crosstab(a, b)
     pc = ct / ct.to_numpy().sum() * 100
     out = {}
@@ -543,7 +543,7 @@ list(multiple = m, proportion = p[, c("Quantity", "Exchange", "Shift", "Overall"
 
 
 def _differ_mr_py(maps, i, j, fact):
-    sim = _ls().simulate
+    sim = _tf().simulate
     out = {}
     d = sim.difference_resolutions(maps[i], maps[j], factor=fact)
     for c in d.columns:
@@ -555,7 +555,7 @@ def _differ_mr_py(maps, i, j, fact):
 
 
 def _composite_py(pie):
-    sim = _ls().simulate
+    sim = _tf().simulate
     out = {"composite": sim.composite_matrix(pie[0], pie[2], 4).to_numpy()}
     for c, layer in sim.memberships(pie[0], 3).items():
         out[f"members/{int(c)}"] = layer
@@ -563,7 +563,7 @@ def _composite_py(pie):
 
 
 def _mad_py(surfaces):
-    sim = _ls().simulate
+    sim = _tf().simulate
     g1, g2, s = surfaces[0], surfaces[1], surfaces[2]
     out = {}
     for key, kw in (("plain", {}), ("strata", {"strata": s})):
@@ -579,7 +579,7 @@ def _mad_py(surfaces):
 def _sample2pop_py(pie):
     import pandas as pd
 
-    sim = _ls().simulate
+    sim = _tf().simulate
     ct = sim.crosstab(pie[0], pie[2])
     pop = pd.DataFrame({"cat": [3, 1, 2], "n": [5000.0, 120000.0, 40000.0]})
     return {"fixed": sim.sample_to_population(ct.astype(float), pop).to_numpy()}
@@ -608,7 +608,7 @@ def _markov_job(maps, i, j, steps):
 
 
 def _markov_py(maps, i, j, steps, multi=True):
-    mk = _ls().simulate.Markov.from_maps(maps[i], maps[j], steps=steps)
+    mk = _tf().simulate.Markov.from_maps(maps[i], maps[j], steps=steps)
     out = {}
     for key, per_step in (("single", False), ("multi", True))[:2 if multi else 1]:
         r = mk.rates(multi=per_step)
@@ -766,10 +766,10 @@ def sibuyan_woe():
     """Sibuyan 1997 -> 2011 with distance to roads, to the sea, elevation, slope and diorite (categorical)."""
     import xarray as xr
 
-    import landschaft as ls
+    import terraflux as tf
 
     lu = sibuyan()
-    d = ls.load_raster(ls.simulate.example_data("sibuyan_drivers"))
+    d = tf.load_raster(tf.simulate.example_data("sibuyan_drivers"))
     d = d.where(np.isfinite(d))
     keep = ["dist_roads", "dist_sea", "elevation", "slope", "diorite"]
     bands = [lu[0], lu[1], *[d.sel(band=k) for k in keep]]
@@ -781,10 +781,10 @@ def pie_woe():
     """Plum Island 1985 -> 1999 (forest -> built) with elevation, slope and distance to built land."""
     import xarray as xr
 
-    import landschaft as ls
+    import terraflux as tf
 
     lu = pie()
-    d = ls.load_raster(ls.simulate.example_data("pie_drivers"))
+    d = tf.load_raster(tf.simulate.example_data("pie_drivers"))
     d = d.where(np.isfinite(d))
     keep = ["elevation", "slope", "dist_built_1985"]
     bands = [lu[0], lu[2], *[d.sel(band=k) for k in keep]]
@@ -849,7 +849,7 @@ def _woe_job(data, plan, *, fix=False, criteria=True, prob=True, corr=True):
 
 
 def _woe_py(data, plan, *, fix=False, criteria=True, prob=True, corr=True):
-    import landschaft as ls
+    import terraflux as tf
 
     ranges = {}
     for (f, t), variables in plan.items():
@@ -858,7 +858,7 @@ def _woe_py(data, plan, *, fix=False, criteria=True, prob=True, corr=True):
                           for n, s in variables.items()}
     names = sorted({n for v in plan.values() for n in v})
     drivers = {n: data.sel(band=n) for n in names}
-    w = ls.simulate.WeightsOfEvidence(ranges, fix_abnormal=fix, possible="any" if criteria else "stay")
+    w = tf.simulate.WeightsOfEvidence(ranges, fix_abnormal=fix, possible="any" if criteria else "stay")
     w.fit(data.sel(band="t0"), data.sel(band="t1"), drivers)
     out = {}
     tab = w.table.sort_values(["Transition_From", "Transition_To", "Variable", "Range_Lower_Limit"], kind="stable")
@@ -921,9 +921,9 @@ GROUPS += ["glm"]
 
 
 def pie_drivers():
-    import landschaft as ls
+    import terraflux as tf
 
-    d = ls.load_raster(ls.simulate.example_data("pie_drivers")).astype("float64")
+    d = tf.load_raster(tf.simulate.example_data("pie_drivers")).astype("float64")
     return d.where(np.isfinite(d))
 
 
@@ -952,9 +952,9 @@ INPUTS.update({"pie_drivers": pie_drivers, "glm_synth": glm_synth})
 
 
 def _glm_py(lu, drivers, formulas):
-    import landschaft as ls
+    import terraflux as tf
 
-    lr = ls.simulate.LogisticRegression(formulas).fit(lu, drivers)
+    lr = tf.simulate.LogisticRegression(formulas).fit(lu, drivers)
     out = {}
     for k, cls in enumerate(formulas):
         f = lr._fits[cls]
@@ -1054,11 +1054,11 @@ def molusce_mce_job(import_module) -> dict:
 def _mce_py() -> dict:
     import pandas as pd
 
-    import landschaft as ls
+    import terraflux as tf
 
     lu, factors = _mce_inputs()
     names = ["a", "b", "c", "d"]
-    mce = ls.simulate.MultiCriteria(pd.DataFrame(_MCE_A, index=names, columns=names), transition=(1, 2))
+    mce = tf.simulate.MultiCriteria(pd.DataFrame(_MCE_A, index=names, columns=names), transition=(1, 2))
     # MOLUSCE truncates each weighted term to an integer percentage and adds them as uint8: rebuilt here from
     # our weights and rescaled factors to show they are the same
     conf = np.zeros(lu.shape, dtype=np.uint8)
@@ -1140,45 +1140,45 @@ _R_NB = ("neighb = NeighbRasterStack(x = obs[[1]], weights = matrix(1, 3, 3), ca
 
 
 def _alloc_py(pie, pie_drivers, allocation, seed, rules=None, pie_rules_maps=None, **kw):
-    ls = _ls()
-    rules = rules or ls.simulate.Rules()
+    tf = _tf()
+    rules = rules or tf.simulate.Rules()
     if pie_rules_maps is not None:
         rules.allowed = np.array(_RULES)
         rules.history = pie_rules_maps[0]
         rules.restrictions = pie_rules_maps[1] == 0
-    lr = ls.simulate.LogisticRegression(_PIE_FORMS).fit(pie[0], pie_drivers)
-    demand = ls.simulate.AreaDemand.from_maps(pie, times=[0, 6, 14])
-    sim = ls.simulate.Model(lr, demand, allocation, rules).run(pie[0], pie_drivers, seed=seed)
+    lr = tf.simulate.LogisticRegression(_PIE_FORMS).fit(pie[0], pie_drivers)
+    demand = tf.simulate.AreaDemand.from_maps(pie, times=[0, 6, 14])
+    sim = tf.simulate.Model(lr, demand, allocation, rules).run(pie[0], pie_drivers, seed=seed)
     out = {"demand": demand.table.to_numpy()}
     out.update({f"step{k}": sim.maps[k].values for k in range(sim.maps.shape[0])})
     return out
 
 
 def _clue_case(seed, elas, params, *, rules=False, nb=False, notes=""):
-    ls = _ls()
+    tf = _tf()
     names = {"jitter.f": "jitter", "scale.f": "scale", "max.iter": "max_iter", "max.diff": "max_diff",
              "ave.diff": "mean_diff"}
     extra = (", " + _R_RULES if rules else "") + (", " + _R_NB if nb else "")
     inputs = ("pie", "pie_drivers") + (("pie_rules_maps",) if rules else ())
 
     def py(**kw):
-        r = ls.simulate.Rules(elasticity=list(elas),
-                              neighbourhood=ls.simulate.Neighbourhood(dict(_NB)) if nb else None)
-        return _alloc_py(allocation=ls.simulate.CLUE(**{names[k]: v for k, v in params.items()}), seed=seed,
+        r = tf.simulate.Rules(elasticity=list(elas),
+                              neighbourhood=tf.simulate.Neighbourhood(dict(_NB)) if nb else None)
+        return _alloc_py(allocation=tf.simulate.CLUE(**{names[k]: v for k, v in params.items()}), seed=seed,
                          rules=r, **kw)
     return Case("allocation", "r", inputs, r=_alloc_r(_clues_r(elas, params, extra), seed), py=py, notes=notes)
 
 
 def _ordered_case(seed, order, stochastic, *, rules=False, nb=False, notes=""):
-    ls = _ls()
+    tf = _tf()
     extra = (", " + _R_RULES if rules else "") + (", " + _R_NB if nb else "")
     inputs = ("pie", "pie_drivers") + (("pie_rules_maps",) if rules else ())
     model = (f"OrderedModel(obs = obs, ef = ef, models = models, time = 0:14, demand = dmd, "
              f"order = c({', '.join(map(str, order))}){extra})")
 
     def py(**kw):
-        r = ls.simulate.Rules(neighbourhood=ls.simulate.Neighbourhood(dict(_NB)) if nb else None)
-        return _alloc_py(allocation=ls.simulate.Ordered(order=list(order), stochastic=stochastic), seed=seed,
+        r = tf.simulate.Rules(neighbourhood=tf.simulate.Neighbourhood(dict(_NB)) if nb else None)
+        return _alloc_py(allocation=tf.simulate.Ordered(order=list(order), stochastic=stochastic), seed=seed,
                          rules=r, **kw)
     return Case("allocation", "r", inputs, r=_alloc_r(model, seed, f", stochastic = {str(stochastic).upper()}"),
                 py=py, notes=notes)
@@ -1340,10 +1340,10 @@ def clumondo_job_2017(spec: dict, options: dict) -> dict:
 
 
 def clumondo_model(spec: dict, options: dict | None = None):
-    """The spec's model through ls.simulate (options: more CLUMondo arguments): model, landscape, drivers."""
+    """The spec's model through tf.simulate (options: more CLUMondo arguments): model, landscape, drivers."""
     import pandas as pd
 
-    S = _ls().simulate
+    S = _tf().simulate
     drivers, cov, region = spec["drivers"], spec["cov"], spec["region"]
     services = [f"s{k}" for k in range(len(spec["weights"]))]
     land = np.where(cov == -9999, np.nan, cov.astype(np.float64))
@@ -1386,7 +1386,7 @@ def clumondo_model(spec: dict, options: dict | None = None):
 
 
 def clumondo_py(spec: dict, options: dict | None = None) -> dict:
-    """The same model through ls.simulate (options: more CLUMondo arguments)."""
+    """The same model through tf.simulate (options: more CLUMondo arguments)."""
     model, land, drv = clumondo_model(spec, options)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # a year without solution ends the run (as CLUMondo)
@@ -1642,7 +1642,7 @@ def futures_job(world, opts, module="r.futures.simulation"):
 def futures_py(world, opts) -> dict:
     import pandas as pd
 
-    S = _ls().simulate
+    S = _tf().simulate
     regions = opts.get("regions", [30, 10, 20])
     w = {b: world.sel(band=b).drop_vars("band") for b in world.band.values}
     sub = w["sub"] if regions != [1] else w["sub"].copy(data=np.ones(w["sub"].shape))
@@ -1723,7 +1723,7 @@ def _fut_pressure_job(world, method, size, gamma, scaling):
 
 def _fut_pressure_py(world, method, size, gamma, scaling):
     dev = world.sel(band="developed").drop_vars("band")
-    p = _ls().simulate.development_pressure(dev, size, method=method, gamma=gamma, scaling_factor=scaling, pad=False)
+    p = _tf().simulate.development_pressure(dev, size, method=method, gamma=gamma, scaling_factor=scaling, pad=False)
     return {"pressure.tif": p.values.astype(np.float64)}
 
 
@@ -1775,7 +1775,7 @@ def _fut_demand_job(world, methods):
 def _fut_demand_py(world, methods):
     import pandas as pd
 
-    S = _ls().simulate
+    S = _tf().simulate
     maps = _fut_observed(world)
     obs = pd.DataFrame(_FUT_OBS_POP, columns=["year", 30, 10, 20]).set_index("year")
     proj = pd.DataFrame(_FUT_PROJ_POP, columns=["year", 30, 10, 20]).set_index("year")
@@ -1903,7 +1903,7 @@ def futures_flood_job(world, flood, opts):
 def futures_flood_py(world, flood, opts) -> dict:
     import pandas as pd
 
-    S = _ls().simulate
+    S = _tf().simulate
     regions = [30, 10, 20]
     w = {b: world.sel(band=b).drop_vars("band") for b in world.band.values}
     f = {str(b): flood.sel(band=b).drop_vars("band") for b in flood.band.values}
@@ -1992,7 +1992,7 @@ def futures_library_job(world, per_subregion):
 
 
 def futures_library_py(world, per_subregion):
-    S = _ls().simulate
+    S = _tf().simulate
     r = _calib_rasters(world, False)
     lib = S.patch_library(r["dev0f"], r["dev3f"], subregions=r["sub"], per_subregion=per_subregion)
     if not isinstance(lib, dict):
@@ -2029,7 +2029,7 @@ def futures_calib_job(world):
 def futures_calib_py(world):
     import pandas as pd
 
-    S = _ls().simulate
+    S = _tf().simulate
     r = _calib_rasters(world, True)
     pot = S.DevelopmentPotential(pd.DataFrame(_FUT_POT, columns=["ID", "Intercept", "development_pressure", "slope",
                                                                  "road", "forest"]).set_index("ID"))
@@ -2059,7 +2059,7 @@ def futures_potsurface_job(world):
 def futures_potsurface_py(world):
     import pandas as pd
 
-    S = _ls().simulate
+    S = _tf().simulate
     r = _calib_rasters(world, False)
     rows = [row for row in _FUT_POT if row[0] != 1]
     pot = S.DevelopmentPotential(pd.DataFrame(rows, columns=["ID", "Intercept", "development_pressure", "slope",
@@ -2142,7 +2142,7 @@ def _pot_r(formula, kind, dredge=None):
 
 
 def _pot_py(samples, kind, dredge=None):
-    S = _ls().simulate
+    S = _tf().simulate
     d = samples
     if kind == "glm":
         d = samples[samples.county == 7.0]
@@ -2239,7 +2239,7 @@ def _patch_job(t0, prob, functor, cells, mean_ha=0.09):
 
 
 def _patch_py(t0, prob, functor, cells, runs=40):
-    from landschaft import _core
+    from terraflux import _core
 
     land = np.nan_to_num(t0.values, nan=-1).astype(np.int32)
     out = {}
@@ -2355,9 +2355,9 @@ def molusce_job(world, iterations=3, seed=7) -> Callable:
 def molusce_py(world, iterations=3, seed=7) -> dict:
     import pandas as pd
 
-    import landschaft as ls
+    import terraflux as tf
 
-    S = ls.simulate
+    S = tf.simulate
     t0, t1 = world.sel(band="t0"), world.sel(band="t1")
     drivers = {k: world.sel(band=k) for k in ("dist", "soil", "slope")}
     woe = S.MolusceWoE(bins=_MOL_BINS).fit(t0, t1, drivers)
@@ -2459,8 +2459,8 @@ def _tmc_r(inp, cats, factors):
 
 
 def _tmc_py(maps, cats, factors) -> dict:
-    ls = _ls()
-    tmc = ls.simulate.three_map_comparison(maps[0], maps[1], maps[2], factors=factors, categories=cats)
+    tf = _tf()
+    tmc = tf.simulate.three_map_comparison(maps[0], maps[1], maps[2], factors=factors, categories=cats)
     fom = tmc.figure_of_merit()
     ab = tmc.agreement_budget()
     budget = ["misses", "hits", "wrong_hits", "false_alarms", "correct_rejections"]
@@ -2529,10 +2529,10 @@ def molusce_validation_job(maps) -> Callable:
 
 
 def molusce_validation_py(maps) -> dict:
-    ls = _ls()
+    tf = _tf()
     ref, sim = maps.sel(band="t1"), maps.sel(band="sim")
-    c = ls.simulate.compare_maps(ref, sim)
-    eb = ls.simulate.error_budget(ref, sim, iterations=4, scale=2)
+    c = tf.simulate.compare_maps(ref, sim)
+    eb = tf.simulate.error_budget(ref, sim, iterations=4, scale=2)
     keys = ["correlation", "kappa", "kappa_location", "kappa_histogram", "correctness", "cramer", "jiu"]
     return {"coefficients": np.array([c[k] for k in keys]),
             "budget": eb[["no_no", "no_medium", "medium_medium", "medium_perfect", "perfect_perfect"]].to_numpy()}
@@ -2619,8 +2619,8 @@ def _futval_job(world, use_original=True):
 
 
 def _futval_py(world, use_original=True) -> dict:
-    ls = _ls()
-    r = ls.simulate.futures_validation(world.sel(band="reference"), world.sel(band="simulated"),
+    tf = _tf()
+    r = tf.simulate.futures_validation(world.sel(band="reference"), world.sel(band="simulated"),
                                        world.sel(band="original") if use_original else None)
     keys, values = [], []
     for c in r["classes"]:
@@ -2715,17 +2715,17 @@ def _sim_job(world):
 
 
 def _sim_py(world) -> dict:
-    ls = _ls()
+    tf = _tf()
     t0, obs, sim = (world.sel(band=k) for k in ("t0", "observed", "simulated"))
     out, means = {}, []
     for decay in ("exponential", "constant"):
         tag = "exp" if decay == "exponential" else "const"
-        table = ls.simulate.similarity_of_differences(t0, obs, sim, windows=_SIM_WINDOWS, decay=decay)
+        table = tf.simulate.similarity_of_differences(t0, obs, sim, windows=_SIM_WINDOWS, decay=decay)
         for k, w in enumerate(_SIM_WINDOWS):
-            s = ls.simulate.fuzzy_similarity(obs, sim, window=w, decay=decay)
+            s = tf.simulate.fuzzy_similarity(obs, sim, window=w, decay=decay)
             out[f"first_{tag}_{w}.tif"] = np.asarray(s.first)
             out[f"second_{tag}_{w}.tif"] = np.asarray(s.second)
-            d = ls.simulate.fuzzy_similarity(ls.simulate.differences(t0, sim), ls.simulate.differences(t0, obs),
+            d = tf.simulate.fuzzy_similarity(tf.simulate.differences(t0, sim), tf.simulate.differences(t0, obs),
                                              window=w, decay=decay)
             row = table.iloc[k]
             out[f"differences_{tag}_{w}.tif"] = np.asarray(d.first if d.first_mean <= d.second_mean else d.second)
@@ -2783,12 +2783,12 @@ def _gravity_job(world):
 
 
 def _gravity_py(world) -> dict:
-    ls = _ls()
+    tf = _tf()
     src, mask = world.sel(band="sources"), world.sel(band="mask")
     out = {}
     for beta in _GRAVITY_EXPONENTS:
-        out[f"all_{beta:g}.tif"] = np.asarray(ls.surface.gravity(src, beta, method="direct"))
-        out[f"masked_{beta:g}.tif"] = np.asarray(ls.surface.gravity(src, beta, mask=mask, method="direct"))
+        out[f"all_{beta:g}.tif"] = np.asarray(tf.surface.gravity(src, beta, method="direct"))
+        out[f"masked_{beta:g}.tif"] = np.asarray(tf.surface.gravity(src, beta, mask=mask, method="direct"))
     return out
 
 
@@ -2966,9 +2966,9 @@ def hilltop_world():
 
 
 def _hilltop_job(world):
-    ls = _ls()
+    tf = _tf()
     dem, ids = np.asarray(world["dem"]), np.asarray(world["ids"]).astype(int)
-    slope = np.asarray(ls.surface.terrain(world["dem"], "slope"))
+    slope = np.asarray(tf.surface.terrain(world["dem"], "slope"))
     rows = {"elev": [], "slope": [], "area": []}
     for k in range(1, ids.max() + 1):
         m = ids == k

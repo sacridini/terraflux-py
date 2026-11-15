@@ -22,7 +22,7 @@ surfaces, brought to landscape ecology as *gradient surface metrics*
 - classify landforms with geomorphons;
 - delineate the hilltops protected by Brazil's Forest Code.
 
-Everything lives in `ls.surface`. The metrics follow the R packages geodiv
+Everything lives in `tf.surface`. The metrics follow the R packages geodiv
 (surface metrics) and spatialEco (terrain indices), value for value where they
 are right; where they err, each function's notes say what is corrected.
 
@@ -34,10 +34,10 @@ Surface metrics describe variation around a reference plane, so a broad trend
 (a gradient of greenness across the map) is removed first.
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-ndvi = ls.load_raster(ls.surface.example_data("orforest"))
-z = ls.surface.remove_plane(ndvi)
+ndvi = tf.load_raster(tf.surface.example_data("orforest"))
+z = tf.surface.remove_plane(ndvi)
 print(z.attrs["order"], round(float(z.mean()), 12))
 ```
 
@@ -52,11 +52,11 @@ metrics describe.
 
 ## Whole-surface metrics
 
-`ls.surface.metrics` computes every metric at once (or those named), and
+`tf.surface.metrics` computes every metric at once (or those named), and
 metrics that share a computation are computed once:
 
 ```python
-m = ls.surface.metrics(z, ["sa", "sq", "ssk", "sku", "sdq", "sds", "s10z", "sdr"])
+m = tf.surface.metrics(z, ["sa", "sq", "ssk", "sku", "sdq", "sds", "s10z", "sdr"])
 print(m.round(4))
 ```
 
@@ -82,7 +82,7 @@ dtype: float64
 - **Features.** Sds counts peaks (cells higher than their 8 neighbours) per
   cell; S10z averages the five highest peaks and five deepest valleys.
 
-`ls.surface.list_metrics()` lists all 27.
+`tf.surface.list_metrics()` lists all 27.
 
 ## The bearing area curve
 
@@ -94,9 +94,9 @@ Sq with the height at 5 % bearing, Sci and Svi measure the void volume of the
 core and valley zones.
 
 ```python
-curve = ls.surface.bearing_area(z)
-print(ls.surface.height_ba(z, [0, 0.05, 0.5, 0.95, 1]).round(4))
-print(ls.surface.metrics(z, ["sbi", "sci", "svi", "sk", "spk", "svk"]).round(4).to_dict())
+curve = tf.surface.bearing_area(z)
+print(tf.surface.height_ba(z, [0, 0.05, 0.5, 0.95, 1]).round(4))
+print(tf.surface.metrics(z, ["sbi", "sci", "svi", "sk", "spk", "svk"]).round(4).to_dict())
 ```
 
 ```text
@@ -116,9 +116,9 @@ surface varies from place to place. `window_metrics` computes any metric in a
 square or circular moving window around every cell:
 
 ```python
-tex = ls.surface.window_metrics(z, ["sa", "sku"], window=9)
+tex = tf.surface.window_metrics(z, ["sa", "sku"], window=9)
 print(tex)
-ls.plot(tex)          # one layer per metric
+tf.plot(tex)          # one layer per metric
 ```
 
 ```text
@@ -151,11 +151,11 @@ The autocorrelation function (`aacf`) and the Fourier spectrum of a surface
 describe its spatial structure:
 
 ```python
-print(ls.surface.scl(z).round(1))        # fastest and slowest decay to 0.2 and 1/e (m)
-print(ls.surface.stxr(z).round(3))       # texture aspect ratio: 0 oriented, 1 isotropic
-print(ls.surface.std(z).round(3))        # texture direction (degrees) and its index
-print(ls.surface.srw(z).round(1))        # dominant radial wavelength, index, half-power wavelength
-print(round(ls.surface.sfd(z), 4))       # fractal dimension
+print(tf.surface.scl(z).round(1))        # fastest and slowest decay to 0.2 and 1/e (m)
+print(tf.surface.stxr(z).round(3))       # texture aspect ratio: 0 oriented, 1 isotropic
+print(tf.surface.std(z).round(3))        # texture direction (degrees) and its index
+print(tf.surface.srw(z).round(1))        # dominant radial wavelength, index, half-power wavelength
+print(round(tf.surface.sfd(z), 4))       # fractal dimension
 ```
 
 ```text
@@ -176,18 +176,18 @@ direction.
 A DEM is a surface too, with indices of its own:
 
 ```python
-dem = ls.load_raster(ls.surface.example_data("orelevation"))
-slope = ls.surface.terrain(dem, "slope")               # degrees, Horn's method
-aspect = ls.surface.terrain(dem, "aspect")
-tpi = ls.surface.tpi(dem, 15)                          # elevation minus the 15 x 15 mean
-tri = ls.surface.tri(dem)                              # terrain ruggedness
-vrm = ls.surface.vrm(dem, 5)                           # vector ruggedness
-hli = ls.surface.hli(aspect, slope, scaled=True)       # heat load (latitude from the raster)
-curv = ls.surface.curvature(dem, "profile")
+dem = tf.load_raster(tf.surface.example_data("orelevation"))
+slope = tf.surface.terrain(dem, "slope")               # degrees, Horn's method
+aspect = tf.surface.terrain(dem, "aspect")
+tpi = tf.surface.tpi(dem, 15)                          # elevation minus the 15 x 15 mean
+tri = tf.surface.tri(dem)                              # terrain ruggedness
+vrm = tf.surface.vrm(dem, 5)                           # vector ruggedness
+hli = tf.surface.hli(aspect, slope, scaled=True)       # heat load (latitude from the raster)
+curv = tf.surface.curvature(dem, "profile")
 for name, v in [("slope", slope), ("tpi", tpi), ("tri", tri), ("vrm", vrm), ("hli", hli)]:
     print(name, round(float(v.mean()), 3), round(float(v.max()), 3))
-ls.plot([dem, slope, tpi])     # one map, a layer each
-ls.write_raster(slope, "slope.tif")
+tf.plot([dem, slope, tpi])     # one map, a layer each
+tf.write_raster(slope, "slope.tif")
 ```
 
 ```text
@@ -220,8 +220,8 @@ the scale of the search, and make expressive covariates for species
 distribution and land change models. They need a projected DEM:
 
 ```python
-utm = ls.reproject(ls.load_raster(ls.surface.example_data("orelevation")), "EPSG:32610", res=30)
-forms = ls.surface.geomorphons(utm, search=20)
+utm = tf.reproject(tf.load_raster(tf.surface.example_data("orelevation")), "EPSG:32610", res=30)
+forms = tf.surface.geomorphons(utm, search=20)
 print(forms.share()[["name", "share"]].round(3).to_string())
 ```
 
@@ -254,13 +254,13 @@ saddle where they meet higher ground). `hilltop` finds every summit with its
 base and marks the protected area of those that qualify:
 
 ```python
-h = ls.surface.hilltop(dem)
+h = tf.surface.hilltop(dem)
 hills = h.hills[h.hills.qualifies]
 print(hills[["top", "base", "base_kind", "height", "mean_slope", "threshold", "app_cells"]].round(1))
 print(len(h.hills), "summits")
-conama = ls.surface.hilltop(dem, min_height=50, min_slope=16.7, slope="line")   # CONAMA 303/2002
+conama = tf.surface.hilltop(dem, min_height=50, min_slope=16.7, slope="line")   # CONAMA 303/2002
 print(int(conama.hills["qualifies"].sum()), "hills,", int(conama.app.sum()), "cells with the older rule")
-ls.plot([dem, h.app])
+tf.plot([dem, h.app])
 ```
 
 ```text

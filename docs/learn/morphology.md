@@ -82,7 +82,7 @@ isolated strip:
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 toy = np.ones((24, 40), dtype="uint8")   # 1 = background
 toy[3:15, 2:14] = 2                      # block A
@@ -95,8 +95,8 @@ toy[14:22, 9] = 2                        # a dead-end strip from A
 toy[19:22, 4:6] = 2                      # a small fragment
 toy[1:3, 20:34] = 2                      # a thin isolated strip
 
-morph = ls.mspa(toy, edge_width=1, internal=False)
-ls.mspa_stats(morph)[["pixels", "pct_foreground"]].head(7)
+morph = tf.mspa(toy, edge_width=1, internal=False)
+tf.mspa_stats(morph)[["pixels", "pct_foreground"]].head(7)
 ```
 
 ![A drawn landscape and its MSPA classes](../assets/figures/learn_mspa_toy.png)
@@ -124,9 +124,9 @@ MSPA finds which core areas every strip touches, and whether it touches one
 ### Reading MSPA on a real landscape
 
 ```python
-forest = ls.load_raster(ls.example_data("input"))
-morph = ls.mspa(forest, edge_width=2)
-ls.mspa_stats(morph)[["pixels", "pct_foreground"]].head(7)
+forest = tf.load_raster(tf.example_data("input"))
+morph = tf.mspa(forest, edge_width=2)
+tf.mspa_stats(morph)[["pixels", "pct_foreground"]].head(7)
 ```
 
 About 60% of this forest is core. Bridges, loops and branches hold about
@@ -183,7 +183,7 @@ many small pieces? **Accounting** labels every habitat object (a group of
 connected habitat cells) and groups them into size classes:
 
 ```python
-objects = ls.accounting(forest, thresholds=(50, 250, 1000, 5000, 20000))
+objects = tf.accounting(forest, thresholds=(50, 250, 1000, 5000, 20000))
 objects.stats[["range", "pct_objects", "pct_area"]]
 ```
 
@@ -211,8 +211,8 @@ These are easy to compute by hand from the patch areas, which is a good way
 to check that you understand them:
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
-forest_lc = ls.Landscape(ls.reclassify(landcover, foreground=[23, 24, 25]))
+landcover = tf.load_raster(tf.example_data("clc"))
+forest_lc = tf.Landscape(tf.reclassify(landcover, foreground=[23, 24, 25]))
 
 patches = forest_lc.patch_metrics(["area"])
 a = patches.loc[patches["class"] == 2, "area"].to_numpy()        # hectares
@@ -227,7 +227,7 @@ The forest of the CORINE example has a division of 0.997: two random points
 of the landscape are almost never in the same forest patch. Its effective
 mesh size is about 750 ha, compared with 50 000 ha of forest in total. MESH
 is additive and scale-consistent, which has made it popular in monitoring
-programmes of landscape fragmentation (Jaeger, 2000). `ls.parcellation`
+programmes of landscape fragmentation (Jaeger, 2000). `tf.parcellation`
 reports the same family of measures for every class of a binary map.
 
 ## Contorted boundaries
@@ -242,11 +242,11 @@ one value per object on a map (see the
 
 | Question | Tool |
 |---|---|
-| Which habitat cells are interior, edge, corridor or fragment? | `ls.mspa` |
-| The same, in fewer classes for communication | `ls.spa` |
-| How is the habitat distributed among small and large objects? | `ls.accounting` |
-| How divided is the landscape? | `ls.parcellation`, `division`, `mesh`, `split` metrics |
-| How convoluted is each object? | `ls.contortion`, shape metrics |
+| Which habitat cells are interior, edge, corridor or fragment? | `tf.mspa` |
+| The same, in fewer classes for communication | `tf.spa` |
+| How is the habitat distributed among small and large objects? | `tf.accounting` |
+| How divided is the landscape? | `tf.parcellation`, `division`, `mesh`, `split` metrics |
+| How convoluted is each object? | `tf.contortion`, shape metrics |
 | How much interior habitat does each patch have? | core-area metrics ([chapter 5](metrics.md)) |
 
 !!! success "Key points"

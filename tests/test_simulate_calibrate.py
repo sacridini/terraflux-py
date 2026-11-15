@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Pattern-oriented calibration (ls.simulate phase 9): known settings recovered from their own simulations."""
+"""Pattern-oriented calibration (tf.simulate phase 9): known settings recovered from their own simulations."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 _RNG = np.random.default_rng(0)
 _D1, _D2 = _RNG.random((30, 30)), _RNG.random((30, 30))
@@ -112,4 +112,4 @@ def test_errors():
 def test_calibration_plot():
     cal = S.calibrate(_build, _LAND, _observed(), params={"w": [0.2, 0.3]}, targets={"figure_of_merit": 1},
                       method="grid")
-    assert [p.title for p in ls.plot(cal).panels] == ["loss", "w", None]
+    assert [p.title for p in tf.plot(cal).panels] == ["loss", "w", None]

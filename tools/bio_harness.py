@@ -5,7 +5,7 @@ Biodiverse iterates hashes in Perl's randomised order: sums such as the PD
 (``sum values %$nodes_in_path``) change in the last bit from run to run. The
 harness can run an *overlay* of the Biodiverse library in which every
 ``keys``/``values``/``each`` over a hash goes through helper functions that
-return the keys in sorted (string) order. landschaft numbers labels, groups and
+return the keys in sorted (string) order. terraflux numbers labels, groups and
 tree nodes in that same order, so the overlay results are the bit-for-bit
 target; the unpatched library agrees to ~1e-12.
 

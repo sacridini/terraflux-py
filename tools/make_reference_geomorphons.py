@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of GRASS GIS's r.geomorphon (8.4) for ls.surface.geomorphons.
+"""Generate golden outputs of GRASS GIS's r.geomorphon (8.4) for tf.surface.geomorphons.
 
 Usage::
 
@@ -15,7 +15,7 @@ tools/geomorphons_grass.py`` (``--grass``, default the GRASS of QGIS 3.34). Each
 given to GRASS with one more row of nulls at the bottom: r.geomorphon's row buffer
 never shows the last row of the map to the cells of its bottom rows, so the padding
 row is the one left out and the lines of sight reach the real last row, as
-ls.surface.geomorphons does (its correct form).
+tf.surface.geomorphons does (its correct form).
 
 The test-suite reads the stored files, so it runs anywhere without GRASS.
 """
@@ -41,9 +41,9 @@ X0, Y0 = 300000.0, 7400000.0
 
 def _dems() -> dict[str, np.ndarray]:
     """The inputs (stored with the references: never drawn again)."""
-    import landschaft as ls
+    import terraflux as tf
 
-    srtm = ls.load_raster(ls.surface.example_data("orelevation")).values.astype(np.float32)
+    srtm = tf.load_raster(tf.surface.example_data("orelevation")).values.astype(np.float32)
     srtm = srtm[0] if srtm.ndim == 3 else srtm
     rng = np.random.default_rng(42)
     yy, xx = np.mgrid[0:70, 0:90].astype(np.float64)

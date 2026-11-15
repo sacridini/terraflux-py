@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Golden outputs of R's maxnet (0.1.4, glmnet 4.1-10) for ls.sdm.MaxNet,
+# Golden outputs of R's maxnet (0.1.4, glmnet 4.1-10) for tf.sdm.MaxNet,
 # driven by tools/make_reference_maxnet.py. Each case builds its data here
 # (maxnet's Bradypus data, synthetic data from R's generator), fits
 # maxnet() and writes the inputs and every result as raw little-endian
@@ -64,7 +64,7 @@ run_case <- function(case, p, data, classes = "default", regmult = 1, add = TRUE
   if (is.null(centi)) {
     put(case, "cont", as.matrix(data[, cont, drop = FALSE]), "f8", c(sum(cont), n))
   } else {
-    # the test makes these data again with R's generator (landschaft's RRandom): only a check here
+    # the test makes these data again with R's generator (terraflux's RRandom): only a check here
     put(case, "centi_colsums", colSums(centi))
   }
   put(case, "cat", codes(data[, !cont, drop = FALSE]), "i4", c(sum(!cont), n))

@@ -11,26 +11,26 @@ reads only the part of each file the grid covers, warps it onto the grid of
 `like` (or of an `extent` in longitudes and latitudes and a `cellsize`), and
 the result is kept in the cache (`LANDSCHAFT_CACHE`): a second call reads the
 file it wrote. Classes are resampled by their most common cell, values
-bilinearly. The `ls.download` module.
+bilinearly. The `tf.download` module.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-forest = ls.load_raster("forest.tif")
-clim = ls.download.worldclim(forest, layers=[1, 12])       # bio01 and bio12 on the forest's grid
-future = ls.download.chelsa(forest, gcm="MPI-ESM1-2-HR", ssp=370, period="2041-2070")
-dem = ls.download.copernicus_dem(forest, resolution=30)
-soc = ls.download.soilgrids(forest, property="soc", depth=["0-5cm", "5-15cm"])
-cover = ls.download.mapbiomas(forest, years=[1985, 2023])
-basins = ls.download.hydrography90m(forest, variable="sub_catchment")
+forest = tf.load_raster("forest.tif")
+clim = tf.download.worldclim(forest, layers=[1, 12])       # bio01 and bio12 on the forest's grid
+future = tf.download.chelsa(forest, gcm="MPI-ESM1-2-HR", ssp=370, period="2041-2070")
+dem = tf.download.copernicus_dem(forest, resolution=30)
+soc = tf.download.soilgrids(forest, property="soc", depth=["0-5cm", "5-15cm"])
+cover = tf.download.mapbiomas(forest, years=[1985, 2023])
+basins = tf.download.hydrography90m(forest, variable="sub_catchment")
 
-s2 = ls.download.stac("https://earth-search.aws.element84.com/v1", "sentinel-2-l2a", forest,
+s2 = tf.download.stac("https://earth-search.aws.element84.com/v1", "sentinel-2-l2a", forest,
                       assets=["red", "nir"], datetime="2024-07-01/2024-08-31",
                       query={"eo:cloud_cover": {"lt": 10}})
 ndvi = (s2.sel(band="nir") - s2.sel(band="red")) / (s2.sel(band="nir") + s2.sel(band="red"))
 
-env = ls.download.environment90m(basins, ["bio01_1981-2010_observed", "c10_2020"], stats=["mean", "sd"])
+env = tf.download.environment90m(basins, ["bio01_1981-2010_observed", "c10_2020"], stats=["mean", "sd"])
 env.table                                                   # a row per sub-catchment
 ```
 
@@ -40,28 +40,28 @@ env.table                                                   # a row per sub-catc
 
 ## Climate
 
-::: landschaft.download.worldclim
+::: terraflux.download.worldclim
 
-::: landschaft.download.chelsa
+::: terraflux.download.chelsa
 
 ## Terrain, soils and land cover
 
-::: landschaft.download.copernicus_dem
+::: terraflux.download.copernicus_dem
 
-::: landschaft.download.soilgrids
+::: terraflux.download.soilgrids
 
-::: landschaft.download.mapbiomas
+::: terraflux.download.mapbiomas
 
 ## Hydrography90m and Environment90m
 
-::: landschaft.download.hydrography90m
+::: terraflux.download.hydrography90m
 
-::: landschaft.download.environment90m
+::: terraflux.download.environment90m
 
-::: landschaft.download.Environment90m
+::: terraflux.download.Environment90m
 
 ## Any raster, any STAC catalogue
 
-::: landschaft.download.raster
+::: terraflux.download.raster
 
-::: landschaft.download.stac
+::: terraflux.download.stac

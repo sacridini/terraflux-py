@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Circuitscape's raster modes (ls.circuit.circuitscape_*)."""
+"""Circuitscape's raster modes (tf.circuit.circuitscape_*)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft.circuit import circuitscape as cs
+import terraflux as tf
+from terraflux.circuit import circuitscape as cs
 
 REF = Path(__file__).parent / "data" / "reference" / "circuit"
 CS = REF / "circuitscape"

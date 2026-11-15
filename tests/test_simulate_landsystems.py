@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Land systems as overlapping binary layers, roles, caps and succession (ls.simulate phase 4)."""
+"""Land systems as overlapping binary layers, roles, caps and succession (tf.simulate phase 4)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
+S = tf.simulate
 
 
 def _world(seed=21):

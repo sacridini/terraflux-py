@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Nutrient delivery ratio (ls.services.ndr) against InVEST's outputs (tools/make_reference_invest_ndr.py)."""
+"""Nutrient delivery ratio (tf.services.ndr) against InVEST's outputs (tools/make_reference_invest_ndr.py)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from test_services import CRS, _case, _gt, _on_invest_grid, _raster
 
-import landschaft as ls
+import terraflux as tf
 
 CASES = ["ndr_mfd", "ndr_d8", "ndr_p_only", "ndr_tall", "ndr_wide", "ndr_grids"]
 CHAIN = ["masked_dem", "masked_lulc", "masked_runoff_proxy", "filled_dem", "slope", "thresholded_slope",
@@ -41,7 +41,7 @@ def _run(name, **kw):
                 subsurface_critical_length=p["subsurface_critical_length_n"],
                 subsurface_efficiency=p["subsurface_eff_n"])
     args.update(kw)
-    r = ls.services.ndr(_raster(inputs["dem"], nd, _gt(meta, "dem")),
+    r = tf.services.ndr(_raster(inputs["dem"], nd, _gt(meta, "dem")),
                         _raster(inputs["lulc"], meta["nodata"], _gt(meta, "lulc")),
                         _raster(inputs["runoff"], nd, _gt(meta, "runoff")), _table(inputs, meta),
                         _polygons(meta["watersheds"]), **args)
@@ -139,13 +139,13 @@ def test_ndr_table_checks():
     kw = dict(threshold=60, subsurface_critical_length=150.0, subsurface_efficiency=0.6)
     t = _table(inputs, meta)
     with pytest.raises(ValueError, match="load_type_n"):
-        ls.services.ndr(*args, t.assign(load_type_n="fertilizer"), ws, **kw)
+        tf.services.ndr(*args, t.assign(load_type_n="fertilizer"), ws, **kw)
     with pytest.raises(ValueError, match="lacks the column"):
-        ls.services.ndr(*args, t.drop(columns="load_type_p"), ws, **kw)
+        tf.services.ndr(*args, t.drop(columns="load_type_p"), ws, **kw)
     with pytest.raises(ValueError, match="class"):
-        ls.services.ndr(*args, t.iloc[1:], ws, **kw)
+        tf.services.ndr(*args, t.iloc[1:], ws, **kw)
     # measured runoff: the load as given; application rate: times 1 - eff
-    r = ls.services.ndr(*args, t.assign(load_type_n="measured-runoff"), ws, phosphorus=False, **kw)
+    r = tf.services.ndr(*args, t.assign(load_type_n="measured-runoff"), ws, phosphorus=False, **kw)
     load, lulc = r.intermediate["load_n"].values, inputs["lulc"]
     for i, code in enumerate(inputs["codes"]):
         cells = (lulc == code) & ~np.isnan(load)

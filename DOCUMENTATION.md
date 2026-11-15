@@ -1,6 +1,6 @@
-# landschaft: Complete Documentation & User Guide
+# terraflux: Complete Documentation & User Guide
 
-**landschaft** is a high-performance Python package reimplementing the complete scientific raster analysis suite of [GuidosToolbox (GTB)](https://forest.jrc.ec.europa.eu/en/activities/lpa/gtb/) developed by the European Commission Joint Research Centre (JRC).
+**terraflux** is a high-performance Python package reimplementing the complete scientific raster analysis suite of [GuidosToolbox (GTB)](https://forest.jrc.ec.europa.eu/en/activities/lpa/gtb/) developed by the European Commission Joint Research Centre (JRC).
 
 It provides a native **C++17 / OpenMP** core exposed through zero-copy **pybind11** wrappers, offering high-level Python APIs fully integrated with **numpy**, **xarray**, **rioxarray**, **pandas**, and **dask**.
 
@@ -36,12 +36,12 @@ It provides a native **C++17 / OpenMP** core exposed through zero-copy **pybind1
   * Forest Area Density (FAD) uses **2D Integral Images** (Summed-Area Tables) for $O(1)$ computation per pixel regardless of window size ($7 \times 7$ up to $243 \times 243$).
   * GraySpatCon uses **101-bin sliding histograms** that update columns in $O(1)$ rather than re-scanning the window.
 * **Full Geospatial Metadata Preservation**: All high-level functions accept and return `xarray.DataArray` objects, seamlessly preserving CRS, affine geotransforms, spatial coordinates, and nodata masks.
-* **Threads: all cores but one by default.** Every function that runs in parallel takes `n_threads` (and the ones that run several rasters at once, `n_workers`); `None` or 0 means all the cores the process may use but one, so the machine stays responsive. `ls.default_threads()` gives that count, `ls.set_default_threads(n)` changes it for the whole process (`None`: back to all cores but one). The compiled code follows the same rule even where a function has no thread argument of its own (every call into it sets the OpenMP thread count of the calling thread), in any Python thread. Results never depend on the number of threads.
+* **Threads: all cores but one by default.** Every function that runs in parallel takes `n_threads` (and the ones that run several rasters at once, `n_workers`); `None` or 0 means all the cores the process may use but one, so the machine stays responsive. `tf.default_threads()` gives that count, `tf.set_default_threads(n)` changes it for the whole process (`None`: back to all cores but one). The compiled code follows the same rule even where a function has no thread argument of its own (every call into it sets the OpenMP thread count of the calling thread), in any Python thread. Results never depend on the number of threads.
 
 ```python
-ls.default_threads()               # e.g. 19 on a 20-core machine
-ls.fad(data, n_threads=4)          # this call: 4 threads
-ls.set_default_threads(8)          # every call from now on: 8 threads
+tf.default_threads()               # e.g. 19 on a 20-core machine
+tf.fad(data, n_threads=4)          # this call: 4 threads
+tf.set_default_threads(8)          # every call from now on: 8 threads
 ```
 
 ---
@@ -58,8 +58,8 @@ ls.set_default_threads(8)          # every call from now on: 8 threads
 
 ```bash
 # Clone the repository
-git clone https://github.com/sacridini/landschaft.git
-cd landschaft
+git clone https://github.com/sacridini/terraflux-py.git
+cd terraflux
 
 # Install dependencies and package in editable mode
 pip install .
@@ -68,9 +68,9 @@ pip install .
 ### With Conda / Mamba
 
 ```bash
-conda create -n landschaft -c conda-forge python=3.12 numpy pandas rasterio rioxarray xarray dask \
+conda create -n terraflux -c conda-forge python=3.12 numpy pandas rasterio rioxarray xarray dask \
       scikit-build-core pybind11 cmake ninja pytest scipy
-conda activate landschaft
+conda activate terraflux
 pip install --no-build-isolation -e .
 ```
 
@@ -84,20 +84,20 @@ GuidosToolbox standard binary format uses single-band `uint8` rasters:
 * `2`: Foreground (focal habitat / forest)
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
 # 1. Load sample dataset or GeoTIFF
-data = ls.load_raster(ls.example_data("input"))  # 1000x1000 binary map
+data = tf.load_raster(tf.example_data("input"))  # 1000x1000 binary map
 
 # 2. Run MSPA
-mspa_map = ls.mspa(data, connectivity=8, edge_width=1)
+mspa_map = tf.mspa(data, connectivity=8, edge_width=1)
 
 # 3. Calculate Fragmentation (FAD)
-fad_map = ls.fad(data, window_size=27)
+fad_map = tf.fad(data, window_size=27)
 
 # 4. Save to GeoTIFF with original GTB colormap
-ls.write_raster(mspa_map, "output_mspa.tif")
-ls.write_raster(fad_map.fad_map, "output_fad.tif")
+tf.write_raster(mspa_map, "output_mspa.tif")
+tf.write_raster(fad_map.fad_map, "output_fad.tif")
 ```
 
 ---
@@ -108,31 +108,31 @@ ls.write_raster(fad_map.fad_map, "output_fad.tif")
 Loads a GeoTIFF or raster file as a georeferenced `xarray.DataArray`. If passed a folder or glob pattern, returns a `RasterCollection`.
 ```python
 # Single file
-da = ls.load_raster("landcover.tif", validate="mspa")  # checks 0/1/2 coding
-raw = ls.load_raster("dem.tif", validate=None)         # loads raw continuous data
+da = tf.load_raster("landcover.tif", validate="mspa")  # checks 0/1/2 coding
+raw = tf.load_raster("dem.tif", validate=None)         # loads raw continuous data
 
 # Multiple files / folder
-collection = ls.load_raster("tiles/*.tif")
+collection = tf.load_raster("tiles/*.tif")
 ```
 
 ### `reclassify`
 Conveniently reclassifies any landcover classification map into GTB binary coding (`0`, `1`, `2`):
 ```python
-clc = ls.load_raster("corine.tif", validate=None)
+clc = tf.load_raster("corine.tif", validate=None)
 # Classes 23, 24, 25 are forest (foreground=2), nodata 48 is missing=0, others background=1
-forest = ls.reclassify(clc, foreground=[23, 24, 25], missing=[48])
+forest = tf.reclassify(clc, foreground=[23, 24, 25], missing=[48])
 
 # Using lambda condition:
-dense = ls.reclassify(tree_cover, foreground=lambda arr: arr >= 40)
+dense = tf.reclassify(tree_cover, foreground=lambda arr: arr >= 40)
 ```
 
 ### `write_raster`
 Writes a 2D array or `xarray.DataArray` to a GeoTIFF with optional LZW/Deflate compression and the official GuidosToolbox colormap:
 ```python
-ls.write_raster(result_da, "output.tif", colormap="auto")
+tf.write_raster(result_da, "output.tif", colormap="auto")
 ```
 
-### Available Colormaps (`landschaft.io`)
+### Available Colormaps (`terraflux.io`)
 Extracted bit-for-bit from original GTB `.sav` colortables:
 * `mspa_colormap(transition=True)`
 * `gtn_components_colormap()`
@@ -154,7 +154,7 @@ Extracted bit-for-bit from original GTB `.sav` colortables:
 MSPA segments foreground habitat into 7 mutually exclusive morphological classes and openings based on geometric connectivity and distance to boundaries.
 
 ```python
-result = ls.mspa(
+result = tf.mspa(
     data,
     connectivity=8,   # Foreground connectivity: 8 (default) or 4
     edge_width=1,     # Effective edge width in pixels (1 to 255)
@@ -168,22 +168,22 @@ result = ls.mspa(
 GTB's *MSPA Tiling*: overlapping tiles processed one by one (or `n_workers` at a time) and put back together.
 A GeoTIFF path is processed out of core, reading and writing one tile window at a time:
 ```python
-out = ls.mspa_tiled("europe_forest.tif")        # -> europe_forest_8_1_1_1.tif (GTB naming)
-out = ls.mspa_tiled("europe_forest.tif", "mspa.tif", connectivity=4, n_workers=4, overwrite=True)
-m = ls.mspa_tiled(data, tile_size=6500, overlap=2000)  # arrays / DataArrays in memory
-ls.tile_layout(20000)  # [(read_start, read_stop, keep_start, keep_stop), ...] per tile along an axis
+out = tf.mspa_tiled("europe_forest.tif")        # -> europe_forest_8_1_1_1.tif (GTB naming)
+out = tf.mspa_tiled("europe_forest.tif", "mspa.tif", connectivity=4, n_workers=4, overwrite=True)
+m = tf.mspa_tiled(data, tile_size=6500, overlap=2000)  # arrays / DataArrays in memory
+tf.tile_layout(20000)  # [(read_start, read_stop, keep_start, keep_stop), ...] per tile along an axis
 ```
 Tiles are `tile_size` pixels including the `overlap` (GTB: 6500 and 2000 on MS-Windows, 9500 on Linux,
 8500 on macOS; GTB fixes the edge width to 1); each tile keeps its half of every overlap. Tiles with only
 missing data, only foreground, or lacking background or foreground are classified directly, as in GTB.
 The result is identical to GTB's MSPA Tiling. It equals MSPA of the whole map when the objects are small
 compared with the overlap; otherwise classes that depend on whole objects (loops, bridges, islets, openings)
-can differ near the seams — use `ls.mspa()` on the whole map whenever it fits in memory (about 32 bytes per pixel).
+can differ near the seams — use `tf.mspa()` on the whole map whenever it fits in memory (about 32 bytes per pixel).
 
 ### Simplified Pattern Analysis (SPA2/3/5/6)
 GTB's simplified alternatives to MSPA (8-connected foreground, 1-pixel edge width):
 ```python
-r = ls.spa(data, variant=5)   # 2, 3, 5 or 6
+r = tf.spa(data, variant=5)   # 2, 3, 5 or 6
 r.map       # 17 core (SPA2: contiguous), 1 margin (SPA2: small linear features), 3 edge,
             # 5 perforation, 9 islet (SPA6), 100 core-opening, 0 background, 129 missing
 r.stats     # area, % of data, % of foreground per class
@@ -192,7 +192,7 @@ print(r.summary())
 ```
 Identical to GTB (maps and statistics).
 
-### MSPA Classes Table (`ls.MSPA_CLASSES`)
+### MSPA Classes Table (`tf.MSPA_CLASSES`)
 
 | Pixel Value | Class Name | Description |
 | :---: | :--- | :--- |
@@ -209,7 +209,7 @@ Identical to GTB (maps and statistics).
 
 ### Class Statistics
 ```python
-df_stats = ls.mspa_stats(result)
+df_stats = tf.mspa_stats(result)
 print(df_stats)
 ```
 
@@ -220,10 +220,10 @@ print(df_stats)
 Identifies functional components and ranks the structural importance of individual habitat nodes and corridors.
 
 ```python
-from landschaft import gtn_components, gtn_importance, conefor_inputs
+from terraflux import gtn_components, gtn_importance, conefor_inputs
 
 # Step 1: Run MSPA to get segmented classes
-mspa_map = ls.mspa(data, edge_width=2)
+mspa_map = tf.mspa(data, edge_width=2)
 
 # Step 2: Extract connected network components
 net = gtn_components(mspa_map, min_patch_size=1)
@@ -255,11 +255,11 @@ any table of nodes and distances are in [section 14](#14-habitat-connectivity-gr
 Calculates foreground pixel proportion within square moving windows.
 ```python
 # Single window size
-fad_res = ls.fad(data, window_size=27)
+fad_res = tf.fad(data, window_size=27)
 print(f"Average FAD: {fad_res.average_fad:.2f}%")
 
 # Multiscale FAD across 5 default GTB window scales: 7, 13, 27, 81, 243
-multi = ls.fad_multiscale(data, window_sizes=[7, 13, 27, 81, 243])
+multi = tf.fad_multiscale(data, window_sizes=[7, 13, 27, 81, 243])
 # multi.single_scales maps window_size -> DataArray; multi.multiscale_map is their rounded mean
 ```
 Inputs may also contain GTB's special backgrounds: `3` (special background, coded 105 in the
@@ -267,7 +267,7 @@ maps) and `4` (non-fragmenting special background, treated as missing when measu
 coded 106). `multi.stats` lists the class shares, `average_fad` and GTB's `avcon`
 (average FAD × foreground / non-missing area) per scale. The maps are identical to GTB's FAD-MS
 outputs (`*_fad_<window>.tif`, `*_fad_mscale.tif`).
-**FAD Classes (`ls.FAD_CLASSES`)**:
+**FAD Classes (`tf.FAD_CLASSES`)**:
 1. Rare ($0..9\%$)
 2. Patchy ($10..39\%$)
 3. Transitional ($40..59\%$)
@@ -277,15 +277,15 @@ outputs (`*_fad_<window>.tif`, `*_fad_mscale.tif`).
 ### Fragmentation at a Fixed Observation Scale (FOS)
 GTB's *Fragmentation → FOS*, with all its methods and inputs:
 ```python
-r = ls.fos(data, window_size=27, method="FAD", classes=6)   # "FAD", "FED" or "FAC"; 5 or 6 classes
+r = tf.fos(data, window_size=27, method="FAD", classes=6)   # "FAD", "FED" or "FAC"; 5 or 6 classes
 r.map          # 0-100 connectivity of each foreground pixel; 101 BG, 102 missing, 105/106 special BG
 r.stats        # share [%] of the foreground per class (Rare .. Interior/Intact)
 r.histogram    # share [%] of the foreground pixels with each value 0..100
 r.average, r.avcon, r.n_patches, r.average_patch_size, r.eca, r.coherence, r.coherence_ru
 print(r.summary())  # GTB's fos.txt report
 
-gray = ls.load_raster("cover.tif", validate=None)  # 0-100 % cover, 255 missing, 103/104 special BG
-r = ls.fos(gray, 13, "FED", 5, gray_threshold=30)   # foreground = cover >= 30
+gray = tf.load_raster("cover.tif", validate=None)  # 0-100 % cover, 255 missing, 103/104 special BG
+r = tf.fos(gray, 13, "FED", 5, gray_threshold=30)   # foreground = cover >= 30
 ```
 * **FAD** (area density): share of foreground in the window (spatcon, or GraySpatCon metric 1 — the mean cover — for grayscale maps).
 * **FED** (edge density): GraySpatCon metric 52 ("clustering") of the window's pixel pairs.
@@ -298,7 +298,7 @@ use `connectivity` (8 or 4). Maps and statistics are identical to GTB's batch FO
 ### Euclidean Distance Transform
 Computes exact Signed Euclidean Distance transform using Meijster's $O(N)$ algorithm:
 ```python
-dist_res = ls.euclidean_distance(data)
+dist_res = tf.euclidean_distance(data)
 # dist_res.distance_float: continuous distance (positive inside FG, negative inside BG)
 # dist_res.distance_byte : 256-level byte-scaled distance map for GIS visualization
 # dist_res.mean_fg_dist  : average distance from perimeter to interior
@@ -310,9 +310,9 @@ GTB's *Distance → Influence Zones / Proximity*. The objects (8-connected foreg
 areas of at least `min_area` pixels, with their holes filled) divide the map into the
 zones of the watershed of the distance to the objects:
 ```python
-iz = ls.influence_zones(data, min_area=5000, core_buffer=0, buffer=10)
+iz = tf.influence_zones(data, min_area=5000, core_buffer=0, buffer=10)
 iz.classes, iz.ids, iz.zones          # GTB viewport codes, object ids, zone labels
-px = ls.proximity(data, min_area=5000)
+px = tf.proximity(data, min_area=5000)
 px.distance, px.cag, px.lines         # proximity map, connected area gain, watershed pixels
 px.to_csv("input_proximity_5000_0_0.csv")   # GTB's proximity CSV
 ```
@@ -325,12 +325,12 @@ line by line.
 Measures textural heterogeneity and spatial order across 4 directions ($0^\circ, 45^\circ, 90^\circ, 135^\circ$):
 ```python
 # Global entropy indices
-ent_res = ls.spatial_entropy(data)
+ent_res = tf.spatial_entropy(data)
 print(f"Spatial Entropy H: {ent_res.entropy:.4f}")
 print(f"Relative Spatial Entropy H_rel: {ent_res.relative_entropy:.4f}")
 
 # Moving-window local entropy map
-ent_map = ls.spatial_entropy_map(data, window_size=50)
+ent_map = tf.spatial_entropy_map(data, window_size=50)
 ```
 
 ---
@@ -345,15 +345,15 @@ Analyzes spatial mixing between three landcover components:
 ### Landscape Mosaic (LM)
 ```python
 # 19-class or 103-class Landscape Mosaic
-lm19 = ls.landscape_mosaic(data, window_size=27, output_classes=19)
-lm103 = ls.landscape_mosaic(data, window_size=27, output_classes=103)
+lm19 = tf.landscape_mosaic(data, window_size=27, output_classes=19)
+lm103 = tf.landscape_mosaic(data, window_size=27, output_classes=103)
 
 # 103-class barycentric statistics breakdown
-stats = ls.landscape_mosaic_stats(lm103)
+stats = tf.landscape_mosaic_stats(lm103)
 print(stats)
 
 # GTB heatmap: share [%] of each of the 103 classes, as GTB stores it (single precision)
-heat = ls.landscape_mosaic_heatmap(data, window_size=27)
+heat = tf.landscape_mosaic_heatmap(data, window_size=27)
 heat.table          # share per class code, with its 19-class recode
 heat.triangle       # 12 x 21 grid in GTB's triangle layout (NaN outside)
 heat.to_csv("forest_lm_27_heatmap.csv")   # identical to GTB's heatmap.csv
@@ -362,10 +362,10 @@ heat.to_csv("forest_lm_27_heatmap.csv")   # identical to GTB's heatmap.csv
 ### Contagion ($P_{ff}$) & Area Clustering (FAC)
 ```python
 # Pff: pixel co-occurrence probability of foreground
-pff = ls.contagion_pff(data, window_size=7)
+pff = tf.contagion_pff(data, window_size=7)
 
 # FAC: Foreground Area Clustering normalized by density (Pff / Pf)
-fac = ls.clustering_fac(data, window_size=7)
+fac = tf.clustering_fac(data, window_size=7)
 ```
 
 ---
@@ -375,7 +375,7 @@ fac = ls.clustering_fac(data, window_size=7)
 ### Restoration Status (RSS)
 Evaluates landscape connectivity before and after hypothetical restoration of all non-core pixels:
 ```python
-rss = ls.restoration_status(mspa_map)
+rss = tf.restoration_status(mspa_map)
 print(rss.summary())
 # Attributes:
 # - current_eca, potential_eca
@@ -388,14 +388,14 @@ print(rss.summary())
 Anisotropic 8-neighbor Dijkstra least-cost routing across resistance surfaces:
 ```python
 # 1. Cost Distance Map from Source Mask
-cost_map = ls.cost_distance(resistance_surface, source_mask)
+cost_map = tf.cost_distance(resistance_surface, source_mask)
 
 # 2. Two-ended Least Cost Path
-lcp = ls.least_cost_path(resistance_surface, marker_a, marker_b)
+lcp = tf.least_cost_path(resistance_surface, marker_a, marker_b)
 print(f"Total Path Cost: {lcp.total_cost:.2f}, Length: {lcp.path_length} pixels")
 
 # 3. Restoration Corridor (Dijkstra forward-backward intersection)
-corridor = ls.restoration_corridor(resistance_surface, marker_a, marker_b, corridor_width=3)
+corridor = tf.restoration_corridor(resistance_surface, marker_a, marker_b, corridor_width=3)
 ```
 
 ### Accounting (Object Size Classes)
@@ -403,14 +403,14 @@ GTB's *Objects → Accounting*: labels every foreground object and groups it int
 up to six size classes. The maps are identical to GTB's `_acc.tif`,
 `_acc_ids.tif` and `_acc_pixels.tif`, and the numbers match its `acc.txt` report:
 ```python
-acc = ls.accounting(data, thresholds=(50, 250, 1000, 5000, 20000), connectivity=8,
+acc = tf.accounting(data, thresholds=(50, 250, 1000, 5000, 20000), connectivity=8,
                     highlight_largest=True)
 print(acc.summary())          # GTB acc.txt layout
 acc.stats                     # per class: range, colour, objects, area, % objects, % FG area
-acc.classes                   # uint8 GTB colour codes (see ls.ACCOUNTING_CLASSES)
+acc.classes                   # uint8 GTB colour codes (see tf.ACCOUNTING_CLASSES)
 acc.ids                       # int32 object IDs (0 BG, -1 missing, -3/-4 special BG)
 acc.area                      # int32 object area in pixels on every object pixel
-ls.write_raster(acc.classes, "forest_acc.tif")   # with GTB's colour table
+tf.write_raster(acc.classes, "forest_acc.tif")   # with GTB's colour table
 ```
 * Input: `uint8`, 0 = missing, 1 = background, 2 = foreground, 3/4 = special background.
 * `thresholds`: 1 to 5 non-decreasing upper bounds (repeats dropped). Class 1 is
@@ -430,11 +430,11 @@ GTB's *Restoration Planner*. Resistance maps are coded 2 = foreground (cost 1) a
 A step between neighbouring pixels (8-connectivity, diagonals included) costs the mean
 of their resistances, as in GTB's `ggeo` program:
 ```python
-resist = ls.distance_to_resistance(forest)        # or any 2/3-100 resistance map
-iso = ls.isochrone_map(resist, marker)            # cost from A
+resist = tf.distance_to_resistance(forest)        # or any 2/3-100 resistance map
+iso = tf.isochrone_map(resist, marker)            # cost from A
 iso.map      # 0-100 scaled cost, 101 markers, 102 missing, 104 unreachable
 iso.cost     # cost as GTB rounds it
-ab = ls.isochrone_map_ab(resist, marker)          # cheapest A-B route through every pixel
+ab = tf.isochrone_map_ab(resist, marker)          # cheapest A-B route through every pixel
 ab.lcp       # least-cost path (1 pixel wide), code 103 in ab.map
 ```
 The isochrone maps are identical to GTB's (tested against GTB's code and its `ggeo`
@@ -444,7 +444,7 @@ program). `cost_distance()` / `least_cost_path()` above use a different cost mod
 ### Landscape Parcellation
 Computes patch division, effective mesh size, and splitting indices:
 ```python
-parc = ls.parcellation(data, connectivity=8, return_labels=True)
+parc = tf.parcellation(data, connectivity=8, return_labels=True)
 print(parc.summary())
 # Class-level metrics table:
 # - APS (Average Patch Size)
@@ -456,7 +456,7 @@ print(parc.summary())
 ### Habitat Contortion
 Calculates boundary tortuosity and perimeter inflection points:
 ```python
-contortion_map = ls.contortion(data, min_area=1)
+contortion_map = tf.contortion(data, min_area=1)
 # Values represent shape tortuosity per component
 ```
 
@@ -467,7 +467,7 @@ contortion_map = ls.contortion(data, min_area=1)
 ### Simple Change (A $\to$ B)
 Computes 4-class binary transition:
 ```python
-sc = ls.simple_change(map_t1, map_t2)
+sc = tf.simple_change(map_t1, map_t2)
 print(sc.summary())
 # sc.change_map values:
 # 11: Stable Background
@@ -480,7 +480,7 @@ print(sc.summary())
 ### Morphological Change Detection (MCD)
 Eliminates spurious boundary chatter through geodesic reconstruction of core changes ($d > 2$) and computes landscape elasticity:
 ```python
-mcd = ls.morphological_change(map_t1, map_t2)
+mcd = tf.morphological_change(map_t1, map_t2)
 print(mcd.summary())
 # mcd.change_map values:
 # 11: Stable BG
@@ -494,7 +494,7 @@ print(mcd.summary())
 ### Fragmentation (FOS) Change
 Produces continuous delta FOS maps and a $6 \times 6$ density class transition matrix:
 ```python
-fc = ls.fos_change(fos_t1, fos_t2)
+fc = tf.fos_change(fos_t1, fos_t2)
 print(fc.summary())
 print(fc.matrix_6x6)
 # - fc.change_map: delta FOS shifted by +100
@@ -507,7 +507,7 @@ GTB's *Change → FAD Multiscale*: for every FAD-MS observation scale and the mu
 a 7×7 table of pixels moving between fragmentation classes (background, rare, patchy,
 transitional, dominant, interior, intact) from time A to time B:
 ```python
-ch = ls.fad_multiscale_change(forest_2000, forest_2020)   # maps, FAD-MS results or GTB *_fad_mscale.tif
+ch = tf.fad_multiscale_change(forest_2000, forest_2020)   # maps, FAD-MS results or GTB *_fad_mscale.tif
 sc = ch.scales["mscale"]            # or ch.scales[7], ch.scales[13], ...
 sc.matrix                           # 7x7 pixel counts, rows A0-Background..A6-Intact, columns B0..B6
 sc.percent                          # 6x6 foreground transitions in % of the changed pixels
@@ -521,7 +521,7 @@ background (input 4). The tables are identical to GTB's.
 ### Landscape Mosaic Heatmap Change
 GTB's *Change → Landscape Mosaic Heatmap*: the difference B − A of two heatmaps.
 ```python
-d = ls.landscape_mosaic_change(lm_input_2000, lm_input_2020, window_size=27)
+d = tf.landscape_mosaic_change(lm_input_2000, lm_input_2020, window_size=27)
 d.table            # percent_a, percent_b, change per LM class
 d.to_csv("delta_heatmap.csv")   # identical to GTB's delta_heatmap.csv
 ```
@@ -529,9 +529,9 @@ d.to_csv("delta_heatmap.csv")   # identical to GTB's delta_heatmap.csv
 ### Continuous Grayscale Spatial Convolution (GraySpatCon)
 Computes moving-window spatial metrics over continuous grayscale/percentage rasters ($0..100$):
 ```python
-gsc_mean = ls.gray_spatial_convolution(img, metric="mean", window_size=7)
-gsc_std = ls.gray_spatial_convolution(img, metric="stddev", window_size=7)
-gsc_ent = ls.gray_spatial_convolution(img, metric="shannon_diversity", window_size=7)
+gsc_mean = tf.gray_spatial_convolution(img, metric="mean", window_size=7)
+gsc_std = tf.gray_spatial_convolution(img, metric="stddev", window_size=7)
+gsc_ent = tf.gray_spatial_convolution(img, metric="shannon_diversity", window_size=7)
 ```
 **Supported Metrics**:
 * `"mean"` / `"average"`
@@ -549,9 +549,9 @@ gsc_ent = ls.gray_spatial_convolution(img, metric="shannon_diversity", window_si
 
 Any tool can run on many rasters (GTB's *Batch Process*):
 ```python
-results = ls.batch("accounting", "tiles/*.tif", "out/", highlight_largest=True, max_memory="16GB")
-ls.batch("spa", "tiles/", "out/", variant=6)
-ls.batch(my_function, "tiles/", "out/")     # any function of one raster
+results = tf.batch("accounting", "tiles/*.tif", "out/", highlight_largest=True, max_memory="16GB")
+tf.batch("spa", "tiles/", "out/", variant=6)
+tf.batch(my_function, "tiles/", "out/")     # any function of one raster
 [r.outputs for r in results]                # GeoTIFF maps, CSV tables, TXT report, JSON record
 ```
 Outputs are named `<name>_<tool>[_<field>].<ext>`. The JSON record
@@ -562,10 +562,10 @@ Process thousands of raster tiles efficiently without exhausting system RAM:
 
 ```python
 # Header-only scan of directory
-tiles = ls.load_raster("path/to/tiles/")
+tiles = tf.load_raster("path/to/tiles/")
 
 # Batch process with bounded memory (max 16 GB RAM used concurrently)
-results = ls.mspa_batch(
+results = tf.mspa_batch(
     tiles,
     output_dir="./mspa_output",
     edge_width=2,
@@ -578,17 +578,17 @@ results = ls.mspa_batch(
 ### Several computers
 
 Many independent tasks can be shared with the other computers of a lab. Each
-helper joins the group once (`landschaft helpers invite` on the main computer,
-`landschaft worker --join <code>` on the helper) and then lends itself with
-`landschaft worker`. Functions that run many tasks take `on=`:
+helper joins the group once (`terraflux-py helpers invite` on the main computer,
+`terraflux-py worker --join <code>` on the helper) and then lends itself with
+`terraflux-py worker`. Functions that run many tasks take `on=`:
 
 ```python
-with ls.helpers() as pool:
-    ls.batch("fad", "tiles/", "fad_out/", on=pool)
-    ens = ls.simulate.scenarios(model, start, drivers, replicates=200, seed=1, on=pool)
+with tf.helpers() as pool:
+    tf.batch("fad", "tiles/", "fad_out/", on=pool)
+    ens = tf.simulate.scenarios(model, start, drivers, replicates=200, seed=1, on=pool)
 ```
 
-The results are the same as on one computer. Helpers run only landschaft's own
+The results are the same as on one computer. Helpers run only terraflux's own
 operations (a task is an operation's name, its JSON parameters and its input
 files, never code), connect out over TLS and prove the group's secret; input
 files come from their cache, a shared folder (NAS) or the network.
@@ -597,7 +597,7 @@ files come from their cache, a shared folder (NAS) or the network.
 
 ## 12. Accuracy & Bit-for-Bit Verification
 
-`landschaft` is validated by an automated test suite containing **324 test cases**:
+`terraflux` is validated by an automated test suite containing **324 test cases**:
 * **MSPA**: Tested against `mspa_win64.exe` on 1,200+ random configurations and full CORINE datasets (0 differing pixels).
 * **FAD & Contagion**: Tested against original JRC `spatcon64` binaries (bit-exact).
 * **Landscape Mosaic**: Tested against JRC `recode64` binaries (bit-exact).
@@ -646,9 +646,9 @@ more than asking for one. The results are cached in the object.
 ### Usage
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-lc = ls.Landscape("landcover.tif")          # path, DataArray, numpy or masked array
+lc = tf.Landscape("landcover.tif")          # path, DataArray, numpy or masked array
 lc                                           # Landscape(shape=..., resolution=..., classes=[...])
 
 lc.patch_metrics(["area", "perim", "shape"])  # class, id, area, perim, shape
@@ -660,8 +660,8 @@ lc.metrics(what=["lsm_c_ca", "lsm_l_ta"])     # landscapemetrics function names
 lc.labels()          # patch ids 1..n (0 = NA), same grid as the input
 lc.to_raster("area") # patch metric painted on the patches (spatialize_lsm)
 
-ls.landscape_metrics(["t1.tif", "t2.tif"], level="landscape")   # adds a `layer` column
-ls.list_metrics(level="class", type="-core area metric")        # "-" excludes
+tf.landscape_metrics(["t1.tif", "t2.tif"], level="landscape")   # adds a `layer` column
+tf.list_metrics(level="class", type="-core area metric")        # "-" excludes
 ```
 
 Wide tables (`patch_metrics`, `class_metrics`, `landscape_metrics`) have one column
@@ -691,7 +691,7 @@ same way. Both are pandas DataFrames, ready for `to_csv` / `to_parquet`.
 
 `calculate_lsm` also uses `neighbourhood` for `te`, `ed`, `iji` and `contag`,
 unlike the functions `lsm_l_te`, `lsm_c_iji`, `lsm_l_contag`, … (always 4
-neighbours). landschaft follows the individual functions; with the default
+neighbours). terraflux follows the individual functions; with the default
 `neighbourhood = 4` both agree.
 
 ### Available metrics
@@ -721,8 +721,8 @@ a search. The distances are computed as in landscapemetrics and are identical.
 landscapemetrics the circle encloses the corners of the patch cells in its first
 and last rows and columns, found with Welzl's algorithm. landscapemetrics shuffles
 the points at random, so its values can change in the last bit between runs;
-landschaft uses a fixed shuffle per patch (repeatable results, same values within
-1e-15). landscapemetrics refuses non-square cells; landschaft uses the real cell
+terraflux uses a fixed shuffle per patch (repeatable results, same values within
+1e-15). landscapemetrics refuses non-square cells; terraflux uses the real cell
 width and height.
 
 Core areas follow landscapemetrics' `get_boundaries`: a cell is core when its
@@ -737,10 +737,10 @@ core areas per patch (`ncore`), not their sizes.
 ```python
 lc.class_metrics(["area_am", "gyrate_am", "shape_md", "enn_ra"])   # FRAGSTATS statistics
 lc.metrics(level="class", metric="shape", extras=True)              # shape_mn ... shape_ra
-ls.list_metrics(extras=True)                                        # 211 metrics ("extra" column)
+tf.list_metrics(extras=True)                                        # 211 metrics ("extra" column)
 lc.class_metrics(["CA", "AREA_MN", "total_area", "shape_index_am"]) # FRAGSTATS / pylandstats names
 lc.landscape_metrics(["SHDI", "shannon_diversity_index", "contagion"])
-ls.Landscape("landcover.tif", n_threads=4)                          # limit the cores
+tf.Landscape("landcover.tif", n_threads=4)                          # limit the cores
 ```
 
 **Extras.** For every patch metric with summary statistics (`area`, `cai`, `circle`,
@@ -771,7 +771,7 @@ not depend on it.
 
 ```python
 contrast = {(1, 2): 0.2, (1, 3): 0.7, (2, 3): 0.5}        # or a class x class DataFrame
-lc = ls.Landscape("landcover.tif", search_radius=500, connect_threshold=100,
+lc = tf.Landscape("landcover.tif", search_radius=500, connect_threshold=100,
                   contrast=contrast, boundary_contrast=0.0, similarity={(1, 2): 0.5})
 lc.patch_metrics(["prox", "simi", "econ"])
 lc.class_metrics(["connect", "cwed", "teci", "prox_mn", "econ_am"])
@@ -830,7 +830,7 @@ How each platform gets R's bits (all checked by the same tests):
 On ARM64 the sums still give R's bits (R's reference values come from R on x86-64
 Windows); only metrics that take a logarithm or a square root may differ in the last bit
 there. The MASM file is only assembled by MSVC on x86-64; every other build uses the C++
-code. `landschaft._core.x87_math` tells which kind of build is running: the reference
+code. `terraflux._core.x87_math` tells which kind of build is running: the reference
 tests compare bit for bit where it is true and allow a few units in the last place
 elsewhere (`tests/conftest.py`).
 
@@ -870,9 +870,9 @@ functions hard-code it; `calculate_lsm` hides it).
 ### Rasters larger than memory (`block_rows`)
 
 ```python
-lc = ls.Landscape("huge_landcover.tif", block_rows="auto")   # or a number of rows
+lc = tf.Landscape("huge_landcover.tif", block_rows="auto")   # or a number of rows
 lc.metrics(level=["class", "landscape"])
-ls.landscape_metrics("huge_landcover.tif", block_rows=2048, what=["lsm_c_ca", "lsm_l_shdi"])
+tf.landscape_metrics("huge_landcover.tif", block_rows=2048, what=["lsm_c_ca", "lsm_l_shdi"])
 ```
 
 With `block_rows` the file is read by blocks of rows (rounded up to a multiple of 64;
@@ -906,16 +906,16 @@ not available out of core. GeoTIFF blocks are decoded on the same threads
 
 ```python
 # metrics of sample plots (sample_lsm): squares or circles around points, or polygons
-ls.sample_metrics("landcover.tif", points_xy, size=500, shape="circle", level="landscape")
-ls.sample_metrics("landcover.tif", gdf_polygons, plot_id=gdf_polygons["name"], all_classes=True)
+tf.sample_metrics("landcover.tif", points_xy, size=500, shape="circle", level="landscape")
+tf.sample_metrics("landcover.tif", gdf_polygons, plot_id=gdf_polygons["name"], all_classes=True)
 
 # landscape-level metrics in a moving window (window_lsm): {metric: raster}
-maps = ls.window_metrics("landcover.tif", window=21, what=["lsm_l_shdi", "lsm_l_ed"])
+maps = tf.window_metrics("landcover.tif", window=21, what=["lsm_l_shdi", "lsm_l_ed"])
 disk = np.hypot(*np.mgrid[-5:6, -5:6]) <= 5          # any odd-sized shape
-maps = ls.window_metrics("landcover.tif", window=disk, metric="contag")
+maps = tf.window_metrics("landcover.tif", window=disk, metric="contag")
 
 # several rasters, computed side by side
-ls.landscape_metrics(["t1.tif", "t2.tif", "t3.tif"])
+tf.landscape_metrics(["t1.tif", "t2.tif", "t3.tif"])
 ```
 
 **`sample_metrics`** cuts every plot out of the raster as `terra::crop(mask = TRUE)`
@@ -938,9 +938,9 @@ cell (cells outside the raster or outside the window shape are NA), in parallel 
 the rows; each window is a small landscape with the class values mapped to dense
 indices once for the whole raster. `terra::focal` hands the window values row by
 row but landscapemetrics fills its matrix column by column, so its windows are
-transposed; landschaft transposes them too, with the cell width and height swapped,
+transposed; terraflux transposes them too, with the cell width and height swapped,
 so the patches come in R's order (which `pafrac`'s regression rounds by) and the
-values are R's. Where `window_lsm` breaks the geometry landschaft keeps it:
+values are R's. Where `window_lsm` breaks the geometry terraflux keeps it:
 rectangular windows (R reshapes them), cells that are not square (R keeps the cell
 sides unswapped) and window shapes that are not symmetric (R masks the transposed
 values with the untransposed shape). And
@@ -970,12 +970,12 @@ ulps; that side effect is not reproduced (the cells and values are the same).
 landscapemetrics' public helpers:
 
 ```python
-ls.construct_buffer(points_xy, "circle", 500)                    # GeoDataFrame of plots
-ls.construct_buffer(points_xy, "square", 500, return_vec=False)  # R's vertex matrix
-ls.pad_raster("landcover.tif", -999, 2)   # 2 rows / columns of -999 around it
-ls.unpad_raster(padded, 2)                # and back
-ls.raster_to_points("landcover.tif", return_NA=False)   # layer, x, y, z
-ls.get_unique_values(["a.tif", "b.tif"])  # {"layer_1": values, "layer_2": values}
+tf.construct_buffer(points_xy, "circle", 500)                    # GeoDataFrame of plots
+tf.construct_buffer(points_xy, "square", 500, return_vec=False)  # R's vertex matrix
+tf.pad_raster("landcover.tif", -999, 2)   # 2 rows / columns of -999 around it
+tf.unpad_raster(padded, 2)                # and back
+tf.raster_to_points("landcover.tif", return_NA=False)   # layer, x, y, z
+tf.get_unique_values(["a.tif", "b.tif"])  # {"layer_1": values, "layer_2": values}
 ```
 
 `construct_buffer` gives the plots `sample_metrics` builds (squares of half side
@@ -984,7 +984,7 @@ ls.get_unique_values(["a.tif", "b.tif"])  # {"layer_1": values, "layer_2": value
 angles). `pad_raster` / `unpad_raster` return a DataArray for georeferenced input
 (extent grown or shrunk by the cells, as `ext(x) + res(x) * n`; landscapemetrics fails
 when the cells are not square, since terra recycles `c(xres, yres)` over the four
-sides; landschaft grows each axis by its own cell size) and a numpy array otherwise;
+sides; terraflux grows each axis by its own cell size) and a numpy array otherwise;
 `global_` is R's `global` (NA cells take the pad value too). `raster_to_points` gives
 terra's cell centres and the values in row order. `get_unique_values` returns the sorted
 distinct values of each layer (NA left out, doubles truncated), in parallel in C++.
@@ -1017,15 +1017,15 @@ other, each in parallel, when they are large.
 ### Time series and spatial signatures (pylandstats-style)
 
 ```python
-sta = ls.SpatioTemporalAnalysis(["lc2000.tif", "lc2010.tif", "lc2020.tif"], dates=[2000, 2010, 2020])
+sta = tf.SpatioTemporalAnalysis(["lc2000.tif", "lc2010.tif", "lc2020.tif"], dates=[2000, 2010, 2020])
 sta.landscape_metrics(["shdi", "ed", "np"])        # one row per date
 sta.class_metrics(["pland", "np"])                  # (class, date) rows; absent class: 0 for area/count
 sta.plot_metric("pland", classes="all")             # one line per class
-ls.SpatioTemporalAnalysis(files, dates, zones=gdf)                   # per polygon: (zone, date) rows
-ls.SpatioTemporalAnalysis(files, dates, points=xy, size=500)         # buffers around points
-ls.SpatioTemporalAnalysis(files, dates, grid=1000)                   # 1 km grid (ls.grid_zones)
+tf.SpatioTemporalAnalysis(files, dates, zones=gdf)                   # per polygon: (zone, date) rows
+tf.SpatioTemporalAnalysis(files, dates, points=xy, size=500)         # buffers around points
+tf.SpatioTemporalAnalysis(files, dates, grid=1000)                   # 1 km grid (tf.grid_zones)
 
-sig = ls.SpatialSignatureAnalysis(files, landscape_metrics=["shdi", "ed"], class_metrics=["pland"])
+sig = tf.SpatialSignatureAnalysis(files, landscape_metrics=["shdi", "ed"], class_metrics=["pland"])
 sig.table                     # the signature matrix: rows = landscapes (or zones), columns = metrics
 res = sig.pca()               # scores, loadings, explained_variance_ratio
 labels = sig.cluster(3)       # k-means (k-means++, best of 10)
@@ -1034,7 +1034,7 @@ nmf = sig.nmf(3)              # non-negative factors: scores (W), components (H)
 cg = sig.clustergram(range(1, 9), method="ward")   # labels and cluster means for each k
 sig.plot_clustergram(cg)      # Schonlau's clustergram, as pylandstats' get_cgram draws it
 sig.plot_pca(labels); sig.plot_cluster_metrics(labels)
-ls.SpatialSignatureAnalysis("map.tif", grid=1000, landscape_metrics=[...])   # zones of one map
+tf.SpatialSignatureAnalysis("map.tif", grid=1000, landscape_metrics=[...])   # zones of one map
 ```
 
 The series are computed with `landscape_metrics` / `sample_metrics` (so they are the same
@@ -1063,8 +1063,8 @@ lc.show_patches()                     # all patches, each in its own colour
 lc.show_patches("all", labels=True)   # one map per class, with patch ids
 lc.show_cores(edge_depth=2)           # core (dark) and edge (light) cells per class
 lc.show_lsm("shape", "all")           # a patch metric on the patches, with a colour bar
-ls.show_correlation(lc.metrics(level=["patch", "class"]), method="spearman", labels=True)
-ls.show_patches("landcover.tif", directions=4)    # rasters work too (Landscape options)
+tf.show_correlation(lc.metrics(level=["patch", "class"]), method="spearman", labels=True)
+tf.show_patches("landcover.tif", directions=4)    # rasters work too (Landscape options)
 ```
 
 `classes` is `"global"` (one map), `"all"` (one per class) or class values;
@@ -1073,7 +1073,7 @@ ls.show_patches("landcover.tif", directions=4)    # rasters work too (Landscape 
 ### Utilities (landscapemetrics' `get_*`, `extract_lsm`, `check_landscape`, `calculate_correlation`)
 
 ```python
-lc = ls.Landscape("landcover.tif")
+lc = tf.Landscape("landcover.tif")
 lc.centroids()                          # class, id, x, y (get_centroids)
 lc.centroids(cell_center=True)          # the patch cell nearest to it (ties: several rows)
 lc.nearest_neighbours(return_id=True)   # class, id, dist, id_neighbour (get_nearestneighbour)
@@ -1082,9 +1082,9 @@ lc.adjacencies(8, what="unlike")        # class x class cell pairs (get_adjacenc
 lc.boundaries(edge_depth=2, patch_id=True)   # get_boundaries of the patches
 lc.patches()                            # {class: raster of patch ids} (get_patches)
 lc.extract_metrics(points_xy, what=["lsm_p_area", "lsm_p_shape"])   # extract_lsm
-ls.raster_boundaries("patch_ids.tif")   # get_boundaries on the values of any raster
-ls.check_landscape(["a.tif", "b.tif"])  # crs, units, class, n_classes, OK
-ls.calculate_correlation(ls.landscape_metrics(["t1.tif", "t2.tif", "t3.tif"]), method="spearman")
+tf.raster_boundaries("patch_ids.tif")   # get_boundaries on the values of any raster
+tf.check_landscape(["a.tif", "b.tif"])  # crs, units, class, n_classes, OK
+tf.calculate_correlation(tf.landscape_metrics(["t1.tif", "t2.tif", "t3.tif"]), method="spearman")
 ```
 
 All give landscapemetrics' values, bit for bit (except the circles, randomised in
@@ -1101,7 +1101,7 @@ landscapemetrics), and follow its conventions:
   the `enn` metric. With `return_id`, landscapemetrics gives each boundary cell (4
   neighbours) the first cell of another patch at its nearest distance that its sweep over
   the cells sorted by x meets; the patch lists the patches its cells meet at the patch's
-  distance. landschaft applies the same rule to the candidates of a range search around
+  distance. terraflux applies the same rule to the candidates of a range search around
   each cell, so it does not slow down on long columns of cells.
 * **Circles** enclose the corners of the cells in the first and last rows and columns
   of the patch (or class), as the `circle` metric; centres in map coordinates. Non-square
@@ -1159,7 +1159,7 @@ circles through two or three hull points.
 
 ### Performance
 
-| map | landscapemetrics 2.2.2 | landschaft |
+| map | landscapemetrics 2.2.2 | terraflux |
 |---|---|---|
 | `augusta_nlcd`, 440×678, the 91 metrics of part 1 | 8.6 s | 0.1 s |
 | `augusta_nlcd`, all 133 metrics | 15.6 s | 0.03 s |
@@ -1188,10 +1188,10 @@ nodes (with an attribute, usually their area), and the distances (or dispersal
 probabilities, or links) between them are the connections.
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
 # nodes: attribute per patch; connections: n × n distance matrix or (from, to, distance) table
-g = ls.HabitatGraph(areas, distances, ids=patch_ids, landscape_area=total_area)
+g = tf.HabitatGraph(areas, distances, ids=patch_ids, landscape_area=total_area)
 
 g.overall(distance=[5_000, 10_000], probability=0.5)   # one row per distance
 g.node_importance(["PC", "IIC"], distance=10_000)      # dPC, dPCintra, dPCflux, dPCconnector, dIIC...
@@ -1203,45 +1203,45 @@ g.centrality(10_000)                                   # degree, eigen, close, B
 g.centrality(10_000, probability=0.5)                  # weighted by p (strength, 1/p as lengths)
 
 # ECA over time (Makurhini's MK_dECA): one graph per time
-ls.conn.eca_change([g_2000, g_2010, g_2020], "PC", distance=10_000, landscape_area=LA)
+tf.conn.eca_change([g_2000, g_2010, g_2020], "PC", distance=10_000, landscape_area=LA)
 
 # Protected Connected land (Makurhini's MK_ProtConn, MK_ProtConnMult)
-ls.conn.protconn(protected_areas, region, distance=[10_000, 50_000], transboundary=50_000,
+tf.conn.protconn(protected_areas, region, distance=[10_000, 50_000], transboundary=50_000,
                  bound=True, area_unit="ha", delta=True)
-ls.conn.protconn_regions(protected_areas, ecoregions, id="eco_id", distance=10_000)
-ls.conn.protconn_raster("protected_ids.tif", region, distance=10_000, transboundary=20_000)
+tf.conn.protconn_regions(protected_areas, ecoregions, id="eco_id", distance=10_000)
+tf.conn.protconn_raster("protected_ids.tif", region, distance=10_000, transboundary=20_000)
 
 # settlement probabilities of a spatial absorbing Markov chain (Makurhini's MK_dPC_SAMC)
-g = ls.HabitatGraph.from_samc(patches_gdf, "resistance.tif", dispersal_distance=5_000, area_unit="ha")
+g = tf.HabitatGraph.from_samc(patches_gdf, "resistance.tif", dispersal_distance=5_000, area_unit="ha")
 g.node_importance("PC", pij_min=0.001)
 
 # focal connectivity (Makurhini's MK_Focal_nodes): every node in its neighbourhood
-ls.conn.focal_nodes(patches_gdf, id="patch_id", metric="PC", distance=5_000, search_buffer=10_000)
+tf.conn.focal_nodes(patches_gdf, id="patch_id", metric="PC", distance=5_000, search_buffer=10_000)
 
 # grids (Makurhini's make_grid, MK_Connect_grid, MK_dECA_grid)
-cells = ls.conn.make_grid(region, cell_area=1e8)            # hexagons of 100 km2
-ls.conn.connectivity_grid(protected_areas, region, grid=cells, distance=10_000)
-ls.conn.eca_change_grid([forest_2000, forest_2020], region, grid=cells, distance=5_000, metric="PC")
+cells = tf.conn.make_grid(region, cell_area=1e8)            # hexagons of 100 km2
+tf.conn.connectivity_grid(protected_areas, region, grid=cells, distance=10_000)
+tf.conn.eca_change_grid([forest_2000, forest_2020], region, grid=cells, distance=5_000, metric="PC")
 
 # nodes that could be added (restoration: 1 existing, 0 to add)
-g = ls.HabitatGraph(areas, distances, restoration=flags)
+g = tf.HabitatGraph(areas, distances, restoration=flags)
 g.node_importance(["PC", "IIC"], distance=10_000)      # + dPCres, dIICres of the nodes to add
 
-g = ls.HabitatGraph.from_conefor("nodes.txt", "distances.txt", convention="conefor")
+g = tf.HabitatGraph.from_conefor("nodes.txt", "distances.txt", convention="conefor")
 g.to_conefor("nodes.txt", "distances.txt")
 
 # nodes from a raster of patch ids (or the patches of habitat classes), or from polygons
-g = ls.HabitatGraph.from_raster("patches.tif", area_unit="ha", distance="edge", max_distance=20_000)
-g = ls.HabitatGraph.from_raster("landcover.tif", habitat=[1, 2], directions=8)
-g = ls.HabitatGraph.from_vector(patches_gdf, id="patch_id", area_unit="km2", distance="centroid")
+g = tf.HabitatGraph.from_raster("patches.tif", area_unit="ha", distance="edge", max_distance=20_000)
+g = tf.HabitatGraph.from_raster("landcover.tif", habitat=[1, 2], directions=8)
+g = tf.HabitatGraph.from_vector(patches_gdf, id="patch_id", area_unit="km2", distance="centroid")
 imp = g.node_importance("PC", distance=10_000)
 g.to_raster(imp, "dPC")            # node values on the patches (from_raster)
 g.to_geodataframe(imp)             # node values with the geometries (from_vector)
 
-g = ls.HabitatGraph.from_raster("patches.tif", distance="least-cost", resistance="resistance.tif")
+g = tf.HabitatGraph.from_raster("patches.tif", distance="least-cost", resistance="resistance.tif")
 
-ls.conn.node_table("patches.tif", area_unit="ha")              # Makurhini's nodesfile
-ls.conn.distance_table(patches_gdf, id="patch_id", distance="edge", max_distance=5_000)  # distancefile
+tf.conn.node_table("patches.tif", area_unit="ha")              # Makurhini's nodesfile
+tf.conn.distance_table(patches_gdf, id="patch_id", distance="edge", max_distance=5_000)  # distancefile
 ```
 
 ### Nodes and distances from maps
@@ -1334,7 +1334,7 @@ Conefor) with `convention="conefor"`.
 
 ### Focal nodes
 
-`ls.conn.focal_nodes(polygons, distance=, search_buffer=, metric="IIC")` is Makurhini's
+`tf.conn.focal_nodes(polygons, distance=, search_buffer=, metric="IIC")` is Makurhini's
 `MK_Focal_nodes` (Latorre-Cárdenas et al. 2023). Around every node (the focal node),
 the polygons intersecting its buffer of `search_buffer` (sf's 30 segments per quarter
 circle; one buffer per distance, or one for all) form a graph: distances between their
@@ -1344,7 +1344,7 @@ and its intra/flux/connector fractions (Makurhini's `MK_dPCIIC` conventions) and
 composite connectivity index `IComp` = IIC × dIIC; with fewer, NaN. The attribute is the
 area in `area_unit` (Makurhini: always ha), a column or values. Makurhini simplifies the
 focal polygon with mapshaper before buffering it, which only matters for nodes at the
-very edge of the buffer; landschaft buffers the polygon itself. Makurhini's
+very edge of the buffer; terraflux buffers the polygon itself. Makurhini's
 `fragmentation` statistics are not included.
 
 ### Spatial absorbing Markov chains (SAMC)
@@ -1364,9 +1364,9 @@ d from cell o has probability F[o, d] · absorption[d]; between two patches it i
 patch to those of the earlier one (`boundary_vertices`: Makurhini's `SR_vertices`,
 `vertices` 10 by default or a `vertex_fraction`, picked systematically). The graph has
 `kind="probability"`; `node_importance("PC", pij_min=0.001)` gives `MK_dPC_SAMC`'s
-values. `ls.conn.settlement_probabilities` returns the matrix itself. Makurhini's default
+values. `tf.conn.settlement_probabilities` returns the matrix itself. Makurhini's default
 absorption rasterizes its own example data (`habitat_nodes`) instead of the given
-patches; landschaft uses the given patches. Random vertex sampling and mapshaper's
+patches; terraflux uses the given patches. Random vertex sampling and mapshaper's
 simplification (`keep`) are not ported.
 
 ### Links, changes and nodes to add
@@ -1383,7 +1383,7 @@ simplification (`keep`) are not ported.
 * `restoration=` (1 existing, 0 to add, as Makurhini's column) rates the nodes to add:
   with the default convention `node_importance` adds `dPCres` / `dIICres`, the gain of
   each node on its own over the existing ones in % of the graph with it (Makurhini's
-  code misaligns the attributes unless the nodes to add come last; landschaft uses
+  code misaligns the attributes unless the nodes to add come last; terraflux uses
   the definition). With `convention="conefor"` it is Conefor's "adding nodes" mode:
   `overall` and the removal importances are those of the existing nodes, and every
   index gets `d...add` = its gain in % of the existing graph (`dAadd` ... `dPCadd`).
@@ -1395,7 +1395,7 @@ through the node to add. A longer pair is removed and added back with its new le
 
 ### ProtConn
 
-`ls.conn.protconn(protected_areas, region, distance=...)` is Makurhini's `MK_ProtConn`
+`tf.conn.protconn(protected_areas, region, distance=...)` is Makurhini's `MK_ProtConn`
 (Saura et al. 2017, 2018), one row per distance: `ECA`, `PC`, `LA` (the region's area),
 `Protected_surface`, `Prot`, `ProtConn`, `ProtUnconn`, `RelConn`, `Unprotected`, the
 fractions `ProtConn_Prot`, `_Trans`, `_Unprot`, `_Within`, `_Contig` and their `_land`
@@ -1412,12 +1412,12 @@ run between polygon edges (GEOS) or are least-cost over a `resistance`, probabil
 pairs with a transboundary node 1 instead of a_i a_j (`transboundary_weight=1`, the
 default; 0 makes them stepping stones only). `delta=True` also rates each protected area
 (`dProt`, `dProtConn`, `varProtConn` once removed; Makurhini weighs the transboundary
-pairs 0 in the region's ECA but 1 without the area, landschaft uses one weight).
+pairs 0 in the region's ECA but 1 without the area, terraflux uses one weight).
 `protconn_regions` runs every region of a GeoDataFrame (`MK_ProtConnMult`). A region
 with one dissolved node gets MK_ProtConn's fixed values for it.
 
 Makurhini simplifies the region and the zones' polygons with mapshaper before
-buffering them (Visvalingam, 5 % of the vertices); landschaft buffers the exact
+buffering them (Visvalingam, 5 % of the vertices); terraflux buffers the exact
 polygons (30 segments per quarter circle, as sf), so both select the same areas when
 the simplification keeps the shapes (as for the reference polygons).
 
@@ -1430,7 +1430,7 @@ the simplification keeps the shapes (as for the reference polygons).
   when there are two or more); distances run between the nodes' centroids. As in
   Makurhini, ProtConn[Within] sums the attributes of every node. (Makurhini pairs the
   attributes, sorted by id, with the centroids in the order the ids appear in the
-  raster, and fails without two transboundary nodes; landschaft keeps each id with its
+  raster, and fails without two transboundary nodes; terraflux keeps each id with its
   centroid.)
 * `make_grid(region, cell_area)` gives Makurhini's grid: sf's `st_make_grid(square =
   FALSE)` hexagons (the same coordinates) or raster squares over the region's extent,
@@ -1447,14 +1447,14 @@ the simplification keeps the shapes (as for the reference polygons).
 
 ### ECA over time
 
-`ls.conn.eca_change(graphs, metric, distance=, landscape_area=)` is Makurhini's `MK_dECA`:
+`tf.conn.eca_change(graphs, metric, distance=, landscape_area=)` is Makurhini's `MK_dECA`:
 for one graph per time (or scenario) the habitat area (the node areas of graphs made
 by `from_raster` / `from_vector`, summed as R does, else the sum of the attributes),
 the ECA (EC(PC) or EC(IIC), capped at LA), both in % of LA and of the habitat area,
 `dA` and `dECA` (change from the previous time, the first from LA), `rECA = dECA / dA`
 and Makurhini's reading of them ("+ Connectivity loss", "+ Habitat loss", ...). A graph
 may hold a single node (its ECA is its attribute). Makurhini rounds some columns to
-3 decimals (which ones depends on the number of times); landschaft does not round.
+3 decimals (which ones depends on the number of times); terraflux does not round.
 
 ### Connections and conventions
 
@@ -1474,7 +1474,7 @@ exponential kernel `exp(d log(probability) / distance)`.
 
 Makurhini's default distance (the median distance, `distance=None`) is also the
 default here. Makurhini rounds its node importances to 7 decimals and its overall
-fractions to 5 (sharing the rounding error out so they add to 100); landschaft
+fractions to 5 (sharing the rounding error out so they add to 100); terraflux
 returns the unrounded values.
 
 ### How it works
@@ -1534,7 +1534,7 @@ the results do not depend on the number of threads.
 * `make_reference_conn.py protconn` runs `MK_ProtConn` on 36 synthetic protected
   areas and two regions (without and with transboundary zones of both types, and
   ProtConn[Bound]) with its inner steps: fed Makurhini's own nodes and distances,
-  `protconn_indicators` gives `get_protconn_grid`'s bits; landschaft's own nodes have
+  `protconn_indicators` gives `get_protconn_grid`'s bits; terraflux's own nodes have
   the same areas (1e-14) and its rounded ProtConn table is Makurhini's, value for value.
 * `make_reference_conn.py grids` stores `make_grid` (hexagons and squares: the same
   coordinates), `MK_Connect_grid` (ProtConn with its default and with `pij_min = 0`, and
@@ -1567,7 +1567,7 @@ the results do not depend on the number of threads.
 
 ### Performance
 
-| graph | Makurhini 3.0 | landschaft |
+| graph | Makurhini 3.0 | terraflux |
 |---|---|---|
 | `habitat_nodes` (404 patches), 10 km, IIC / PC with node importance | 1.4 s / 10.6 s | 0.005 s / 0.017 s |
 | 2,000 random patches, 9 km (47 k links; PC: 1.2 M pairs above `pij_min`), IIC / PC | – | 0.09 s / 1.7 s |
@@ -1585,14 +1585,14 @@ the results do not depend on the number of threads.
 
 ## 15. Circuit Connectivity (Circuitscape / Omniscape)
 
-`ls.circuit` treats a conductance raster as an electrical circuit, as
-[Circuitscape](https://circuitscape.org) 6.1 does, and `ls.omniscape` is
+`tf.circuit` treats a conductance raster as an electrical circuit, as
+[Circuitscape](https://circuitscape.org) 6.1 does, and `tf.omniscape` is
 [Omniscape](https://github.com/Circuitscape/Omniscape.jl) 0.7 (omnidirectional
 moving-window connectivity) on top of it.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 conductance = 1 / resistance            # NaN: no node
 source = np.zeros_like(conductance)     # amps injected per cell
@@ -1600,7 +1600,7 @@ ground = np.zeros_like(conductance)     # conductance to ground; np.inf: direct 
 source[10, 12] = 1.0
 ground[80, 95] = np.inf
 
-r = ls.circuit.advanced(conductance, source, ground)   # four_neighbors=False, n_threads=0
+r = tf.circuit.advanced(conductance, source, ground)   # four_neighbors=False, n_threads=0
 r.current   # current through every cell (0 where nothing flows)
 r.voltage   # node voltages (NaN without a node)
 ```
@@ -1635,7 +1635,7 @@ iterative `cg+amg` itself is 2e-7 away from both.
 ### Omniscape
 
 ```python
-ds = ls.omniscape(
+ds = tf.omniscape(
     "resistance.tif", radius=100,     # window radius in cells
     block_size=5, buffer=0,           # Omniscape's options, same names
     source=None,                      # default: 1 / resistance (source_from_resistance, r_cutoff)
@@ -1674,7 +1674,7 @@ How it is fast:
   forward substitution runs inside the factorisation, while each front is in cache;
 * the flow potential has conductance 1 everywhere: its factorisation is done once per
   shape and thread, and the flow potentials of up to 8 targets are solved together;
-* on x86-64 the circuit code is also built for AVX2 and FMA (`landschaft._circuit_avx2`,
+* on x86-64 the circuit code is also built for AVX2 and FMA (`terraflux._circuit_avx2`,
   loaded only when the CPU has them; `LANDSCHAFT_CIRCUIT_AVX2=0` keeps the baseline
   build): the dense kernels are 1.2-1.5x faster. Both builds give the same results to
   1e-11 and are each deterministic (buffers aligned to 64 bytes);
@@ -1697,16 +1697,16 @@ from its own CHOLMOD result where the block correction amplifies its error.
 
 ```python
 # Sources connect only to targets of similar climate (Omniscape's conditional options):
-ds = ls.omniscape(res, 50, block_size=5,
+ds = tf.omniscape(res, 50, block_size=5,
                   condition1=temperature_now, condition1_future=temperature_2050,
                   compare_to_future="1", comparison1="within",
                   condition1_lower=-1.0, condition1_upper=1.0,
                   condition2=landcover, comparison2="equal")
 
-ds = ls.omniscape(res, 50, reclass_table={1: 10, 2: 1, 3: None})   # None / NaN: NoData
-ds = ls.omniscape(res, 50, precision="single")                      # float32 in and out
+ds = tf.omniscape(res, 50, reclass_table={1: 10, 2: 1, 3: None})   # None / NaN: NoData
+ds = tf.omniscape(res, 50, precision="single")                      # float32 in and out
 
-ds = ls.circuit.omniscape_ini("config.ini")    # an Omniscape INI file, outputs in project_name
+ds = tf.circuit.omniscape_ini("config.ini")    # an Omniscape INI file, outputs in project_name
 ```
 
 * Conditions (`conditional`, `n_conditions`, `compare_to_future`): after a window's
@@ -1722,7 +1722,7 @@ ds = ls.circuit.omniscape_ini("config.ini")    # an Omniscape INI file, outputs 
 * `precision="single"` reads the rasters as float32 and returns float32 maps, as
   Omniscape does; the arithmetic stays double (Omniscape's own float32 solves are up to
   2e-4 away from the double result).
-* `ls.circuit.omniscape_ini(path)` reads every Omniscape option with its default
+* `tf.circuit.omniscape_ini(path)` reads every Omniscape option with its default
   (`parse_ini` is Omniscape's parser), the rasters (paths from the working directory, or
   next to the INI file) and the reclass table, checks sizes and projections, and writes
   `config.ini`, `cum_currmap`, `flow_potential`, `normalized_cum_currmap` and
@@ -1741,7 +1741,7 @@ Timings on an Intel i5-13600K (6 performance + 8 efficiency cores, 20 threads), 
 log-normal resistance, source = 1 / resistance, flow potential and normalised current
 (`tools/omniscape_window_benchmark.jl` times single windows):
 
-| map | Omniscape 0.7, 20 threads (cg+amg / cholmod) | landschaft, 1 thread / 20 threads |
+| map | Omniscape 0.7, 20 threads (cg+amg / cholmod) | terraflux, 1 thread / 20 threads |
 |---|---|---|
 | 300×300, radius 25, block 3 (10,000 targets) | 17.4 s / 18.6 s | 7.2 s / 0.76 s |
 | 800×800, radius 10, block 3 (70,756 targets) | 29.4 s / – | 6.5 s / 0.64 s |
@@ -1756,7 +1756,7 @@ window writes and reads a 13 MB factor): 6x from 1 to 20 threads there, 10x for 
 ### Circuitscape (raster modes)
 
 ```python
-from landschaft.circuit import circuitscape_advanced, circuitscape_ini
+from terraflux.circuit import circuitscape_advanced, circuitscape_ini
 
 r = circuitscape_advanced("resistance.tif", "sources.asc", "grounds.asc",   # paths, DataArrays or arrays
                           polygons="regions.asc", four_neighbors=False, avg_resistances=False,
@@ -1841,7 +1841,7 @@ Timings (i5-13600K, 20 threads; a 1000×1000 log-normal resistance ASCII grid, 2
 points; reading and writing the ASCII grids included; Circuitscape 6.1 with its default
 cg+amg, after compilation):
 
-| run | Circuitscape | landschaft |
+| run | Circuitscape | terraflux |
 |---|---|---|
 | pairwise, resistances only | 8.7 s | 2.7 s |
 | pairwise with the cumulative current map (190 pairs) | 76.5 s | 9.5 s |
@@ -1856,7 +1856,7 @@ point). ASCII grids are written by a parallel C++ formatter (shortest round-trip
 ### Circuitscape (network mode)
 
 ```python
-from landschaft.circuit import circuitscape_network_pairwise, circuitscape_network_advanced
+from terraflux.circuit import circuitscape_network_pairwise, circuitscape_network_advanced
 
 # edge list: node, node, resistance (graph_is_resistance=False: conductance)
 r = circuitscape_network_pairwise("graph.txt", "focal_nodes.txt", current_maps=True)
@@ -1898,7 +1898,7 @@ network test cases (`sgNetworkVerify1-3`, `mgNetworkVerify1-3`) and six syntheti
 repeated, isolated or out of the graph, include / exclude pairs, finite and direct
 grounds, `rmvgnd` / `rmvall`, a 4000-node graph) with CHOLMOD: every output file, the same
 set of files, to 1.1e-14. On a 1000×1000 grid-like network (1 M nodes, 3 M edges, 20
-focal nodes, resistances only; 20 threads) landschaft takes 5.0 s, Circuitscape 27.7 s
+focal nodes, resistances only; 20 threads) terraflux takes 5.0 s, Circuitscape 27.7 s
 with CHOLMOD and 182 s with its default cg+amg. The resistances agree with CHOLMOD's to
 5e-10 (relative); an exact sparse LU of the grounded Laplacian (scipy, no diagonal shift)
 differs from both by as much: that is the conditioning of a 1 M-node Laplacian and
@@ -1908,7 +1908,7 @@ Circuitscape's 10ε shift, not the solver.
 
 ## 16. Neutral Landscape Models (NLMR)
 
-`ls.nlm` simulates neutral landscapes, the null models of landscape ecology, as
+`tf.nlm` simulates neutral landscapes, the null models of landscape ecology, as
 the R package NLMR does, and returns `xarray.DataArray`s on NLMR's grid (origin
 0, 0; `resolution` cell size). With the same `seed` (NLMR's `user_seed`) each
 model gives NLMR's landscape bit for bit: R's generator (`set.seed`, `runif`,
@@ -1917,28 +1917,28 @@ code (`std::mt19937`) are reproduced. `seed=None` draws a seed and stores it in
 `attrs["seed"]`.
 
 ```python
-import landschaft as ls
+import terraflux as tf
 
-r = ls.nlm.random(200, 150, seed=42)                     # uniform values, rescaled to 0-1
-p = ls.nlm.percolation(200, 150, prob=0.4, seed=1)        # 0/1 (uint8)
-g = ls.nlm.planar_gradient(200, 150, direction=45)        # direction=None: drawn from the seed
-e = ls.nlm.edge_gradient(200, 150, seed=3)
-d = ls.nlm.distance_gradient(200, 150, origin=(10, 20, 30, 40))
-classes = ls.nlm.classify(r, weighting=[0.5, 0.3, 0.2])   # int32 classes 1..3 (0 = missing)
-jenks = ls.nlm.classify(r, n=4)                           # Jenks natural breaks
-x = ls.nlm.rescale(some_array)                            # NLMR's util_rescale
-m = ls.nlm.mpd(257, 257, roughness=0.5, seed=1)           # diamond-square (NLMR's grid size)
-n = ls.nlm.neigh(200, 150, p_neigh=0.7, p_empty=0.1, categories=4, seed=2)
-rc = ls.nlm.random_rectangular_cluster(200, 150, minl=5, maxl=20, seed=3)
-cl = ls.nlm.random_cluster(200, 150, p=0.4, ai=[0.3, 0.3, 0.4], seed=4)
-cu = ls.nlm.curds([0.5, 0.4, 0.6], [8, 8, 8], wheyes=[0.1, 0.1, 0.1], seed=5)  # 512 x 512
-gf = ls.nlm.gaussian_field(200, 150, autocorr_range=20, mag_var=5, nug=0.2, seed=6)
-fb = ls.nlm.fbm(200, 150, fract_dim=1.2, seed=7)
-mf = ls.nlm.mosaic_field(200, 150, n=20, seed=8)          # dict with collect=/infinit=
-mt = ls.nlm.mosaic_tess(200, 150, germs=100, seed=9)
-mg = ls.nlm.mosaic_gibbs(200, 150, germs=80, R=8, patch_classes=4, seed=10)
-blend = ls.nlm.merge(g, [fb, gf], scaling=0.5)             # landscapetools' util_merge
-habitat = ls.nlm.binarize(fb, [0.2, 0.4])                  # util_binarize: 1 matrix, 2 habitat
+r = tf.nlm.random(200, 150, seed=42)                     # uniform values, rescaled to 0-1
+p = tf.nlm.percolation(200, 150, prob=0.4, seed=1)        # 0/1 (uint8)
+g = tf.nlm.planar_gradient(200, 150, direction=45)        # direction=None: drawn from the seed
+e = tf.nlm.edge_gradient(200, 150, seed=3)
+d = tf.nlm.distance_gradient(200, 150, origin=(10, 20, 30, 40))
+classes = tf.nlm.classify(r, weighting=[0.5, 0.3, 0.2])   # int32 classes 1..3 (0 = missing)
+jenks = tf.nlm.classify(r, n=4)                           # Jenks natural breaks
+x = tf.nlm.rescale(some_array)                            # NLMR's util_rescale
+m = tf.nlm.mpd(257, 257, roughness=0.5, seed=1)           # diamond-square (NLMR's grid size)
+n = tf.nlm.neigh(200, 150, p_neigh=0.7, p_empty=0.1, categories=4, seed=2)
+rc = tf.nlm.random_rectangular_cluster(200, 150, minl=5, maxl=20, seed=3)
+cl = tf.nlm.random_cluster(200, 150, p=0.4, ai=[0.3, 0.3, 0.4], seed=4)
+cu = tf.nlm.curds([0.5, 0.4, 0.6], [8, 8, 8], wheyes=[0.1, 0.1, 0.1], seed=5)  # 512 x 512
+gf = tf.nlm.gaussian_field(200, 150, autocorr_range=20, mag_var=5, nug=0.2, seed=6)
+fb = tf.nlm.fbm(200, 150, fract_dim=1.2, seed=7)
+mf = tf.nlm.mosaic_field(200, 150, n=20, seed=8)          # dict with collect=/infinit=
+mt = tf.nlm.mosaic_tess(200, 150, germs=100, seed=9)
+mg = tf.nlm.mosaic_gibbs(200, 150, germs=80, R=8, patch_classes=4, seed=10)
+blend = tf.nlm.merge(g, [fb, gf], scaling=0.5)             # landscapetools' util_merge
+habitat = tf.nlm.binarize(fb, [0.2, 0.4])                  # util_binarize: 1 matrix, 2 habitat
 ```
 
 Tutorial: `docs/tutorials/neutral-landscapes.md` (a gallery, habitat maps, a
@@ -1989,7 +1989,7 @@ NLMR behaviours kept with `nlmr_compat=True` (the default where they apply):
   spatstat's `rSSI` (blocks of proposals, rejection within `R`); NLMR gives the k-th
   value to the k-th Voronoi polygon in GEOS's order (`st_voronoi(st_union(...))`,
   `dTolerance = 0.1` for `mosaicgibbs`, where the value is the k-th germ's class, not
-  the class of the germ inside the polygon). Landschaft gets that order from GEOS
+  the class of the germ inside the polygon). Terraflux gets that order from GEOS
   through shapely (GEOS 3.11 or later: older versions order the cells differently and
   warn; without shapely: a warning, each germ its own value), rasterises by
   nearest germ in C++ (the polygon containing each cell centre) and rounds to float32
@@ -2007,22 +2007,22 @@ built with the Rtools g++), tests in `tests/test_nlm.py` and
 
 ## 17. Distances and Routes on Grids (gdistance)
 
-`ls.cost` ports the R package gdistance: a raster becomes a graph of
+`tf.cost` ports the R package gdistance: a raster becomes a graph of
 neighbouring cells whose connections carry a conductance (a *transition*),
 over which cost surfaces, least-cost distances and paths and random-walk
 measures are computed. Plan and phases in IDEAS.md.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-r = ls.load_raster("resistance.tif", validate=None)
-tr = 1 / ls.cost.transition(r, "mean", 8)            # conductance = 1 / mean resistance
-tr = ls.cost.geo_correction(tr)                      # / distance between cell centres
-up = ls.cost.transition(r, "diff", 8, symmetric=False)          # x[to] - x[from]
-f = ls.cost.transition(r, lambda x: 2 / (x[0] + x[1]), 4)       # any vectorised function
-p = ls.cost.normalize(tr, "row")                     # random-walk probabilities
-both = ls.cost.sum_reciprocal(tr, other)             # resistances in series
+r = tf.load_raster("resistance.tif", validate=None)
+tr = 1 / tf.cost.transition(r, "mean", 8)            # conductance = 1 / mean resistance
+tr = tf.cost.geo_correction(tr)                      # / distance between cell centres
+up = tf.cost.transition(r, "diff", 8, symmetric=False)          # x[to] - x[from]
+f = tf.cost.transition(r, lambda x: 2 / (x[0] + x[1]), 4)       # any vectorised function
+p = tf.cost.normalize(tr, "row")                     # random-walk probabilities
+both = tf.cost.sum_reciprocal(tr, other)             # resistances in series
 tr.to_sparse(); tr.to_raster("NZcolMeans"); tr.adjacency()
 ```
 
@@ -2060,12 +2060,12 @@ tr.to_sparse(); tr.to_raster("NZcolMeans"); tr.adjacency()
 Least-cost analysis:
 
 ```python
-cost = ls.cost.acc_cost(tr, [(x1, y1), (x2, y2)])       # raster: cost from the nearest origin
-d = ls.cost.cost_distance(tr, points)                   # n x n (symmetric for symmetric transitions)
-d2 = ls.cost.cost_distance(tr, sources, targets)        # n_from x n_to
-path = ls.cost.shortest_path(tr, origin, goals)         # Transition, 1/n_goals on the path steps
-cells = ls.cost.shortest_path(tr, origin, goals, output="cells")
-lines = ls.cost.shortest_path(tr, origin, goals, output="lines")  # GeoDataFrame
+cost = tf.cost.acc_cost(tr, [(x1, y1), (x2, y2)])       # raster: cost from the nearest origin
+d = tf.cost.cost_distance(tr, points)                   # n x n (symmetric for symmetric transitions)
+d2 = tf.cost.cost_distance(tr, sources, targets)        # n_from x n_to
+path = tf.cost.shortest_path(tr, origin, goals)         # Transition, 1/n_goals on the path steps
+cells = tf.cost.shortest_path(tr, origin, goals, output="cells")
+lines = tf.cost.shortest_path(tr, origin, goals, output="lines")  # GeoDataFrame
 ```
 
 - The step cost is `1 / T[a, b]` (R: `E(g)$weight <- 1 / E(g)$weight`); a cost is the
@@ -2088,10 +2088,10 @@ lines = ls.cost.shortest_path(tr, origin, goals, output="lines")  # GeoDataFrame
 Random walks:
 
 ```python
-tr = ls.cost.geo_correction(1 / ls.cost.transition(r, "mean", 8), "r")
-c = ls.cost.commute_distance(tr, points)                 # n x n
-p = ls.cost.passage(tr, origin, goal)                    # raster of net passages
-p = ls.cost.passage(tr, origin_mask, goal_mask, gdistance_compat=False)
+tr = tf.cost.geo_correction(1 / tf.cost.transition(r, "mean", 8), "r")
+c = tf.cost.commute_distance(tr, points)                 # n x n
+p = tf.cost.passage(tr, origin, goal)                    # raster of net passages
+p = tf.cost.passage(tr, origin_mask, goal_mask, gdistance_compat=False)
 ```
 
 - The graph is the cells with a connection (`transitionSolidify`: row mean
@@ -2117,11 +2117,11 @@ p = ls.cost.passage(tr, origin_mask, goal_mask, gdistance_compat=False)
 Randomised shortest paths:
 
 ```python
-p = ls.cost.passage(tr, origin, goal, theta=1)                       # net passages per cell
-p = ls.cost.passage(tr, origin, goals, theta=1, total_net="total")    # expected visits
-f = ls.cost.passage(tr, origin, goal, theta=1, output="transition")   # per connection
-d = ls.cost.rsp_distance(tr, sources, targets, theta=1)               # n_from x n_to
-d2 = ls.cost.rsp_distance(tr, sources, targets, theta=0.5, method=2)
+p = tf.cost.passage(tr, origin, goal, theta=1)                       # net passages per cell
+p = tf.cost.passage(tr, origin, goals, theta=1, total_net="total")    # expected visits
+f = tf.cost.passage(tr, origin, goal, theta=1, output="transition")   # per connection
+d = tf.cost.rsp_distance(tr, sources, targets, theta=1)               # n_from x n_to
+d2 = tf.cost.rsp_distance(tr, sources, targets, theta=0.5, method=2)
 ```
 
 - `W = exp(-theta / T) * P` (method 1; `P = T / rowSums(T)`, R's x87 `exp`) or
@@ -2149,18 +2149,18 @@ d2 = ls.cost.rsp_distance(tr, sources, targets, theta=0.5, method=2)
   2 to 30 times slower.
 - `passage` uses the cells with outgoing connections (`transitionSolidify`),
   `rsp_distance` every cell with a connection (gdistance's `rSPDistance` does not
-  solidify). gdistance's `rSPDistance(method = 2)` fails; landschaft's is checked
+  solidify). gdistance's `rSPDistance(method = 2)` fails; terraflux's is checked
   against a dense computation of the formula.
 
 Route overlap:
 
 ```python
-out = ls.cost.path_inc(tr, origin, locations)                  # {"overlap": n x n, "nonoverlap": n x n}
-out = ls.cost.path_inc(tr, origin, locs_a, locs_b, theta=0.5)  # n_a x n_b, randomised shortest paths
-bars = ls.cost.barriers(r, 8, breaks=[100, 200])               # list of Transitions (resistance 1)
-cats = ls.cost.barriers(landcover, 8)                          # one layer per pair of categories
-out = ls.cost.path_inc(tr, origin, locations, weight=bars)     # (layers, n, n)
-out = ls.cost.path_inc(tr, origin, locations, functions=[lambda a, b: abs(a - b)])
+out = tf.cost.path_inc(tr, origin, locations)                  # {"overlap": n x n, "nonoverlap": n x n}
+out = tf.cost.path_inc(tr, origin, locs_a, locs_b, theta=0.5)  # n_a x n_b, randomised shortest paths
+bars = tf.cost.barriers(r, 8, breaks=[100, 200])               # list of Transitions (resistance 1)
+cats = tf.cost.barriers(landcover, 8)                          # one layer per pair of categories
+out = tf.cost.path_inc(tr, origin, locations, weight=bars)     # (layers, n, n)
+out = tf.cost.path_inc(tr, origin, locations, functions=[lambda a, b: abs(a - b)])
 ```
 
 - Flows (per connection, both directions, the order of the solidified graph):

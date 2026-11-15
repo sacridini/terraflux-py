@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The reference harness of ls.simulate: generators, inputs reaching every engine, example data."""
+"""The reference harness of tf.simulate: generators, inputs reaching every engine, example data."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ import pytest
 import simulate_cases
 import simulate_reference
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 
 SEEDS = (0, 1, 42, 123456789, -5, 2**40 + 17)
 
@@ -80,14 +80,14 @@ def test_dinamica_transition_rates():
 
 
 def test_example_data():
-    lu = ls.load_raster(ls.simulate.example_data("sibuyan_landuse"))
+    lu = tf.load_raster(tf.simulate.example_data("sibuyan_landuse"))
     assert lu.shape == (2, 108, 128) and list(lu.band.values) == ["1997", "2011"]
     assert set(np.unique(lu.values[0])) == {1, 2, 3, 4, 5, 255}
-    pie = ls.load_raster(ls.simulate.example_data("pie_landuse"))
+    pie = tf.load_raster(tf.simulate.example_data("pie_landuse"))
     assert pie.shape == (3, 434, 497) and pie.rio.crs.to_epsg() == 26986
-    drivers = ls.load_raster(ls.simulate.example_data("sibuyan_drivers"))
+    drivers = tf.load_raster(tf.simulate.example_data("sibuyan_drivers"))
     assert drivers.shape[0] == 13
-    demand = ls.load_table(ls.simulate.example_data("sibuyan_demand"))
+    demand = tf.load_table(tf.simulate.example_data("sibuyan_demand"))
     assert sorted(set(demand["scenario"])) == ["demand1", "demand2", "demand3", "demand4"]
     with pytest.raises(ValueError, match="unknown example"):
-        ls.simulate.example_data("nope")
+        tf.simulate.example_data("nope")

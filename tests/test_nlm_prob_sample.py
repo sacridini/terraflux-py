@@ -16,7 +16,7 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from landschaft import _core
+from terraflux import _core
 
 SEEDS = [1, 42, 123456, -5]
 

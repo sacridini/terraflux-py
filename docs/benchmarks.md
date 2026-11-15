@@ -1,6 +1,6 @@
 # Benchmarks & accuracy
 
-Landschaft makes two promises: **the same results as the established tools**,
+Terraflux makes two promises: **the same results as the established tools**,
 and **much less waiting for them**. This page shows how both are checked, with
 the numbers.
 
@@ -34,9 +34,9 @@ the numbers.
 
 ![Speed-up over the original tools](assets/figures/bench_speedup.png)
 
-How much faster Landschaft is than the tool it reproduces, on the cases in the
+How much faster Terraflux is than the tool it reproduces, on the cases in the
 tables below (logarithmic scale). The original's time is its own run,
-including its input and output where noted; Landschaft is timed in memory.
+including its input and output where noted; Terraflux is timed in memory.
 
 !!! info "How these were measured"
     The MSPA table was measured with `tools/benchmark.py` (version 0.53), and
@@ -52,8 +52,8 @@ including its input and output where noted; Landschaft is timed in memory.
 
 Against GuidosToolbox's `mspa` executable (v2.3, whose time includes reading
 and writing its TIFF files) on its sample map and on the CORINE forest map;
-Landschaft with 1 thread and with the default 19. Every output was compared
-pixel by pixel. Landschaft is 10 to 17 times faster.
+Terraflux with 1 thread and with the default 19. Every output was compared
+pixel by pixel. Terraflux is 10 to 17 times faster.
 
 | Map | Connectivity, edge width | GuidosToolbox | 1 thread | 19 threads | Identical |
 |---|---|---|---|---|---|
@@ -65,14 +65,14 @@ pixel by pixel. Landschaft is 10 to 17 times faster.
 | CORINE, 2000² | 4, 20 | 1.70 s | 0.213 s | 0.174 s | yes |
 
 At scale, the CORINE map repeated 3 × 3 (6000 × 6000, 36 million pixels)
-takes GuidosToolbox 20 to 26 s and Landschaft 1.4 to 2.3 s, again with
+takes GuidosToolbox 20 to 26 s and Terraflux 1.4 to 2.3 s, again with
 identical outputs.
 
 MSPA's longest steps (geodesic distances, thinning, watershed) are ordered
 propagations that must run in sequence to stay bit-exact, so one map takes
 only 10 to 30 % less time with more threads. Many maps gain fully: run them side by side with
-[`mspa_batch`](api/batch.md#landschaft.mspa_batch) or
-[`batch`](api/batch.md#landschaft.batch).
+[`mspa_batch`](api/batch.md#terraflux.mspa_batch) or
+[`batch`](api/batch.md#terraflux.batch).
 
 !!! note "Hybrid processors"
     On processors with performance and efficiency cores (Intel 12th
@@ -85,7 +85,7 @@ only 10 to 30 % less time with more threads. Many maps gain fully: run them side
 
 Against the R package landscapemetrics 2.2.2.
 
-| Task | landscapemetrics (R) | Landschaft | Since |
+| Task | landscapemetrics (R) | Terraflux | Since |
 |---|---|---|---|
 | All 133 metrics of `augusta_nlcd` (440 × 678) | 15.6 s | 0.03 s | 0.14 |
 | `sample_lsm`, 6 plots of `augusta_nlcd` | 3.7 s | 0.02 s | 0.15 |
@@ -100,7 +100,7 @@ blocks with the same results.
 
 Against the R package Makurhini (and, through it, gdistance).
 
-| Task | Makurhini (R) | Landschaft | Since |
+| Task | Makurhini (R) | Terraflux | Since |
 |---|---|---|---|
 | IIC and node importances, 404 patches (`MK_dPCIIC`) | 1.4 s | 0.005 s | 0.30 |
 | PC and node importances, 404 patches (`MK_dPCIIC`) | 10.6 s | 0.017 s | 0.30 |
@@ -115,7 +115,7 @@ graph are rated in 22 s.
 
 Against Omniscape 0.7 and Circuitscape 6.1 (Julia), both with 20 threads.
 
-| Task | Original | Landschaft | Since |
+| Task | Original | Terraflux | Since |
 |---|---|---|---|
 | Omniscape, 800 × 800, radius 10 | 29.4 s | 0.64 s | 0.43 |
 | Omniscape, 700 × 700, radius 25 | 46.7 s | 1.36 s | 0.43 |
@@ -131,9 +131,9 @@ factorisation), and the result does not depend on the number of threads.
 ### Grid distances
 
 Against the R package gdistance 1.6.5 on a 300 × 300 grid of random
-resistances (8 directions; best of 3 runs in R, of 5 in Landschaft).
+resistances (8 directions; best of 3 runs in R, of 5 in Terraflux).
 
-| Task | gdistance (R) | Landschaft | Since |
+| Task | gdistance (R) | Terraflux | Since |
 |---|---|---|---|
 | Transition (`1 / mean`) and geographic correction | 2.0 s | 0.005 s | 0.75 |
 | Cost surface from one point (`accCost`) | 0.10 s | 0.011 s | 0.76 |
@@ -155,7 +155,7 @@ passage map 4.6 s (7.8 s for an asymmetric transition).
 The same landscapes as NLMR (same seeds, identical values), one model call each
 (best of 5, default threads).
 
-| Task | NLMR (R) | Landschaft | Since |
+| Task | NLMR (R) | Terraflux | Since |
 |---|---|---|---|
 | `nlm_random`, 2000 × 2000 | 0.25 s | 0.044 s | 0.54 |
 | `nlm_percolation`, 1000 × 1000 | 1.54 s | 0.014 s | 0.54 |
@@ -181,11 +181,11 @@ The same landscapes as NLMR (same seeds, identical values), one model call each
 Against geodiv 1.1.1 and spatialEco 2.0-5 (R 4.4.2, terra 1.9-50) on geodiv's
 example rasters (371 × 371 cells: `normforest`, `orforest` for the trend,
 `orelevation` for terrain), measured with `tools/benchmark_surface.py`: the
-best of 3 runs in R (fast tasks repeated to 0.5 s), of 5 in Landschaft with the
-default threads. Where Landschaft corrects geodiv or spatialEco the work is the
+best of 3 runs in R (fast tasks repeated to 0.5 s), of 5 in Terraflux with the
+default threads. Where Terraflux corrects geodiv or spatialEco the work is the
 same.
 
-| Task | R | Landschaft | Since |
+| Task | R | Terraflux | Since |
 |---|---|---|---|
 | Amplitude (sa, sq, ssk, sku) | 29 ms | 3.9 ms | 0.85 |
 | Best trend surface of order 0-3 | 0.15 s | 25 ms | 0.85 |
@@ -206,7 +206,7 @@ same.
 
 The gains are largest where the R packages compute cell by cell in R (texture
 images, peaks, curvature, TRI) and smallest where terra's focal functions do
-the work in C++ with running sums (TPI, HSP, VRM). Landschaft's focal means,
+the work in C++ with running sums (TPI, HSP, VRM). Terraflux's focal means,
 sums and standard deviations use compensated prefix sums along the rows
 (within about 1e-13 of summing each window), so a window costs one step per
 row whatever its size.
@@ -215,9 +215,9 @@ row whatever its size.
 
 Against WhiteboxTools 2.4 on a rough terrain of 3000 × 3000 cells, both on 4
 cores (`tools/benchmark_hydro.py`, best of 3); WhiteboxTools' times include
-reading and writing its GeoTIFFs, so Landschaft's include writing its result.
+reading and writing its GeoTIFFs, so Terraflux's include writing its result.
 
-| Task | WhiteboxTools | Landschaft | Since |
+| Task | WhiteboxTools | Terraflux | Since |
 |---|---|---|---|
 | Filling depressions | 3.16 s | 2.07 s | 1.48 |
 | Least-cost breaching (channels up to 20 cells) | 3.86 s | 2.35 s | 1.48 |
@@ -231,11 +231,11 @@ Against Zonation 5 v2.4 (`z5.exe`, and `z5_16bit.exe` for 16 bits) on
 synthetic species maps: seeded Gaussian random fields above a threshold, each
 feature on 60 % of the cells (10 % in the 200-feature case), written as
 GeoTIFFs. Measured with `tools/benchmark_prioritize.py` (version 0.95) on the
-performance cores, one run of z5 and the fastest of 3 of Landschaft; both
+performance cores, one run of z5 and the fastest of 3 of Terraflux; both
 times include reading the GeoTIFFs, and z5's writing its outputs. Every rank
 map is the same, bit for bit, as z5's on one thread.
 
-| Map | Features | Rule | Iterations | z5, 1 thread | z5, 12 threads | Landschaft, 1 thread | Landschaft, 12 threads | Since |
+| Map | Features | Rule | Iterations | z5, 1 thread | z5, 12 threads | Terraflux, 1 thread | Terraflux, 12 threads | Since |
 |---|---|---|---|---|---|---|---|---|
 | 1000 × 1000 | 30 | CAZ2 | 60 | 20.6 s | 12.4 s | 9.5 s | 1.86 s | 0.95 |
 | 2000 × 2000 | 30 | CAZ2 | 60 | 102.8 s | 48.0 s | 45.6 s | 7.29 s | 0.95 |
@@ -243,10 +243,10 @@ map is the same, bit for bit, as z5's on one thread.
 | 2000 × 2000 | 30 | CAZ2, 16 bits | 60 | 104.4 s | 49.7 s | 46.2 s | 8.71 s | 0.95 |
 | 1000 × 1000 | 200 sparse | CAZ2 | 59 | 105.8 s | 33.6 s | 15.0 s | 3.16 s | 0.95 |
 
-On one thread Landschaft is 1.5 to 7 times faster than z5, most with many
+On one thread Terraflux is 1.5 to 7 times faster than z5, most with many
 sparse features: each feature is walked along its own occurrences, where z5
 visits every feature in every cell. With 12 threads the gap grows to 4 to 11
-times: z5 gains 1.7 to 3 times from its 12 threads, Landschaft 4.7 to 6.3. Memory: about 130 bytes per
+times: z5 gains 1.7 to 3 times from its 12 threads, Terraflux 4.7 to 6.3. Memory: about 130 bytes per
 cell with data during the ranking, plus 1 to 2 bytes per value that is not
 zero; `storage=` puts the large arrays in memory-mapped files.
 
@@ -258,11 +258,11 @@ prioritizr calls) and by Gurobi 12, on synthetic problems of
 and costs from 1 to 10 (multi-action: 10 features, 3 threats), a gap of 1 %,
 12 threads on the performance cores. "No answer" means no plan within the
 time limit (120 s unless stated). The same models and the same optima as
-prioritizr's; Landschaft's engines start HiGHS from near-optimal plans, fix
+prioritizr's; Terraflux's engines start HiGHS from near-optimal plans, fix
 the units whose choice is proven, and solve the problems general solvers
 find hard on their own.
 
-| Problem | Units | HiGHS alone | Gurobi | Landschaft | Since |
+| Problem | Units | HiGHS alone | Gurobi | Terraflux | Since |
 |---|---|---|---|---|---|
 | minimum set | 10⁵ | 7 s | 2 s | 0.44 s | 1.21 |
 | minimum set | 10⁶ | no answer (its best plan 2.1 x the optimum) | 20 s | 1.7 s (gap 0.002 %) | 1.21 |
@@ -277,15 +277,15 @@ find hard on their own.
 Contiguity constraints are the exception. prioritizr's contiguity model is a
 restriction (it misses some patches, see the
 [migration guide](api/prioritization-migration.md#what-to-expect-when-you-compare-the-results));
-Landschaft solves the exact model: a patch heuristic, a first patch of the
+Terraflux solves the exact model: a patch heuristic, a first patch of the
 restricted model, directed cuts at the root, then HiGHS's branch and bound with
 the same cuts separated at its nodes (HiGHS is patched for it). Measured with
 `tools/benchmark_connect.py` (version 1.52; 120 s, gap 1 %, 4 threads, on a
 Ryzen 7 7730U laptop), against Gurobi 13 on the same exact model, alone and
-with Landschaft's cuts added at its nodes by a callback (best patch / proven
+with Terraflux's cuts added at its nodes by a callback (best patch / proven
 gap):
 
-| Problem | Landschaft | Gurobi | Gurobi + the same cuts |
+| Problem | Terraflux | Gurobi | Gurobi + the same cuts |
 |---|---|---|---|
 | prioritizr's contiguity test, raster (166 units) | 1642.83 / 2.4 % | 1646.49 / 2.1 % | 1643.33 / 0.9 % in 15 s |
 | prioritizr's contiguity test, table (166 units) | 1496.98 / 1.7 % | 1496.98 / 1.5 % | 1499.86 / 0.9 % in 10 s |
@@ -293,7 +293,7 @@ gap):
 | 13 × 13 grid, 10 features | 111.30 / 8.7 % | 111.30 / 8.5 % | 111.30 / 5.0 % |
 | Serra Verde at 3 km (543 units, 8 features) | 30 141 / 13.0 % | 30 679 / 13.1 % | 30 706 / 12.4 % |
 
-Landschaft's patches are as cheap as or cheaper than Gurobi's, and its proven
+Terraflux's patches are as cheap as or cheaper than Gurobi's, and its proven
 gaps match Gurobi's own except with feature contiguity; Gurobi's branch and
 bound does more with the same cuts. Before version 1.52, the same runs gave
 Serra Verde a network of 33 981 with a gap of 24 % (in 60 s).
@@ -307,11 +307,11 @@ The inputs are the example climate (9 bioclimatic layers, 192 × 186 cells of
 0.5°), the *Bradypus* records with 10 000 background points, 5 000 synthetic
 records over the same area and 2 000 clustered ones. Measured with
 `tools/benchmark_sdm.py` (version 1.0) on the performance cores: the best of
-3 runs in R (fast tasks repeated to 0.5 s), of 5 in Landschaft with the
+3 runs in R (fast tasks repeated to 0.5 s), of 5 in Terraflux with the
 default threads. Every result is the same as R's, the random steps included
 (same seed), except where the notes on accuracy below say otherwise.
 
-| Task | R | Landschaft | Since |
+| Task | R | Terraflux | Since |
 |---|---|---|---|
 | Clean 5 000 records: capitals, centroids, equal, GBIF, institutions, outliers, zeros (CoordinateCleaner) | 1.99 s | 0.16 s | 1.0 |
 | Thin 2 000 records at 10 km, 10 repetitions (spThin) | 0.91 s | 1.4 ms | 1.0 |
@@ -327,7 +327,7 @@ default threads. Every result is the same as R's, the random steps included
 
 The largest gains are where R works on whole matrices: spThin computes the
 distance between every pair of records and rescans them after each removal
-(Landschaft keeps only the neighbours, in a grid over the sphere, and the
+(Terraflux keeps only the neighbours, in a grid over the sphere, and the
 counts in a tree: a million records take seconds, where R runs out of
 memory), and blockCV's blocks and predicts' evaluation go through data frames
 row by row. MaxNet keeps glmnet's arithmetic and order of operations, so the
@@ -341,7 +341,7 @@ cells and 30 000 draws: 0.24 s against 16-20 s with R's algorithm).
 
 ### Land change simulation
 
-Against the land change tools `ls.simulate` reproduces, on the cases of its
+Against the land change tools `tf.simulate` reproduces, on the cases of its
 reference tests. Measured with `tools/benchmark_simulate.py` (version 1.20):
 lulcc 1.0.4 in R 4.4.2 (with the corrections of `tools/lulcc_fixed.R`, so
 that both sides make the same allocation; only the timed call is measured),
@@ -349,7 +349,7 @@ MOLUSCE 5.3.0's algorithms in Python, Dinamica EGO 8.13's console (the time
 of a script that only loads the maps is subtracted); the best of 3 runs, the
 default threads. CLUMondo and FUTURES were timed when they were written.
 
-| Task | Original | Landschaft | Since |
+| Task | Original | Terraflux | Since |
 |---|---|---|---|
 | CLUE-S allocation, Plum Island, 14 steps (lulcc `allocate`) | 36.4 s | 4.12 s | 1.8 |
 | Ordered allocation, Plum Island, 14 steps (lulcc `allocate`) | 2.9 s | 0.40 s | 1.8 |
@@ -365,11 +365,11 @@ default threads. CLUMondo and FUTURES were timed when they were written.
 The Dinamica EGO functors of version 1.46 were timed with
 `tools/benchmark_dinamica.py` on 4 cores on both sides (Dinamica with
 `-processors 4`), the time of the functor in Dinamica's log. Its cost surface sweeps the map in four directions until no cost
-changes (fewer passes give an approximation); Landschaft's runs Dijkstra's
+changes (fewer passes give an approximation); Terraflux's runs Dijkstra's
 algorithm once, with the same sums.
 
 CLUE-S draws a random number per cell and class at each of its thousands of
-passes, from R's generator, one after the other: Landschaft draws the same
+passes, from R's generator, one after the other: Terraflux draws the same
 numbers, so the gain is in the rest of the pass. The three-map comparison
 runs lulcc's equations per block in one pass of C++ (R builds a raster per
 class and equation), and MOLUSCE loops over the pixels in Python.
@@ -384,7 +384,7 @@ deviation and median; random polygons of 16 vertices. Measured with
 `tools/benchmark_zonal.py` (version 0.98) on the performance cores, the
 fastest of 3 alternating runs.
 
-| Case | rasterstats | exactextract | Landschaft, 1 thread | Landschaft, 12 threads | Since |
+| Case | rasterstats | exactextract | Terraflux, 1 thread | Terraflux, 12 threads | Since |
 |---|---|---|---|---|---|
 | zonal statistics, 2000 small polygons (16 million cells) | 2.34 s | 3.59 s | 0.37 s | 0.16 s | 0.98 |
 | zonal statistics, 20 large polygons (22 million cells) | 1.14 s | 8.37 s | 0.37 s | 0.18 s | 0.98 |
@@ -400,7 +400,7 @@ threads.
 
 ### Plotting
 
-`ls.plot`, from the data to the page a notebook or a window shows (the map's
+`tf.plot`, from the data to the page a notebook or a window shows (the map's
 HTML, images and data included), measured with `tools/benchmark_plot.py`
 (version 1.32.0) on the performance cores, the fastest of 3 runs. A first plot
 in a session also imports folium and compiles its templates, about 0.7 s once.
@@ -455,7 +455,7 @@ raster read in strips), and only that is reprojected and encoded.
 | MSPA | GuidosToolbox `mspa` v2.3 executable: sample map with 7 parameter sets, 10 synthetic scenes, live random scenes; during development 1,200 random cases and CORINE with edge widths up to 100 | identical, 0 differing pixels |
 | MSPA Tiling | GuidosToolbox's IDL code with its GDAL tools and `mspa`, in GDL | identical |
 | SPA, Accounting | GuidosToolbox's IDL code in GDL | identical maps and statistics |
-| FAD, FAD-MS, FOS, landscape mosaic, contagion and clustering | GuidosToolbox's IDL code and `spatcon` / `grayspatcon` / `recode` | identical maps; single-precision means and standard deviations to 1e-4 (Landschaft computes in double) |
+| FAD, FAD-MS, FOS, landscape mosaic, contagion and clustering | GuidosToolbox's IDL code and `spatcon` / `grayspatcon` / `recode` | identical maps; single-precision means and standard deviations to 1e-4 (Terraflux computes in double) |
 | FAD-MS change, landscape mosaic heatmap and heatmap change | GuidosToolbox's IDL code in GDL | identical |
 | Isochrone maps A and AB, least-cost path | GuidosToolbox's `ggeo` and IDL post-processing | identical |
 | 133 landscape metrics and the utilities | landscapemetrics 2.2.2 (R): 14 maps (its example data, NA cells, non-square cells, degenerate layouts) × 5 option sets, live random maps | identical bits; `gyrate` and rare `enn` ties to a relative 1e-10; `circle` is randomised in landscapemetrics |
@@ -495,14 +495,14 @@ raster read in strips), and only that is reprojected and encoded.
 | Land change: MOLUSCE's weights of evidence, simulator, multi-criteria evaluation, kappa and error budget | MOLUSCE 5.3.0 imported without QGIS (its confidence corrected: `tools/molusce_fixed.patch`): 6 cases | identical bits, NumPy's random numbers included |
 | Land change validation: three maps at several resolutions, agreement budget, figure of merit, `r.futures.validation` | lulcc 1.0.4 (raster 3.6-31): 2 cases; GRASS's addon: 3 cases | identical bits |
 | Land change validation: fuzzy similarity and similarity of differences | Dinamica EGO 8.13 (measured): 36 maps, windows 1-11, exponential and constant decay | identical maps; means to the 15 digits it writes |
-| Land change: gravity potential (`surface.gravity`) | Dinamica EGO 8.13 `CalcInteractionPotentialMap` (measured): 10 maps, five exponents, with and without a mask | within 3e-6 (Dinamica adds float32 terms in float32; Landschaft sums in float64) |
+| Land change: gravity potential (`surface.gravity`) | Dinamica EGO 8.13 `CalcInteractionPotentialMap` (measured): 10 maps, five exponents, with and without a mask | within 3e-6 (Dinamica adds float32 terms in float32; Terraflux sums in float64) |
 | Land change: roads (`friction_cost`, `pathways`) | Dinamica EGO 8.13 `CalcCostMap` and `CalcPathwayMap` (measured): real and integer frictions, with and without diagonal costs, relative frictions, impassable and unreachable cells; paths down the costs and along the directions | identical costs and paths; directions identical except between equally cheap predecessors (Dinamica's follow its sweeps) |
 | Watershed model (`hydro.swat.run`): weather and generator, HRUs (snow, ET, curve number runoff, MUSLE, percolation, lateral flow, nutrients, plant growth, scheduled management, decision tables, crop rotations, urban land), routing units, aquifers, SWAT-DEG channels, every printed table | SWAT+ 62.0.1 built with flang 22 against the UCRT (equal to the official Windows executable in every printed digit), dumping its state each day and its printed records: the official Hubbard Brook and Ames examples, Muskingum routing, two projects made by `from_rasters` (one with crop rotations and urban land) and the plants' minimum C (`c_factor="plant"`) | identical bits (every field of every day) |
 | Watershed division and project files (`hydro.swat.watershed`, `from_tables`) | QSWAT+ 3 (its sources) and the SWAT+ Editor 4.0.2 run on the same tables: a synthetic watershed and a 282 km² DEM (QSWAT+'s test data) | the Editor's 64 files, token for token |
 
 The default solver of Omniscape and Circuitscape (conjugate gradients with an
 algebraic multigrid) is itself only about 2e-7 away from the exact solution;
-Landschaft's solves are exact, so it is compared with their exact (CHOLMOD)
+Terraflux's solves are exact, so it is compared with their exact (CHOLMOD)
 runs.
 
 ### Checked in other ways
@@ -527,7 +527,7 @@ its code:
     - **Euclidean distance, distance to resistance, influence zones and
       proximity** depend on IDL's `MORPH_DISTANCE`, which does not always pick
       the nearest object near the boundaries between the zones of different
-      objects (about 1 % of the pixels of the test cases). Landschaft's
+      objects (about 1 % of the pixels of the test cases). Terraflux's
       distances are exact Euclidean distances, so these maps can differ from
       GuidosToolbox's in detail; influence zones and proximity are marked
       experimental.
@@ -538,12 +538,12 @@ its code:
     - **Zonation 5's curves** (performance curves, AUC, `features_info`,
       histograms and flexibility maps) come from the order of its
       second-to-last sort, while its rank map comes from the last one.
-      Landschaft's describe the rank map it returns; they are compared with z5
+      Terraflux's describe the rank map it returns; they are compared with z5
       evaluating that rank map (`LOAD` mode). Flexibility maps are identical
       where the two orders give the same curves, and otherwise compared with a
       direct reproduction of Zonation's algorithm.
     - **Zonation 5 on several threads** adds up the layers per thread, and its
-      results can differ from its run on one thread; Landschaft's do not
+      results can differ from its run on one thread; Terraflux's do not
       depend on the threads and equal z5's on one thread.
     - **Species distributions** keep the R packages' results except where
       they err (each case listed in IDEAS.md and in the functions' notes).
@@ -558,7 +558,7 @@ its code:
       so the last `n % q` never get a destination, and rounds its draw to an
       integer of the summed attraction, so the first cell of a quadrant gets
       half its share and a draw past the end takes the quadrant's last cell,
-      even of no attraction. Landschaft's quadrants cover the map and its
+      even of no attraction. Terraflux's quadrants cover the map and its
       draw follows the attraction exactly.
     - **Off Windows**, the arctangent of the slopes of `surface.terrain` is
       the C library's, as terra's is on Windows: R takes it from Windows'
@@ -568,7 +568,7 @@ its code:
       exp, log and powers as SWAT+ does, and carries their last bits through
       years of daily state: off Windows its results are within 1e-4 of each
       quantity's scale of SWAT+'s on Windows (2.4e-5 at most in the test
-      cases). Everything else gives the same bits on Windows and Linux: Landschaft carries its own versions of the
+      cases). Everything else gives the same bits on Windows and Linux: Terraflux carries its own versions of the
       functions whose bits matter (log, sqrt, sin, cos, atan2, exp and powers
       as mingw-w64 computes them on the x87 unit, and the UCRT's hypot).
 

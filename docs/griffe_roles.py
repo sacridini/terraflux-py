@@ -3,8 +3,8 @@
 Markdown.
 
 The docstrings cross-reference with Sphinx roles (``:func:`mspa```,
-``:class:`~landschaft.RasterCollection```). This turns each role into an
-autorefs link to the documented object (``[`mspa`][landschaft.mspa]``) when
+``:class:`~terraflux.RasterCollection```). This turns each role into an
+autorefs link to the documented object (``[`mspa`][terraflux.mspa]``) when
 the target is part of the public API, and into inline code otherwise.
 """
 
@@ -17,9 +17,9 @@ import griffe
 ROLE = re.compile(r":(?:py:)?(func|class|meth|attr|data|mod|obj|exc):`(~?)([^`]+)`")
 # Functions that share their name with their module are documented under their full path.
 ALIASES = {
-    "landschaft.omniscape": "landschaft.circuit.omniscape.omniscape",
-    "landschaft.circuit.omniscape": "landschaft.circuit.omniscape.omniscape",
-    "landschaft.circuit.advanced": "landschaft.circuit.advanced.advanced",
+    "terraflux.omniscape": "terraflux.circuit.omniscape.omniscape",
+    "terraflux.circuit.omniscape": "terraflux.circuit.omniscape.omniscape",
+    "terraflux.circuit.advanced": "terraflux.circuit.advanced.advanced",
 }
 _PUBLIC: set[str] | None = None
 
@@ -30,12 +30,12 @@ def _public() -> set[str]:
     if _PUBLIC is None:
         import inspect
 
-        import landschaft
-        import landschaft.circuit
-        import landschaft.conn
+        import terraflux
+        import terraflux.circuit
+        import terraflux.conn
 
         names = set()
-        for mod in (landschaft, landschaft.conn, landschaft.circuit):
+        for mod in (terraflux, terraflux.conn, terraflux.circuit):
             for name in getattr(mod, "__all__", []):
                 obj = getattr(mod, name)
                 if not callable(obj):
@@ -51,8 +51,8 @@ def _resolve(target: str, context: str) -> str | None:
     public = _public()
     target = target.rstrip("()")
     candidates = [target]
-    if not target.startswith("landschaft"):
-        candidates += [f"landschaft.{target}", f"landschaft.conn.{target}", f"landschaft.circuit.{target}"]
+    if not target.startswith("terraflux"):
+        candidates += [f"terraflux.{target}", f"terraflux.conn.{target}", f"terraflux.circuit.{target}"]
         if context:
             candidates.insert(0, f"{context}.{target}")
     found = next((c for c in candidates if c in public), None)

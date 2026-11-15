@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of R's move2 and amt for ls.move.
+"""Generate golden outputs of R's move2 and amt for tf.move.
 
 Usage::
 

@@ -3,8 +3,8 @@
 # The image of the Dockerfile on the GitHub Container Registry at each release (called by
 # release.yml once the version is on PyPI: a tag made by the workflow's token starts no other
 # workflow), for Docker and for Apptainer on a cluster:
-#   apptainer pull landschaft.sif docker://ghcr.io/sacridini/landschaft:1.51.0
-#   apptainer exec landschaft.sif landschaft doctor
+#   apptainer pull terraflux.sif docker://ghcr.io/sacridini/terraflux-py:1.51.0
+#   apptainer exec terraflux.sif terraflux-py doctor
 # Built on native x86_64 and aarch64 machines (no emulation, which would take long to compile the
 # C++ core) and published as one tag for both. Actions > Container images > Run workflow builds
 # and checks them without pushing (or pushes, with "push").
@@ -30,7 +30,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/landschaft
+  IMAGE: ghcr.io/${{ github.repository_owner }}/terraflux-py
   PUSH: ${{ inputs.push }}
 
 jobs:
@@ -65,8 +65,8 @@ jobs:
         run: |
           tag="$IMAGE:${{ steps.version.outputs.version }}-${{ matrix.arch }}"
           docker buildx build -t "$tag" --load .
-          docker run --rm "$tag" landschaft doctor --no-network
-          docker run --rm "$tag" python -c "import landschaft as ls; print(ls.mspa(ls.load_raster(ls.example_data('input'))).shape)"
+          docker run --rm "$tag" terraflux-py doctor --no-network
+          docker run --rm "$tag" python -c "import terraflux as tf; print(tf.mspa(tf.load_raster(tf.example_data('input'))).shape)"
           if [ "$PUSH" = true ]; then docker push "$tag"; fi
 
   manifest:

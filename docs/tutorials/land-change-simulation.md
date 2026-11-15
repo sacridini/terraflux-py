@@ -2,7 +2,7 @@
 
 Where is a landscape heading? A land change model learns from two maps how
 much changed, where and with what shape, and projects it forward, under
-the observed trend or under scenarios. `ls.simulate` builds such models from
+the observed trend or under scenarios. `tf.simulate` builds such models from
 interchangeable pieces (a demand, a transition potential, an allocation and
 rules), runs them, compares them with what really happened, calibrates them
 and runs scenarios with replicates. The ideas behind it are in the course
@@ -37,11 +37,11 @@ sea, roads and towns, elevation, slope, soils and population density.
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-S = ls.simulate
-lu = ls.load_raster(S.example_data("sibuyan_landuse"))
-drivers = ls.load_raster(S.example_data("sibuyan_drivers"))
+S = tf.simulate
+lu = tf.load_raster(S.example_data("sibuyan_landuse"))
+drivers = tf.load_raster(S.example_data("sibuyan_drivers"))
 print(lu.band.values, drivers.band.values)
 
 t0, t1 = lu[0].where(lu[0] != 255), lu[1].where(lu[1] != 255)   # 255: outside the island
@@ -136,9 +136,9 @@ ends = {}
 for name, model in models.items():
     sim = model.run(t1, drivers, seed=1)
     ends[name] = sim.maps[-1]
-    m = ls.landscape_metrics(sim.maps[-1].fillna(0).astype("int32"), level="class", metric=["np"])
+    m = tf.landscape_metrics(sim.maps[-1].fillna(0).astype("int32"), level="class", metric=["np"])
     print(f"{name:18s}", m[m["class"] == 2]["value"].item(), "coconut patches")
-print("observed 2011    ", ls.landscape_metrics(t1.fillna(0).astype("int32"), level="class",
+print("observed 2011    ", tf.landscape_metrics(t1.fillna(0).astype("int32"), level="class",
                                                 metric=["np"]).query("`class` == 2")["value"].item())
 ```
 
@@ -163,7 +163,7 @@ print(proj.maps.year.values)
 ```
 
 `proj.settings` records every choice and the seed, `proj.redo(...)` runs
-again with some of them changed, and `ls.plot(proj)` shows the projected
+again with some of them changed, and `tf.plot(proj)` shows the projected
 maps with a slider over the years.
 
 ```python
@@ -229,7 +229,7 @@ cover = ens.cover().groupby(["scenario", "year"]).mean().drop(columns="replicate
 print(cover.xs(2016, level="year").round(0))
 ```
 
-`ens.metrics(["np", "ed"])` measures every run and year, and `ls.plot(ens)`
+`ens.metrics(["np", "ed"])` measures every run and year, and `tf.plot(ens)`
 maps the probability of change in each scenario.
 
 ## Variables that change with the map

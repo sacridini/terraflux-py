@@ -14,135 +14,135 @@ turn angles, summaries of tracks (straightness, sinuosity, net squared
 displacement...), day and night, distributions of step lengths and turn angles,
 random steps and the covariates at their ends, with amt's numbers (and R's
 random numbers given a seed). C++ with OpenMP; the same with any number of
-threads. The `ls.move` module; the [tutorial](../tutorials/animal-movement.md) walks
+threads. The `tf.move` module; the [tutorial](../tutorials/animal-movement.md) walks
 through it on the tracks of fishers.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-tracks = ls.load_tracks("study.csv")                    # Movebank's export (.csv, .csv.gz, .zip)
-tracks = ls.move.filter_movebank_visible(tracks)        # without the outliers Movebank hides
-tracks = ls.move.filter_unique(tracks)                  # one record per time and track
+tracks = tf.load_tracks("study.csv")                    # Movebank's export (.csv, .csv.gz, .zip)
+tracks = tf.move.filter_movebank_visible(tracks)        # without the outliers Movebank hides
+tracks = tf.move.filter_unique(tracks)                  # one record per time and track
 tracks = tracks[~tracks.geometry.is_empty]
 
-tracks["step"] = ls.move.distance(tracks)               # metres to the next location
-tracks["speed"] = ls.move.speed(tracks, "km/h")
-tracks["turn"] = ls.move.turn_angle(tracks, "deg")
+tracks["step"] = tf.move.distance(tracks)               # metres to the next location
+tracks["speed"] = tf.move.speed(tracks, "km/h")
+tracks["turn"] = tf.move.turn_angle(tracks, "deg")
 
-hourly = ls.move.filter_per_interval(tracks, "hour")    # the first location of each hour
-regular = ls.move.interpolate(tracks, "30 mins", omit=True)
-local = tracks.to_crs(ls.move.aeqd_crs(tracks))         # metres around the tracks
-ls.write_vector(ls.move.track_lines(tracks), "tracks.gpkg")
+hourly = tf.move.filter_per_interval(tracks, "hour")    # the first location of each hour
+regular = tf.move.interpolate(tracks, "30 mins", omit=True)
+local = tracks.to_crs(tf.move.aeqd_crs(tracks))         # metres around the tracks
+tf.write_vector(tf.move.track_lines(tracks), "tracks.gpkg")
 ```
 
 The data of a step selection function, as amt makes them:
 
 <!-- no-run -->
 ```python
-utm = tracks.to_crs(ls.move.aeqd_crs(tracks))           # random steps need a projected CRS
-bursts = ls.move.resample(utm, "2h", "15min")           # a location every 2 hours, in bursts
-steps = ls.move.steps(bursts)                           # sl_, ta_ per burst
-ssf = ls.move.random_steps(steps, n_control=10, seed=1) # observed + 10 random steps per stratum
-ssf = ls.move.extract_covariates(ssf, {"forest": forest, "elev": dem})
-ssf["tod"] = ls.move.time_of_day(ssf, where="start")
+utm = tracks.to_crs(tf.move.aeqd_crs(tracks))           # random steps need a projected CRS
+bursts = tf.move.resample(utm, "2h", "15min")           # a location every 2 hours, in bursts
+steps = tf.move.steps(bursts)                           # sl_, ta_ per burst
+ssf = tf.move.random_steps(steps, n_control=10, seed=1) # observed + 10 random steps per stratum
+ssf = tf.move.extract_covariates(ssf, {"forest": forest, "elev": dem})
+ssf["tod"] = tf.move.time_of_day(ssf, where="start")
 ssf["log_sl"] = np.log(ssf["sl_"])
 ssf["cos_ta"] = np.cos(ssf["ta_"])
 ```
 
 Every function finds the time and the track in the usual columns (`timestamp`,
 `individual-local-identifier`, `time`, `track`...); others are named once with
-`ls.move.set_columns` (or `ls.move.as_tracks`), or in each call with `time=` and
+`tf.move.set_columns` (or `tf.move.as_tracks`), or in each call with `time=` and
 `track=`.
 
 ## Tracks
 
-::: landschaft.move.load_tracks
+::: terraflux.move.load_tracks
 
-::: landschaft.move.example_data
+::: terraflux.move.example_data
 
-::: landschaft.move.as_tracks
+::: terraflux.move.as_tracks
 
-::: landschaft.move.set_columns
+::: terraflux.move.set_columns
 
-::: landschaft.move.simulate_brownian
+::: terraflux.move.simulate_brownian
 
 ## Steps
 
-::: landschaft.move.distance
+::: terraflux.move.distance
 
-::: landschaft.move.time_lags
+::: terraflux.move.time_lags
 
-::: landschaft.move.speed
+::: terraflux.move.speed
 
-::: landschaft.move.azimuth
+::: terraflux.move.azimuth
 
-::: landschaft.move.turn_angle
+::: terraflux.move.turn_angle
 
 ## Filters
 
-::: landschaft.move.unique
+::: terraflux.move.unique
 
-::: landschaft.move.filter_unique
+::: terraflux.move.filter_unique
 
-::: landschaft.move.per_interval
+::: terraflux.move.per_interval
 
-::: landschaft.move.filter_per_interval
+::: terraflux.move.filter_per_interval
 
-::: landschaft.move.movebank_visible
+::: terraflux.move.movebank_visible
 
-::: landschaft.move.filter_movebank_visible
+::: terraflux.move.filter_movebank_visible
 
 ## Interpolation
 
-::: landschaft.move.interpolate
+::: terraflux.move.interpolate
 
 ## Lines and projections
 
-::: landschaft.move.track_lines
+::: terraflux.move.track_lines
 
-::: landschaft.move.segments
+::: terraflux.move.segments
 
-::: landschaft.move.track_data
+::: terraflux.move.track_data
 
-::: landschaft.move.aeqd_crs
+::: terraflux.move.aeqd_crs
 
 ## Steps of amt
 
-::: landschaft.move.resample
+::: terraflux.move.resample
 
-::: landschaft.move.filter_min_n_burst
+::: terraflux.move.filter_min_n_burst
 
-::: landschaft.move.steps
+::: terraflux.move.steps
 
-::: landschaft.move.time_of_day
+::: terraflux.move.time_of_day
 
 ## Summaries of tracks
 
-::: landschaft.move.nsd
+::: terraflux.move.nsd
 
-::: landschaft.move.cum_dist
+::: terraflux.move.cum_dist
 
-::: landschaft.move.tot_dist
+::: terraflux.move.tot_dist
 
-::: landschaft.move.straightness
+::: terraflux.move.straightness
 
-::: landschaft.move.msd
+::: terraflux.move.msd
 
-::: landschaft.move.sinuosity
+::: terraflux.move.sinuosity
 
-::: landschaft.move.tac
+::: terraflux.move.tac
 
 ## Step selection
 
-::: landschaft.move.make_distribution
+::: terraflux.move.make_distribution
 
-::: landschaft.move.Distribution
+::: terraflux.move.Distribution
 
-::: landschaft.move.fit_distr
+::: terraflux.move.fit_distr
 
-::: landschaft.move.random_numbers
+::: terraflux.move.random_numbers
 
-::: landschaft.move.random_steps
+::: terraflux.move.random_steps
 
-::: landschaft.move.extract_covariates
+::: terraflux.move.extract_covariates

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Time ls.surface against geodiv and spatialEco (the tasks of tools/surface_benchmark.R).
+"""Time tf.surface against geodiv and spatialEco (the tasks of tools/surface_benchmark.R).
 
 Usage::
 
     python tools/benchmark_surface.py [--reps N] [--no-r]
 
 Prints a Markdown table: each task's best time in R (geodiv / spatialEco, on
-their default settings) and in Landschaft (default threads, best of ``reps``).
+their default settings) and in Terraflux (default threads, best of ``reps``).
 Needs Rscript and the library of ``tools/make_reference_surface.py``.
 """
 
@@ -24,18 +24,18 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-import landschaft as ls  # noqa: E402
+import terraflux as tf  # noqa: E402
 import lsm_reference  # noqa: E402
 import make_reference_surface  # noqa: E402
 
-DATA = ROOT / "src" / "landschaft" / "surface" / "data"
+DATA = ROOT / "src" / "terraflux" / "surface" / "data"
 
 
 def tasks() -> dict:
-    s = ls.surface
-    nf = ls.load_raster(DATA / "normforest.tif")
-    ndvi = ls.load_raster(DATA / "orforest.tif")
-    dem = ls.load_raster(DATA / "orelevation.tif")
+    s = tf.surface
+    nf = tf.load_raster(DATA / "normforest.tif")
+    ndvi = tf.load_raster(DATA / "orforest.tif")
+    dem = tf.load_raster(DATA / "orelevation.tif")
     small, tiny = nf[100:200, 100:200], nf[100:130, 100:130]
     return {
         "amplitude (sa, sq, ssk, sku)": lambda: s.metrics(nf, ["sa", "sq", "ssk", "sku"]),
@@ -90,7 +90,7 @@ def main() -> None:
     args = parser.parse_args()
     ours = {name: best(f, args.reps) for name, f in tasks().items()}
     theirs = {} if args.no_r else run_r(3)
-    print("| Task | R | Landschaft | Times faster |")
+    print("| Task | R | Terraflux | Times faster |")
     print("|---|---|---|---|")
     for name, t in ours.items():
         r = theirs.get(name, np.nan)

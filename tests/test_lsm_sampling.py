@@ -17,7 +17,7 @@ import pytest
 import xarray as xr
 from rasterio.transform import from_origin
 
-import landschaft as ls
+import terraflux as tf
 import lsm_reference
 import lsm_scenes
 from conftest import DATA, same_bits
@@ -89,9 +89,9 @@ def test_sample_matches_landscapemetrics(fname):
         warnings.simplefilter("ignore")
         if "sizes" in kwargs:  # scale_sample
             sizes = [float(v) for v in str(kwargs.pop("sizes")).split(",")]
-            ours = ls.scale_sample(DATA / "lsm" / info["input"], y, size=sizes, **kwargs, **options)
+            ours = tf.scale_sample(DATA / "lsm" / info["input"], y, size=sizes, **kwargs, **options)
         else:
-            ours = ls.sample_metrics(DATA / "lsm" / info["input"], y, **kwargs, **options)
+            ours = tf.sample_metrics(DATA / "lsm" / info["input"], y, **kwargs, **options)
     ref = lsm_reference.read_reference(SAMPLE_DIR / fname)
     ref["percentage_inside"] = ref["percentage_inside"].astype(float)
     if "size" in ref.columns:
@@ -108,7 +108,7 @@ def test_window_matches_landscapemetrics(fname):
     info = WINDOW_MANIFEST["files"][fname]
     ref = np.load(WINDOW_DIR / fname)
     metrics = info["metrics"]
-    ours = ls.window_metrics(WINDOW_DIR / info["input"], ref["window"], what=["lsm_l_" + m for m in metrics],
+    ours = tf.window_metrics(WINDOW_DIR / info["input"], ref["window"], what=["lsm_l_" + m for m in metrics],
                              **info["options"])
     for m in metrics:
         assert_window_equal(np.asarray(ours[m]), ref[m], f"{fname}: {m}", m)
@@ -148,7 +148,7 @@ def test_sample_live(rscript, tmp_path, seed, shape, size, res, options):
     metric_opts = {k: v for k, v in options.items() if k not in SAMPLE_ARGS}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ours = ls.sample_metrics(data, plots[["x", "y"]].to_numpy(), size=size, shape=shape,
+        ours = tf.sample_metrics(data, plots[["x", "y"]].to_numpy(), size=size, shape=shape,
                                  plot_id=plots["plot_id"], res=res, **kwargs, **metric_opts)
     if options.get("neighbourhood") == 8:  # calculate_lsm's quirk, see test_lsm_reference
         ref = ref[~ref["metric"].isin(NEIGHBOURHOOD_QUIRK)].reset_index(drop=True)
@@ -175,7 +175,7 @@ def test_window_live(rscript, tmp_path, seed, window, res, options):
     what = ["lsm_l_ta", "lsm_l_np", "lsm_l_shdi", "lsm_l_contag", "lsm_l_te", "lsm_l_enn_mn", "lsm_l_core_mn",
             "lsm_l_condent", "lsm_l_lsi", "lsm_l_circle_mn"]
     ref = lsm_reference.run_window(rscript, tif, window, what, **options)
-    ours = ls.window_metrics(data, window, what=what, res=res, **options)
+    ours = tf.window_metrics(data, window, what=what, res=res, **options)
     for m in ref:
         assert_window_equal(np.asarray(ours[m]), ref[m], m, m)
 
@@ -194,27 +194,27 @@ class TestSample:
         da = georeferenced(data)
         # a plot on cell edges: rows 10..21, columns 5..24
         x, y = 1000 + 150, 5000 - 160
-        df = ls.sample_metrics(da, np.array([[x, y]]), size=np.array(60.0), shape="square", verbose=False)
+        df = tf.sample_metrics(da, np.array([[x, y]]), size=np.array(60.0), shape="square", verbose=False)
         # square of half side 60 -> 12 x 12 cells
         sub = data[10:22, 9:21]
-        expected = ls.Landscape(sub, res=10).metrics()
+        expected = tf.Landscape(sub, res=10).metrics()
         pd.testing.assert_series_equal(df["value"], expected["value"], check_names=False)
         assert (df["percentage_inside"] == 100).all()
 
     def test_circle_mask_keeps_touched_cells(self):
         da = georeferenced(np.ones((20, 20)), res=1.0, left=0.0, top=20.0)
-        df = ls.sample_metrics(da, np.array([[10.0, 10.0]]), size=3.0, shape="circle", what="lsm_l_ta")
+        df = tf.sample_metrics(da, np.array([[10.0, 10.0]]), size=3.0, shape="circle", what="lsm_l_ta")
         # the 100-vertex circle of radius 3 touches all 6 x 6 cells around it
         # (it passes 2.83 cells from the centre at the corner cells)
         assert df["value"].item() == pytest.approx(36 / 10000)
         assert df["percentage_inside"].item() == pytest.approx(36 / (np.pi * 9) * 100, rel=1e-3)
-        small = ls.sample_metrics(da, np.array([[10.5, 10.5]]), size=0.4, shape="circle", what="lsm_l_ta")
+        small = tf.sample_metrics(da, np.array([[10.5, 10.5]]), size=0.4, shape="circle", what="lsm_l_ta")
         assert small["value"].item() == pytest.approx(1 / 10000)
 
     def test_plot_outside_the_raster(self):
         da = georeferenced(np.ones((5, 5)))
         with pytest.warns(UserWarning, match="percentage_inside"):
-            df = ls.sample_metrics(da, np.array([[0.0, 0.0]]), size=5.0, what=["lsm_l_ta", "lsm_c_ca"])
+            df = tf.sample_metrics(da, np.array([[0.0, 0.0]]), size=5.0, what=["lsm_l_ta", "lsm_c_ca"])
         assert len(df) == 2
         assert df["value"].isna().all()
         assert df["class"].isna().all()
@@ -223,31 +223,31 @@ class TestSample:
     def test_plot_ids_order_the_table(self):
         da = georeferenced(lsm_scenes.clustered((30, 30), [1, 2], seed=2).data)
         pts = np.array([[1050.0, 4950.0], [1200.0, 4800.0], [1100.0, 4900.0]])
-        df = ls.sample_metrics(da, pts, size=40.0, plot_id=["c", "a", "b"], what="lsm_l_np", verbose=False)
+        df = tf.sample_metrics(da, pts, size=40.0, plot_id=["c", "a", "b"], what="lsm_l_np", verbose=False)
         assert df["plot_id"].tolist() == ["a", "b", "c"]
         with pytest.warns(UserWarning, match="plot_id"):
-            df = ls.sample_metrics(da, pts, size=40.0, plot_id=[1, 2], what="lsm_l_np", verbose=False)
+            df = tf.sample_metrics(da, pts, size=40.0, plot_id=[1, 2], what="lsm_l_np", verbose=False)
         assert df["plot_id"].tolist() == [1, 2, 3]
 
     def test_geometry_inputs(self):
         shapely = pytest.importorskip("shapely")
         da = georeferenced(lsm_scenes.clustered((30, 30), [1, 2, 3], seed=3).data)
         square = shapely.geometry.box(1040, 4840, 1160, 4960)
-        a = ls.sample_metrics(da, [square], what="lsm_l_shdi", verbose=False)
-        b = ls.sample_metrics(da, [square.__geo_interface__], what="lsm_l_shdi", verbose=False)
-        c = ls.sample_metrics(da, np.array([[1100.0, 4900.0]]), size=60.0, what="lsm_l_shdi", verbose=False)
-        d = ls.sample_metrics(da, [shapely.geometry.Point(1100, 4900)], size=60.0, what="lsm_l_shdi", verbose=False)
+        a = tf.sample_metrics(da, [square], what="lsm_l_shdi", verbose=False)
+        b = tf.sample_metrics(da, [square.__geo_interface__], what="lsm_l_shdi", verbose=False)
+        c = tf.sample_metrics(da, np.array([[1100.0, 4900.0]]), size=60.0, what="lsm_l_shdi", verbose=False)
+        d = tf.sample_metrics(da, [shapely.geometry.Point(1100, 4900)], size=60.0, what="lsm_l_shdi", verbose=False)
         for other in (b, c, d):
             assert other["value"].item() == a["value"].item()
         with pytest.raises(ValueError, match="size"):
-            ls.sample_metrics(da, np.array([[1100.0, 4900.0]]), what="lsm_l_shdi")
+            tf.sample_metrics(da, np.array([[1100.0, 4900.0]]), what="lsm_l_shdi")
 
     def test_all_classes(self):
         values = np.ones((20, 20), dtype=int)
         values[:, 10:] = 2
         values[0, 0] = -1  # NA somewhere in the raster
         da = georeferenced(values)
-        df = ls.sample_metrics(da, np.array([[1030.0, 4900.0]]), size=20.0, what="lsm_c_ca", all_classes=True)
+        df = tf.sample_metrics(da, np.array([[1030.0, 4900.0]]), size=20.0, what="lsm_c_ca", all_classes=True)
         # the plot holds class 1 only; class 2 and NA get NA rows
         assert df["class"].tolist()[:2] == [1, 2]
         assert df["class"].isna().tolist() == [False, False, True]
@@ -257,9 +257,9 @@ class TestSample:
         a = georeferenced(lsm_scenes.clustered((30, 30), [1, 2], seed=4).data)
         b = georeferenced(lsm_scenes.clustered((30, 30), [1, 2, 3], seed=5).data)
         pts = np.array([[1100.0, 4900.0], [1200.0, 4850.0]])
-        both = ls.sample_metrics([a, b], pts, size=40.0, what="lsm_l_np", verbose=False)
+        both = tf.sample_metrics([a, b], pts, size=40.0, what="lsm_l_np", verbose=False)
         assert both["layer"].tolist() == [1, 1, 2, 2]
-        one = ls.sample_metrics(b, pts, size=40.0, what="lsm_l_np", verbose=False)
+        one = tf.sample_metrics(b, pts, size=40.0, what="lsm_l_np", verbose=False)
         np.testing.assert_array_equal(both["value"].to_numpy()[2:], one["value"].to_numpy())
 
 
@@ -283,8 +283,8 @@ def brute_window(data, window, res, what, **options):
             sub_mask = padded_mask[y : y + window.shape[0], x : x + window.shape[1]] | ~window
             sub_t = np.ma.MaskedArray(sub.T, mask=sub_mask.T)
             res_t = (res[1], res[0])
-            lm = ls.Landscape(sub_t, res=res_t, **options)
-            lm8 = ls.Landscape(sub_t, res=res_t, **{**options, "directions": 8})
+            lm = tf.Landscape(sub_t, res=res_t, **options)
+            lm8 = tf.Landscape(sub_t, res=res_t, **{**options, "directions": 8})
             for m in what:
                 out[m][y, x] = (lm8 if m in ("shdi", "shei") else lm).landscape_metrics(m)[m].item()
     return out
@@ -302,7 +302,7 @@ class TestWindow:
     def test_brute_force(self, window, res, options):
         data = lsm_scenes.clustered((13, 16), [1, 2, 3], seed=7, sigma=1.0, na_fraction=0.1)
         what = ["ta", "np", "shdi", "contag", "ed", "enn_mn", "core_mn", "gyrate_mn", "iji"]
-        ours = ls.window_metrics(data, window, what=["lsm_l_" + m for m in what], res=res, **options)
+        ours = tf.window_metrics(data, window, what=["lsm_l_" + m for m in what], res=res, **options)
         expected = brute_window(data, window, res, what, **options)
         for m in what:
             np.testing.assert_array_equal(ours[m], expected[m], err_msg=m)
@@ -317,7 +317,7 @@ class TestWindow:
         data = lsm_scenes.clustered((15, 17), [3, 10, 42, 7], seed=11, sigma=1.5, na_fraction=0.05)
         window = np.ones((7, 5), bool)
         what = ["np", "tca", "core_mn", "cai_mn", "dcad", "dcore_sd", "circle_mn", "enn_mn", "pafrac", "contag"]
-        ours = ls.window_metrics(data, window, what=["lsm_l_" + m for m in what], res=(2.0, 2.0), **options)
+        ours = tf.window_metrics(data, window, what=["lsm_l_" + m for m in what], res=(2.0, 2.0), **options)
         expected = brute_window(data, window, (2.0, 2.0), what, **options)
         for m in what:
             np.testing.assert_array_equal(ours[m], expected[m], err_msg=m)
@@ -328,7 +328,7 @@ class TestWindow:
         contrast = {(10, 20): 0.5, (10, 30): 1.0, (20, 30): 0.2}
         what = ["cwed", "teci"]
         window = np.ones((5, 5), bool)
-        ours = ls.window_metrics(
+        ours = tf.window_metrics(
             data, window, what=["lsm_l_" + m for m in what], res=(1.0, 1.0), extras=True, contrast=contrast
         )
         expected = brute_window(data, window, (1.0, 1.0), what, contrast=contrast)
@@ -338,43 +338,43 @@ class TestWindow:
 
     def test_single_cell_window(self):
         data = np.ma.MaskedArray(np.array([[1, 2], [3, 4]]), mask=[[False, True], [False, False]])
-        out = ls.window_metrics(data, 1, what=["lsm_l_ta", "lsm_l_np"], res=10)
+        out = tf.window_metrics(data, 1, what=["lsm_l_ta", "lsm_l_np"], res=10)
         np.testing.assert_array_equal(out["ta"], [[0.01, np.nan], [0.01, 0.01]])
         np.testing.assert_array_equal(out["np"], [[1, np.nan], [1, 1]])
 
     def test_default_is_every_landscape_metric(self):
-        out = ls.window_metrics(lsm_scenes.clustered((6, 7), [1, 2], seed=1).data, 3)
-        assert list(out) == list(ls.list_metrics(level="landscape")["metric"])
+        out = tf.window_metrics(lsm_scenes.clustered((6, 7), [1, 2], seed=1).data, 3)
+        assert list(out) == list(tf.list_metrics(level="landscape")["metric"])
 
     def test_dataarray_output(self):
         da = georeferenced(lsm_scenes.clustered((12, 14), [1, 2, 3], seed=8).data)
-        out = ls.window_metrics(da, 5, what="lsm_l_shdi")
+        out = tf.window_metrics(da, 5, what="lsm_l_shdi")
         assert isinstance(out["shdi"], xr.DataArray)
         assert out["shdi"].rio.transform() == da.rio.transform()
         assert out["shdi"].shape == da.shape
 
     def test_several_rasters(self):
         a = lsm_scenes.clustered((8, 9), [1, 2], seed=1).data
-        out = ls.window_metrics([a, a.T], 3, what="lsm_l_np")
+        out = tf.window_metrics([a, a.T], 3, what="lsm_l_np")
         assert len(out) == 2
         np.testing.assert_array_equal(out[1]["np"], out[0]["np"].T)
 
     def test_errors(self):
         data = np.ones((5, 5), dtype=int)
         with pytest.raises(ValueError, match="odd"):
-            ls.window_metrics(data, 4)
+            tf.window_metrics(data, 4)
         with pytest.raises(ValueError, match="odd"):
-            ls.window_metrics(data, np.ones((3, 4)))
+            tf.window_metrics(data, np.ones((3, 4)))
         with pytest.raises(ValueError, match="landscape-level"):
-            ls.window_metrics(data, 3, what="lsm_c_ca")
+            tf.window_metrics(data, 3, what="lsm_c_ca")
 
     def test_threads_do_not_change_results(self):
         from threadpoolctl import threadpool_limits
 
         data = lsm_scenes.clustered((60, 70), [1, 2, 3, 4], seed=9, na_fraction=0.05)
-        a = ls.window_metrics(data, 7, what=["lsm_l_shdi", "lsm_l_enn_mn", "lsm_l_core_mn"])
+        a = tf.window_metrics(data, 7, what=["lsm_l_shdi", "lsm_l_enn_mn", "lsm_l_core_mn"])
         with threadpool_limits(limits=1, user_api="openmp"):
-            b = ls.window_metrics(data, 7, what=["lsm_l_shdi", "lsm_l_enn_mn", "lsm_l_core_mn"])
+            b = tf.window_metrics(data, 7, what=["lsm_l_shdi", "lsm_l_enn_mn", "lsm_l_core_mn"])
         for m in a:
             np.testing.assert_array_equal(a[m], b[m])
 
@@ -386,13 +386,13 @@ class TestLayers:
     def test_layers_match_single_landscapes(self):
         small = lsm_scenes.clustered((30, 40), [1, 2, 3], seed=1, na_fraction=0.05)
         large = lsm_scenes.clustered((300, 250), [1, 2, 3, 4], seed=2)  # computed on its own, in parallel
-        both = ls.landscape_metrics([small, large, small])
+        both = tf.landscape_metrics([small, large, small])
         for layer, data in enumerate([small, large, small], start=1):
             part = both[both["layer"] == layer].drop(columns="layer").reset_index(drop=True)
-            pd.testing.assert_frame_equal(part, ls.Landscape(data).metrics())
+            pd.testing.assert_frame_equal(part, tf.Landscape(data).metrics())
 
     def test_all_na_landscape_gives_one_row_per_metric(self):
-        df = ls.Landscape(np.ma.masked_all((3, 4), dtype=np.int32)).metrics()
-        assert len(df) == len(ls.list_metrics())
+        df = tf.Landscape(np.ma.masked_all((3, 4), dtype=np.int32)).metrics()
+        assert len(df) == len(tf.list_metrics())
         assert df["value"].isna().all()
         assert df["class"].isna().all() and df["id"].isna().all()

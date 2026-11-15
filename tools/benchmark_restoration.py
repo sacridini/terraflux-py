@@ -30,7 +30,7 @@ import scipy.sparse as sp
 
 def synthetic(side: int, n_species: int, share: float, seed: int = 1):
     """Anthropic shares and a HabitatAreas of disk ranges (gain = habitat share x anthropic share)."""
-    from landschaft.sdm._habitat import HabitatAreas
+    from terraflux.sdm._habitat import HabitatAreas
 
     rng = np.random.default_rng(seed)
     anth = rng.random((side, side)) * 0.7
@@ -72,13 +72,13 @@ def main() -> None:
         psutil.Process().cpu_affinity(list(range(12)))
     except Exception:  # noqa: BLE001, S110 - another machine: no pinning
         pass
-    import landschaft as ls
+    import terraflux as tf
 
     t = time.perf_counter()
     anth, aoh = synthetic(args.side, args.species, args.range_share)
     print(f"data: {anth.size} cells, {args.species} species, {aoh.gain.nnz:.3g} gains, {time.perf_counter() - t:.1f} s")
     t = time.perf_counter()
-    p = ls.prioritize.restoration_problem(anth, cell_area=1.0)
+    p = tf.prioritize.restoration_problem(anth, cell_area=1.0)
     print(f"problem: {time.perf_counter() - t:.2f} s")
     t = time.perf_counter()
     p = p.add_extinction_risk_benefit(aoh)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the circuit module. They go into landschaft._core and,
-// on x86-64, also into landschaft._circuit_avx2: the same code compiled for
+// Python bindings of the circuit module. They go into terraflux._core and,
+// on x86-64, also into terraflux._circuit_avx2: the same code compiled for
 // AVX2 and FMA in a module of its own (so that the two builds of Eigen's
 // templates never meet in one binary), loaded only on CPUs that have them.
 
@@ -560,9 +560,9 @@ void register_python(py::module_& m) {
 
 }  // namespace circuit
 
-#if defined(LANDSCHAFT_CIRCUIT_AVX2_MODULE)
+#if defined(TERRAFLUX_CIRCUIT_AVX2_MODULE)
 PYBIND11_MODULE(_circuit_avx2, m) {
-    m.doc() = "landschaft's circuit module built for AVX2 and FMA";
+    m.doc() = "terraflux's circuit module built for AVX2 and FMA";
     circuit::register_python(m);
 }
 #endif

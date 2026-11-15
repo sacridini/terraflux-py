@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""A small synthetic landscape for ls.hydro.swat.from_rasters (tests and
+"""A small synthetic landscape for tf.hydro.swat.from_rasters (tests and
 tools/make_reference_swat.py, case ``landscape``): a 1.5 x 1.8 km valley with a
 tributary, three land uses, two soils, two weather stations, 2000-2001."""
 

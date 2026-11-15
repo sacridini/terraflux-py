@@ -6,7 +6,7 @@ Usage::
     python tools/make_doc_figures.py [name ...]
 
 Writes PNGs to ``docs/assets/figures`` (all figures, or the ones named). Every
-figure is computed with landschaft itself, so the pictures show what the
+figure is computed with terraflux itself, so the pictures show what the
 tutorials' code returns.
 """
 
@@ -23,7 +23,7 @@ import numpy as np  # noqa: E402
 from matplotlib.colors import BoundaryNorm, ListedColormap  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 
-import landschaft as ls  # noqa: E402
+import terraflux as tf  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[1] / "docs" / "assets" / "figures"
 FIGURES = {}
@@ -74,7 +74,7 @@ BINARY_LABELS = {0: "0 missing", 1: "1 background", 2: "2 habitat"}
 
 @figure
 def quickstart_input():
-    forest = ls.load_raster(ls.example_data("input"))
+    forest = tf.load_raster(tf.example_data("input"))
     fig, ax = plt.subplots(figsize=(5.2, 4))
     palette_map(ax, forest.values, BINARY, BINARY_LABELS, "Example map: habitat (green) and background")
     save(fig, "quickstart_input")
@@ -82,47 +82,47 @@ def quickstart_input():
 
 @figure
 def quickstart_mspa():
-    forest = ls.load_raster(ls.example_data("input"))
-    morph = ls.mspa(forest, edge_width=2)
-    names = {v: n for v, n in ls.MSPA_CLASSES.items()} if isinstance(ls.MSPA_CLASSES, dict) else {}
+    forest = tf.load_raster(tf.example_data("input"))
+    morph = tf.mspa(forest, edge_width=2)
+    names = {v: n for v, n in tf.MSPA_CLASSES.items()} if isinstance(tf.MSPA_CLASSES, dict) else {}
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     palette_map(axes[0], forest.values[300:600, 300:600], BINARY, None, "Input (detail)")
-    palette_map(axes[1], morph.values[300:600, 300:600], ls.mspa_colormap(), names, "MSPA classes (detail)")
+    palette_map(axes[1], morph.values[300:600, 300:600], tf.mspa_colormap(), names, "MSPA classes (detail)")
     save(fig, "quickstart_mspa")
 
 
-MSPA_NAMES = ls.MSPA_CLASSES
+MSPA_NAMES = tf.MSPA_CLASSES
 DETAIL = (slice(300, 600), slice(300, 600))
 
 
 @figure
 def patterns_edge_width():
-    forest = ls.load_raster(ls.example_data("input"))
+    forest = tf.load_raster(tf.example_data("input"))
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     for ax, w in zip(axes, (1, 5)):
-        morph = ls.mspa(forest, edge_width=w)
-        palette_map(ax, morph.values[DETAIL], ls.mspa_colormap(), MSPA_NAMES if w == 5 else None,
+        morph = tf.mspa(forest, edge_width=w)
+        palette_map(ax, morph.values[DETAIL], tf.mspa_colormap(), MSPA_NAMES if w == 5 else None,
                     f"edge_width={w}")
     save(fig, "patterns_edge_width")
 
 
 @figure
 def patterns_spa():
-    forest = ls.load_raster(ls.example_data("input"))
-    result = ls.spa(forest, variant=5)
-    names = {k: v.split(" (")[0] for k, v in ls.SPA_CLASSES.items()}
+    forest = tf.load_raster(tf.example_data("input"))
+    result = tf.spa(forest, variant=5)
+    names = {k: v.split(" (")[0] for k, v in tf.SPA_CLASSES.items()}
     fig, ax = plt.subplots(figsize=(5.5, 4))
-    palette_map(ax, result.map.values[DETAIL], ls.mspa_colormap(), names, "SPA5 (detail)")
+    palette_map(ax, result.map.values[DETAIL], tf.mspa_colormap(), names, "SPA5 (detail)")
     save(fig, "patterns_spa")
 
 
 @figure
 def patterns_accounting():
-    forest = ls.load_raster(ls.example_data("input"))
-    result = ls.accounting(forest, thresholds=(50, 250, 1000, 5000, 20000))
-    names = {k: v for k, v in ls.ACCOUNTING_CLASSES.items() if k not in (105, 176, 80)}
+    forest = tf.load_raster(tf.example_data("input"))
+    result = tf.accounting(forest, thresholds=(50, 250, 1000, 5000, 20000))
+    names = {k: v for k, v in tf.ACCOUNTING_CLASSES.items() if k not in (105, 176, 80)}
     fig, ax = plt.subplots(figsize=(6, 4.6))
-    palette_map(ax, result.classes.values, ls.accounting_colormap(), names, "Objects by size class", by_label=True)
+    palette_map(ax, result.classes.values, tf.accounting_colormap(), names, "Objects by size class", by_label=True)
     save(fig, "patterns_accounting")
 
 
@@ -131,7 +131,7 @@ FAD_LEGEND = [(5, "Rare (< 10%)"), (25, "Patchy (10-40%)"), (50, "Transitional (
 
 
 def fad_legend(ax):
-    cm = ls.fad_colormap()
+    cm = tf.fad_colormap()
     handles = [Patch(color=np.array(cm[v]) / 255, label=label) for v, label in FAD_LEGEND]
     ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
 
@@ -140,27 +140,27 @@ def landcover3():
     """The CORINE example as 1 agriculture, 2 natural, 3 developed (0: water, wetlands)."""
     import xarray as xr
 
-    clc = ls.load_raster(ls.example_data("clc"))
+    clc = tf.load_raster(tf.example_data("clc"))
     return xr.where(clc <= 11, 3, xr.where(clc <= 22, 1, xr.where(clc <= 34, 2, 0))).astype("uint8")
 
 
 @figure
 def frag_fad():
-    forest = ls.load_raster(ls.example_data("input"))
-    result = ls.fad(forest, window_size=27)
+    forest = tf.load_raster(tf.example_data("input"))
+    result = tf.fad(forest, window_size=27)
     fig, ax = plt.subplots(figsize=(6, 4.6))
-    palette_map(ax, result.density.values, ls.fad_colormap(), None, "Forest area density, 27 x 27 window")
+    palette_map(ax, result.density.values, tf.fad_colormap(), None, "Forest area density, 27 x 27 window")
     fad_legend(ax)
     save(fig, "frag_fad")
 
 
 @figure
 def frag_scales():
-    forest = ls.load_raster(ls.example_data("input"))
-    result = ls.fad_multiscale(forest, window_sizes=(7, 27, 243))
+    forest = tf.load_raster(tf.example_data("input"))
+    result = tf.fad_multiscale(forest, window_sizes=(7, 27, 243))
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
     for ax, w in zip(axes, (7, 27, 243)):
-        palette_map(ax, result.single_scales[w].values, ls.fad_colormap(), None, f"window {w} x {w}")
+        palette_map(ax, result.single_scales[w].values, tf.fad_colormap(), None, f"window {w} x {w}")
     fad_legend(axes[-1])
     save(fig, "frag_scales")
 
@@ -168,23 +168,23 @@ def frag_scales():
 @figure
 def frag_mosaic():
     lc = landcover3()
-    lm = ls.landscape_mosaic(lc, window_size=27)
+    lm = tf.landscape_mosaic(lc, window_size=27)
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.4))
     palette_map(axes[0], lc.values, {0: (60, 120, 220, 255), 1: (240, 210, 110, 255), 2: (21, 128, 61, 255),
                                      3: (200, 40, 40, 255)},
                 {0: "water / wetland", 1: "agriculture", 2: "natural", 3: "developed"}, "Land cover (3 classes)")
-    palette_map(axes[1], lm.values, ls.lm_colormap(), ls.LM19_CLASSES, "Landscape mosaic, 27 x 27")
+    palette_map(axes[1], lm.values, tf.lm_colormap(), tf.LM19_CLASSES, "Landscape mosaic, 27 x 27")
     fig.subplots_adjust(wspace=0.55)
     save(fig, "frag_mosaic")
 
 
 def clc_crop():
-    return ls.load_raster(ls.example_data("clc"))[:600, :600]
+    return tf.load_raster(tf.example_data("clc"))[:600, :600]
 
 
 @figure
 def lsm_patches():
-    lc = ls.Landscape(clc_crop())
+    lc = tf.Landscape(clc_crop())
     fig = lc.show_lsm("shape")
     fig.set_size_inches(6, 5)
     save(fig, "lsm_shape")
@@ -192,8 +192,8 @@ def lsm_patches():
 
 @figure
 def lsm_window():
-    landcover = ls.load_raster(ls.example_data("clc"))[:800, :800]
-    maps = ls.window_metrics(landcover, window=41, what=["lsm_l_shdi"])
+    landcover = tf.load_raster(tf.example_data("clc"))[:800, :800]
+    maps = tf.window_metrics(landcover, window=41, what=["lsm_l_shdi"])
     fig, ax = plt.subplots(figsize=(5.8, 4.6))
     im = ax.imshow(maps["shdi"].values, cmap="viridis", interpolation="nearest")
     fig.colorbar(im, ax=ax, label="Shannon diversity (41 x 41 window)")
@@ -204,9 +204,9 @@ def lsm_window():
 
 @figure
 def lsm_zonal():
-    landcover = ls.load_raster(ls.example_data("clc"))
-    zones = ls.grid_zones(landcover, 5000)
-    table = ls.zonal_metrics(landcover, zones, level="landscape", metric=["shdi"])
+    landcover = tf.load_raster(tf.example_data("clc"))
+    zones = tf.grid_zones(landcover, 5000)
+    table = tf.zonal_metrics(landcover, zones, level="landscape", metric=["shdi"])
     fig, ax = plt.subplots(figsize=(5.8, 4.6))
     table.plot(column="shdi", cmap="viridis", legend=True, ax=ax, edgecolor="white", linewidth=0.3,
                legend_kwds={"label": "Shannon diversity per 5 km cell"})
@@ -217,8 +217,8 @@ def lsm_zonal():
 
 @figure
 def net_importance():
-    landcover = ls.load_raster(ls.example_data("clc"))
-    g = ls.HabitatGraph.from_raster(landcover, habitat=[23, 24, 25], area_unit="ha", distance="edge",
+    landcover = tf.load_raster(tf.example_data("clc"))
+    g = tf.HabitatGraph.from_raster(landcover, habitat=[23, 24, 25], area_unit="ha", distance="edge",
                                     max_distance=5000, landscape_area=landcover.size * 25 * 25 / 1e4)
     comp = g.components(distance=1000).rename("component").reset_index()
     imp = g.node_importance("PC", distance=1000, probability=0.5)
@@ -254,7 +254,7 @@ def circ_omniscape():
     from matplotlib.colors import LogNorm
 
     resistance = resistance_map()
-    flow = ls.omniscape(resistance, radius=30, block_size=5, flow_potential=True, normalized_current=True)
+    flow = tf.omniscape(resistance, radius=30, block_size=5, flow_potential=True, normalized_current=True)
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.3))
     im = axes[0].imshow(resistance.values, cmap="magma_r", norm=LogNorm(1, 200), interpolation="nearest")
     fig.colorbar(im, ax=axes[0], fraction=0.046, label="resistance")
@@ -273,7 +273,7 @@ def circ_omniscape():
 @figure
 def circ_pairwise():
     from matplotlib.colors import LogNorm
-    from landschaft import circuit
+    from terraflux import circuit
 
     resistance = resistance_map()
     points = np.zeros(resistance.shape)
@@ -293,8 +293,8 @@ def circ_pairwise():
 
 
 def two_objects():
-    forest = ls.load_raster(ls.example_data("input"))
-    acc = ls.accounting(forest)
+    forest = tf.load_raster(tf.example_data("input"))
+    acc = tf.accounting(forest)
     ids = acc.ids.values
     marker = np.zeros(forest.shape, dtype="uint8")
     marker[ids == acc.largest[0][0]] = 1
@@ -305,8 +305,8 @@ def two_objects():
 
 @figure
 def dist_distance():
-    forest = ls.load_raster(ls.example_data("input"))
-    d = ls.euclidean_distance(forest, pixel_size=25)
+    forest = tf.load_raster(tf.example_data("input"))
+    d = tf.euclidean_distance(forest, pixel_size=25)
     fig, ax = plt.subplots(figsize=(6, 4.8))
     v = np.asarray(d.signed_distance, dtype=float)
     lim = np.nanpercentile(np.abs(v), 99)
@@ -320,8 +320,8 @@ def dist_distance():
 @figure
 def dist_isochrone():
     forest, marker = two_objects()
-    resistance = ls.distance_to_resistance(forest)
-    iso = ls.isochrone_map_ab(resistance, marker)
+    resistance = tf.distance_to_resistance(forest)
+    iso = tf.isochrone_map_ab(resistance, marker)
     cost = np.asarray(iso.cost, dtype=float)
     cost = np.where(cost > 0, cost, np.nan)
     fig, ax = plt.subplots(figsize=(6, 4.8))
@@ -337,7 +337,7 @@ def dist_isochrone():
 
 
 def two_dates():
-    before = ls.load_raster(ls.example_data("input"))
+    before = tf.load_raster(tf.example_data("input"))
     after = before.copy()
     v = after.values
     v[600:700, 100:260] = np.where(v[600:700, 100:260] == 2, 1, v[600:700, 100:260])
@@ -349,18 +349,18 @@ def two_dates():
 @figure
 def change_maps():
     before, after = two_dates()
-    simple = ls.simple_change(before, after)
-    mcd = ls.morphological_change(before, after)
+    simple = tf.simple_change(before, after)
+    mcd = tf.morphological_change(before, after)
     names = {11: "stable background", 12: "gain", 21: "loss", 22: "stable habitat", 176: "spurious (boundary)",
              0: "missing", 129: "missing"}
-    cm = ls.change_colormap()
+    cm = tf.change_colormap()
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.4))
     palette_map(axes[0], np.asarray(simple.change_map)[200:950, 50:650], cm, None, "Simple change")
     palette_map(axes[1], np.asarray(mcd.change_map)[200:950, 50:650], cm, names, "Morphological change")
     save(fig, "change_maps")
 
 
-# Timings of docs/benchmarks.md: (task, reference tool, original [s], landschaft [s]).
+# Timings of docs/benchmarks.md: (task, reference tool, original [s], terraflux [s]).
 BENCHMARKS = [
     ("MSPA, CORINE 2000×2000", "GuidosToolbox", 1.30, 0.078),
     ("All 133 landscape metrics", "landscapemetrics", 15.6, 0.03),
@@ -423,11 +423,11 @@ def coarsen_habitat(habitat, k):
 
 @figure
 def learn_grain():
-    forest = ls.load_raster(ls.example_data("input")).values
+    forest = tf.load_raster(tf.example_data("input")).values
     fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.7))
     for ax, k in zip(axes, (1, 4, 16)):
         coarse = coarsen_habitat(forest, k)
-        n = ls.Landscape(coarse, res=25 * k).class_metrics(["np"]).set_index("class").loc[2, "np"]
+        n = tf.Landscape(coarse, res=25 * k).class_metrics(["np"]).set_index("class").loc[2, "np"]
         palette_map(ax, coarse, BINARY, None, f"{25 * k} m cells: {n:,.0f} forest patches")
     save(fig, "learn_grain")
 
@@ -448,7 +448,7 @@ def learn_percolation():
         lpi = []
         for p in amounts:
             random_map = np.where(rng.random((300, 300)) < p, 2, 1).astype("uint8")
-            table = ls.Landscape(random_map, directions=directions).class_metrics(["lpi"]).set_index("class")
+            table = tf.Landscape(random_map, directions=directions).class_metrics(["lpi"]).set_index("class")
             lpi.append(table.loc[2, "lpi"])
         ax.plot(100 * amounts, lpi, color=colours[directions], lw=2, marker="o", ms=3.5,
                 label=f"{directions} neighbours")
@@ -487,13 +487,13 @@ def mspa_toy():
 @figure
 def learn_mspa_toy():
     toy = mspa_toy()
-    morph = ls.mspa(toy, edge_width=1, internal=False)
+    morph = tf.mspa(toy, edge_width=1, internal=False)
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.4))
     palette_map(axes[0], toy, BINARY, None, "Habitat map")
     for text, (row, col) in {"A": (8.5, 7.5), "B": (15.5, 30)}.items():
         axes[0].text(col, row, text, ha="center", va="center", fontsize=9, color="white", fontweight="bold")
-    names = {code: name for code, name in ls.MSPA_CLASSES.items() if code in (0, 1, 3, 5, 9, 17, 33, 65)}
-    palette_map(axes[1], morph, ls.mspa_colormap(), names, "MSPA classes, edge_width=1")
+    names = {code: name for code, name in tf.MSPA_CLASSES.items() if code in (0, 1, 3, 5, 9, 17, 33, 65)}
+    palette_map(axes[1], morph, tf.mspa_colormap(), names, "MSPA classes, edge_width=1")
     save(fig, "learn_mspa_toy")
 
 
@@ -502,7 +502,7 @@ def learn_cost_distance():
     from matplotlib.colors import LogNorm
     from scipy import ndimage
 
-    landcover = ls.load_raster(ls.example_data("clc"))[:800, :800]
+    landcover = tf.load_raster(tf.example_data("clc"))[:800, :800]
     table = {}
     table.update({c: 50.0 for c in range(1, 12)})
     table.update({c: 10.0 for c in range(12, 23)})
@@ -511,7 +511,7 @@ def learn_cost_distance():
     resistance = np.vectorize(table.get)(landcover.values).astype(float)
     forest = np.isin(landcover.values, [23, 24, 25])
     euclidean_km = ndimage.distance_transform_edt(~forest) * 25 / 1000
-    cost_km = np.asarray(ls.cost_distance(resistance, forest)) * 25 / 1000
+    cost_km = np.asarray(tf.cost_distance(resistance, forest)) * 25 / 1000
     fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.3))
     panels = [(euclidean_km, "Straight-line distance to forest (km)", None),
               (cost_km, "Cost distance to forest (km-equivalents, log scale)", LogNorm(0.1, cost_km.max()))]
@@ -529,7 +529,7 @@ def learn_cost_distance():
 def learn_circuit_gaps():
     from matplotlib.colors import LogNorm, TwoSlopeNorm
 
-    from landschaft import circuit
+    from terraflux import circuit
 
     resistance = np.ones((60, 100))
     resistance[:, 48:52] = np.nan
@@ -539,9 +539,9 @@ def learn_circuit_gaps():
     points[25:35, 5] = 1
     points[25:35, 94] = 2
     current = np.asarray(circuit.circuitscape_pairwise(resistance, points, cum_map=True).cum_current)
-    path = np.asarray(ls.least_cost_path(np.where(np.isnan(resistance), 0, resistance),
+    path = np.asarray(tf.least_cost_path(np.where(np.isnan(resistance), 0, resistance),
                                          points == 1, points == 2).lcp_mask)
-    omni = ls.omniscape(resistance, radius=15, block_size=1, flow_potential=True, normalized_current=True)
+    omni = tf.omniscape(resistance, radius=15, block_size=1, flow_potential=True, normalized_current=True)
     normalised = np.asarray(omni["normalized_cum_currmap"])
 
     wall = np.ma.masked_where(~np.isnan(resistance), np.ones(resistance.shape))
@@ -592,18 +592,18 @@ def learn_processes():
 
 def nlm_models():
     return {
-        "random": ls.nlm.random(200, 200, seed=1),
-        "planar gradient": ls.nlm.planar_gradient(200, 200, direction=60),
-        "edge gradient": ls.nlm.edge_gradient(200, 200, direction=60),
-        "distance gradient": ls.nlm.distance_gradient(200, 200, origin=(90, 110, 90, 110), nlmr_compat=False),
-        "midpoint displacement": ls.nlm.mpd(200, 200, roughness=0.6, seed=2, nlmr_compat=False),
-        "fractional Brownian motion": ls.nlm.fbm(200, 200, fract_dim=1.4, seed=3),
-        "Gaussian field": ls.nlm.gaussian_field(200, 200, autocorr_range=20, seed=4),
-        "random clusters": ls.nlm.random_cluster(200, 200, p=0.55, ai=[0.3, 0.3, 0.4], seed=5),
-        "neighbourhood clusters": ls.nlm.neigh(200, 200, p_neigh=0.95, p_empty=0.002, categories=4, seed=6),
-        "rectangular clusters": ls.nlm.random_rectangular_cluster(200, 200, minl=5, maxl=30, seed=7),
-        "Voronoi mosaic": ls.nlm.mosaic_tess(200, 200, germs=60, seed=8),
-        "Poisson line mosaic": ls.nlm.mosaic_field(200, 200, n=20, seed=9),
+        "random": tf.nlm.random(200, 200, seed=1),
+        "planar gradient": tf.nlm.planar_gradient(200, 200, direction=60),
+        "edge gradient": tf.nlm.edge_gradient(200, 200, direction=60),
+        "distance gradient": tf.nlm.distance_gradient(200, 200, origin=(90, 110, 90, 110), nlmr_compat=False),
+        "midpoint displacement": tf.nlm.mpd(200, 200, roughness=0.6, seed=2, nlmr_compat=False),
+        "fractional Brownian motion": tf.nlm.fbm(200, 200, fract_dim=1.4, seed=3),
+        "Gaussian field": tf.nlm.gaussian_field(200, 200, autocorr_range=20, seed=4),
+        "random clusters": tf.nlm.random_cluster(200, 200, p=0.55, ai=[0.3, 0.3, 0.4], seed=5),
+        "neighbourhood clusters": tf.nlm.neigh(200, 200, p_neigh=0.95, p_empty=0.002, categories=4, seed=6),
+        "rectangular clusters": tf.nlm.random_rectangular_cluster(200, 200, minl=5, maxl=30, seed=7),
+        "Voronoi mosaic": tf.nlm.mosaic_tess(200, 200, germs=60, seed=8),
+        "Poisson line mosaic": tf.nlm.mosaic_field(200, 200, n=20, seed=9),
     }
 
 
@@ -619,8 +619,8 @@ def nlm_gallery():
 
 @figure
 def nlm_binarize():
-    surface = ls.nlm.fbm(200, 200, fract_dim=1.6, seed=3)
-    maps = ls.nlm.binarize(surface, [0.2, 0.4, 0.6])
+    surface = tf.nlm.fbm(200, 200, fract_dim=1.6, seed=3)
+    maps = tf.nlm.binarize(surface, [0.2, 0.4, 0.6])
     fig, axes = plt.subplots(1, 4, figsize=(12, 3.2))
     axes[0].imshow(surface.values, cmap="viridis", interpolation="nearest")
     axes[0].set_title("fractal surface")
@@ -632,17 +632,17 @@ def nlm_binarize():
 
 @figure
 def nlm_null():
-    forest = ls.load_raster(ls.example_data("input")).values[:250, :250]
+    forest = tf.load_raster(tf.example_data("input")).values[:250, :250]
     habitat = np.where(forest == 2, 2, 1)
     share = float((habitat == 2).mean())
 
     def aggregation(m):
-        table = ls.landscape_metrics(np.asarray(m), level="class", metric="ai")
+        table = tf.landscape_metrics(np.asarray(m), level="class", metric="ai")
         return float(table.loc[table["class"] == 2, "value"].iloc[0])
 
     observed = aggregation(habitat)
-    random_ai = [aggregation(ls.nlm.binarize(ls.nlm.random(250, 250, seed=s), share)) for s in range(1, 100)]
-    fractal_ai = [aggregation(ls.nlm.binarize(ls.nlm.fbm(250, 250, fract_dim=1.5, seed=s), share))
+    random_ai = [aggregation(tf.nlm.binarize(tf.nlm.random(250, 250, seed=s), share)) for s in range(1, 100)]
+    fractal_ai = [aggregation(tf.nlm.binarize(tf.nlm.fbm(250, 250, fract_dim=1.5, seed=s), share))
                   for s in range(1, 100)]
     fig, ax = plt.subplots(figsize=(7, 3.2))
     bins = np.linspace(min(random_ai + fractal_ai + [observed]) - 1, max(random_ai + fractal_ai + [observed]) + 1, 60)
@@ -661,13 +661,13 @@ _BIO: dict = {}
 def bio_run():
     """The tutorial's analysis of Biodiverse's example data."""
     if not _BIO:
-        bd = ls.bio.BaseData.from_table(ls.bio.example_data("sites"), group_columns=["x", "y"],
+        bd = tf.bio.BaseData.from_table(tf.bio.example_data("sites"), group_columns=["x", "y"],
                                         label_columns=["genus", "species"], cell_sizes=[100000, 100000])
-        tree = ls.bio.read_tree(ls.bio.example_data("tree"))
-        res = ls.bio.spatial_analysis(bd, "sp_circle (radius => 200000)",
+        tree = tf.bio.read_tree(tf.bio.example_data("tree"))
+        res = tf.bio.spatial_analysis(bd, "sp_circle (radius => 200000)",
                                       ["richness", "endemism_whole", "endemism_whole_lists", "pd", "pe", "phylo_rpe2"],
                                       tree=tree)
-        rnd = ls.bio.randomise(res, "rand_structured", iterations=999, seed=2024)
+        rnd = tf.bio.randomise(res, "rand_structured", iterations=999, seed=2024)
         _BIO.update(bd=bd, tree=tree, res=res, rnd=rnd)
     return _BIO
 
@@ -724,7 +724,7 @@ def bio_canape():
 @figure
 def bio_clusters():
     run = bio_run()
-    cl = ls.bio.cluster(run["bd"], "SORENSON", "link_average", prng_seed=1)
+    cl = tf.bio.cluster(run["bd"], "SORENSON", "link_average", prng_seed=1)
     groups = cl.cut(5)
     fig, ax = plt.subplots(figsize=(5, 4))
     cmap = ListedColormap(["#0d9488", "#f59e0b", "#6366f1", "#e11d48", "#65a30d"])
@@ -738,10 +738,10 @@ _COST: dict = {}
 def cost_hiking_run():
     """The tutorial's hiking example on the Maungawhau volcano."""
     if not _COST:
-        dem = ls.load_raster(ls.cost.example_data("maungawhau"))
-        slope = ls.cost.geo_correction(ls.cost.transition(dem, "diff", 8, symmetric=False))
+        dem = tf.load_raster(tf.cost.example_data("maungawhau"))
+        slope = tf.cost.geo_correction(tf.cost.transition(dem, "diff", 8, symmetric=False))
         speed = slope.map(lambda s: 6 * np.exp(-3.5 * np.abs(s + 0.05)) / 3.6, pairs="all")
-        conductance = ls.cost.geo_correction(speed)
+        conductance = tf.cost.geo_correction(speed)
         A, B = (2667670, 6479000), (2667800, 6479400)
         _COST.update(dem=dem, conductance=conductance, A=A, B=B)
     return _COST
@@ -757,9 +757,9 @@ def _cost_extent(da):
 def cost_hiking():
     run = cost_hiking_run()
     dem, cond, A, B = run["dem"], run["conductance"], run["A"], run["B"]
-    minutes = np.asarray(ls.cost.acc_cost(cond, A)) / 60
-    there = ls.cost.shortest_path(cond, A, B, output="lines").geometry.iloc[0]
-    back = ls.cost.shortest_path(cond, B, A, output="lines").geometry.iloc[0]
+    minutes = np.asarray(tf.cost.acc_cost(cond, A)) / 60
+    there = tf.cost.shortest_path(cond, A, B, output="lines").geometry.iloc[0]
+    back = tf.cost.shortest_path(cond, B, A, output="lines").geometry.iloc[0]
     ext = _cost_extent(dem)
     fig, axes = plt.subplots(1, 2, figsize=(9.5, 5.2))
     im = axes[0].imshow(dem.values, cmap="terrain", extent=ext)
@@ -789,7 +789,7 @@ def cost_theta():
     ext = _cost_extent(dem)
     fig, axes = plt.subplots(1, 4, figsize=(12, 4))
     for ax, theta in zip(axes, (0, 0.001, 0.01, 1)):
-        p = np.asarray(ls.cost.passage(cond, A, B, theta=theta))
+        p = np.asarray(tf.cost.passage(cond, A, B, theta=theta))
         ax.imshow(np.log10(np.clip(p, 1e-4, None)), cmap="viridis", vmin=-4, vmax=0, extent=ext)
         ax.contour(dem.values, levels=np.arange(100, 200, 20), colors="w", linewidths=0.3, extent=ext,
                    origin="upper")
@@ -806,18 +806,18 @@ def cost_theta():
 def cost_europe():
     import pandas as pd
 
-    europe = ls.load_raster(ls.cost.example_data("europe"))
-    pops = pd.read_csv(ls.cost.example_data("pop_coord"))
-    genetic = pd.read_csv(ls.cost.example_data("gen_dist"), index_col="population")
-    walk = ls.cost.geo_correction(ls.cost.transition(europe, "mean", 16), "r", scale=True)
+    europe = tf.load_raster(tf.cost.example_data("europe"))
+    pops = pd.read_csv(tf.cost.example_data("pop_coord"))
+    genetic = pd.read_csv(tf.cost.example_data("gen_dist"), index_col="population")
+    walk = tf.cost.geo_correction(tf.cost.transition(europe, "mean", 16), "r", scale=True)
     xy = pops[["x", "y"]].to_numpy()
     origin = (37.0, 39.0)
-    routes = ls.cost.path_inc(walk, origin, xy)
-    coast = ls.cost.geo_correction(ls.cost.transition(europe, "mean", 16), "c")
-    least = ls.cost.cost_distance(coast, xy)
+    routes = tf.cost.path_inc(walk, origin, xy)
+    coast = tf.cost.geo_correction(tf.cost.transition(europe, "mean", 16), "c")
+    least = tf.cost.cost_distance(coast, xy)
     pairs = np.triu_indices(len(pops), 1)
     g = genetic.loc[pops["population"], pops["population"]].to_numpy()[pairs]
-    passages = np.asarray(ls.cost.passage(walk, origin, xy[0]))
+    passages = np.asarray(tf.cost.passage(walk, origin, xy[0]))
     fig, axes = plt.subplots(1, 3, figsize=(13, 3.8), gridspec_kw={"width_ratios": [1.3, 1, 1]})
     ext = _cost_extent(europe)
     land = np.where(np.isnan(europe.values.astype(float)) | (europe.values == 0), np.nan, 1.0)
@@ -840,14 +840,14 @@ def cost_europe():
 
 
 def _surface(name: str):
-    return ls.load_raster(ls.surface.example_data(name))
+    return tf.load_raster(tf.surface.example_data(name))
 
 
 @figure
 def surf_texture():
     ndvi = _surface("orforest")
-    z = ls.surface.remove_plane(ndvi)
-    tex = ls.surface.window_metrics(z, ["sa", "sku"], window=9)
+    z = tf.surface.remove_plane(ndvi)
+    tex = tf.surface.window_metrics(z, ["sa", "sku"], window=9)
     fig, axes = plt.subplots(1, 4, figsize=(13, 3.6))
     panels = [(ndvi.values, "NDVI", "YlGn", None), (z.values, "residuals from the trend", "RdBu", "sym"),
               (tex["sa"].values, "Sa, 9 x 9 windows", "magma", None),
@@ -868,8 +868,8 @@ def surf_texture():
 
 @figure
 def surf_bearing():
-    z = ls.surface.remove_plane(_surface("orforest"))
-    curve = ls.surface.bearing_area(z)
+    z = tf.surface.remove_plane(_surface("orforest"))
+    curve = tf.surface.bearing_area(z)
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
     v = z.values[~np.isnan(z.values)]
     axes[0].hist(v, bins=80, color="#15803d")
@@ -878,8 +878,8 @@ def surf_bearing():
     axes[0].spines[["top", "right"]].set_visible(False)
     ax = axes[1]
     ax.plot(curve["bearing"] * 100, curve["height"], color="#0f172a", lw=1.5)
-    h = ls.surface.height_ba(z, [0, 0.05, 0.8, 1])
-    sk, spk, svk = (ls.surface.metrics(z, ["sk", "spk", "svk"])[k] for k in ("sk", "spk", "svk"))
+    h = tf.surface.height_ba(z, [0, 0.05, 0.8, 1])
+    sk, spk, svk = (tf.surface.metrics(z, ["sk", "spk", "svk"])[k] for k in ("sk", "spk", "svk"))
     ax.axvspan(80, 100, color="#bfdbfe", alpha=0.6, label="valley zone (Svi)")
     ax.axhline(h[1], color="#f97316", ls="--", lw=1, label="height at 5 % (Sbi)")
     ax.set_xlabel("bearing: share of the surface at or above (%)")
@@ -894,9 +894,9 @@ def surf_bearing():
 @figure
 def surf_terrain():
     dem = _surface("orelevation")
-    slope = ls.surface.terrain(dem, "slope")
-    tpi = ls.surface.tpi(dem, 15)
-    hli = ls.surface.hli(ls.surface.terrain(dem, "aspect"), slope, scaled=True)
+    slope = tf.surface.terrain(dem, "slope")
+    tpi = tf.surface.tpi(dem, 15)
+    hli = tf.surface.hli(tf.surface.terrain(dem, "aspect"), slope, scaled=True)
     fig, axes = plt.subplots(1, 4, figsize=(13, 3.6))
     panels = [(dem.values, "elevation (m)", "terrain", None), (slope.values, "slope (degrees)", "YlOrBr", None),
               (tpi.values, "TPI, 15 x 15 (m)", "RdBu_r", "sym"), (hli.values, "heat load index", "inferno", None)]
@@ -924,7 +924,7 @@ def learn_threshold():
         palette_map(ax, np.where(ndvi >= t, 2, 1).astype("uint8"), BINARY, None, f"NDVI ≥ {t:.2f}")
     ax = fig.add_subplot(grid[0, 3])
     thresholds = np.round(np.arange(0.50, 0.82, 0.01), 2)
-    n = [int(ls.Landscape(np.where(ndvi >= t, 2, 1).astype("uint8")).class_metrics(["np"]).set_index("class").loc[2, "np"])
+    n = [int(tf.Landscape(np.where(ndvi >= t, 2, 1).astype("uint8")).class_metrics(["np"]).set_index("class").loc[2, "np"])
          if (ndvi >= t).any() else 0 for t in thresholds]
     ax.plot(thresholds, n, color="#15803d", lw=2, marker="o", ms=3)
     ax.set_xlabel("NDVI threshold for habitat")
@@ -940,14 +940,14 @@ def learn_threshold():
 
 @figure
 def learn_aacf():
-    field = ls.nlm.gaussian_field(120, 120, autocorr_range=15, seed=1)
+    field = tf.nlm.gaussian_field(120, 120, autocorr_range=15, seed=1)
     x = np.arange(120)
     ridges = np.sin(2 * np.pi * x / 12)[None, :] + 0.3 * field.values
     fig, axes = plt.subplots(1, 4, figsize=(12, 3.3))
     for col, (name, s) in enumerate((("isotropic field", field.values), ("ridges", ridges))):
         axes[2 * col].imshow(s, cmap="viridis")
         axes[2 * col].set_title(name)
-        a = ls.surface.aacf(s).values
+        a = tf.surface.aacf(s).values
         im = axes[2 * col + 1].imshow(a, cmap="RdBu_r", vmin=-1, vmax=1)
         axes[2 * col + 1].set_title(f"its autocorrelation")
     for ax in axes:
@@ -971,7 +971,7 @@ def prio_share(*codes):
     import xarray as xr  # noqa: F401
 
     if "clc" not in _PRIO:
-        _PRIO["clc"] = ls.load_raster(ls.example_data("clc"))
+        _PRIO["clc"] = tf.load_raster(tf.example_data("clc"))
     clc = _PRIO["clc"]
     return clc.isin(codes).coarsen(x=5, y=5).mean().astype("float32")
 
@@ -993,7 +993,7 @@ def prio_species():
 
 def prio_run(key, **kw):
     if key not in _PRIO:
-        _PRIO[key] = ls.prioritize.zonation(prio_species(), names=PRIO_NAMES, **kw)
+        _PRIO[key] = tf.prioritize.zonation(prio_species(), names=PRIO_NAMES, **kw)
     return _PRIO[key]
 
 
@@ -1065,7 +1065,7 @@ def prio_hotspots():
     sp = prio_species()
     res = prio_run("caz2")
     richness = (sp / sp.sum(dim=("y", "x"))).sum("species")
-    hot = ls.prioritize.zonation(sp, names=PRIO_NAMES, rule="LOAD", solution=richness)
+    hot = tf.prioritize.zonation(sp, names=PRIO_NAMES, rule="LOAD", solution=richness)
 
     def kept(r, best):
         fc = r.feature_curves
@@ -1092,11 +1092,11 @@ def prio_hotspots():
 def prio_cost_mask():
     sp = prio_species()
     towns = prio_share(*range(1, 12))
-    near = ls.prioritize.convolve(towns.values, ls.prioritize.Kernel("gaussian", 8, cut=3))
+    near = tf.prioritize.convolve(towns.values, tf.prioritize.Kernel("gaussian", 8, cut=3))
     cost = towns.copy(data=(1 + 20 * near).astype("float32"))
-    cheap = ls.prioritize.zonation(sp, names=PRIO_NAMES, cost=cost)
+    cheap = tf.prioritize.zonation(sp, names=PRIO_NAMES, cost=cost)
     reserves = (prio_share(36) > 0.5).astype("uint8")
-    prot = ls.prioritize.zonation(sp, names=PRIO_NAMES, hierarchic_mask=reserves)
+    prot = tf.prioritize.zonation(sp, names=PRIO_NAMES, hierarchic_mask=reserves)
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.4))
     im = axes[0].imshow(cost.values, cmap="magma_r", interpolation="nearest")
     axes[0].set_title("Cost (higher near towns)")
@@ -1112,7 +1112,7 @@ def prio_cost_mask():
 @figure
 def prio_connectivity():
     res = prio_run("caz2")
-    kernels = [ls.prioritize.Kernel("negexp", d) for d in (4, 4, 1, 8, 2, 4, 8, 16)]
+    kernels = [tf.prioritize.Kernel("negexp", d) for d in (4, 4, 1, 8, 2, 4, 8, 16)]
     con = prio_run("conn", connectivity=kernels)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.8))
     best_map(axes[0], res.rank, 0.1, "Best 10 %, features as mapped")
@@ -1154,7 +1154,7 @@ def learn_prio_curves():
     share = prio_share
     names = ["forest_bird", "mire_plant", "grassland_butterfly", "farmland_bird"]
     sp = xr.concat([share(23, 24, 25), share(35, 36), share(18, 26), share(20, 21) + 0.3 * share(12)], dim="species")
-    res = ls.prioritize.zonation(sp, names=names, connectivity=[ls.prioritize.Kernel("negexp", 4)] * 4)
+    res = tf.prioritize.zonation(sp, names=names, connectivity=[tf.prioritize.Kernel("negexp", 4)] * 4)
     fig, (a, b) = plt.subplots(1, 2, figsize=(12, 4.8), gridspec_kw={"width_ratios": [1, 1.25]})
     rank_map(a, res.rank, "Rank of four species")
     rank_legend(a)
@@ -1174,8 +1174,8 @@ SDM_TEMPS = ["bio1", "bio5", "bio6", "bio8", "bio9"]
 def sdm_inputs():
     """The Bradypus records and the bioclimatic predictors."""
     if "env" not in _SDM:
-        _SDM["occ"] = ls.load_table(ls.sdm.example_data("bradypus"))
-        _SDM["env"] = ls.load_raster(ls.sdm.example_data("bioclim"))
+        _SDM["occ"] = tf.load_table(tf.sdm.example_data("bradypus"))
+        _SDM["env"] = tf.load_raster(tf.sdm.example_data("bioclim"))
     return _SDM["occ"], _SDM["env"]
 
 
@@ -1230,7 +1230,7 @@ def sdm_tutorial():
         )
 
         occ, env = sdm_inputs()
-        data = ls.sdm.prepare(occ, env, background=5000)
+        data = tf.sdm.prepare(occ, env, background=5000)
         careful = data.redo(thin=50_000, area=500_000, predictors=5, background=2000,
                             folds={"size": 500_000, "k": 5})
         models = {
@@ -1239,10 +1239,10 @@ def sdm_tutorial():
             "brt": HistGradientBoostingClassifier(learning_rate=0.02, max_iter=200, max_depth=2,
                                                   min_samples_leaf=20, random_state=1),
         }
-        res = ls.sdm.fit(careful, models)
-        suit = ls.sdm.predict(res, env)
-        at = ls.extract(suit.sel(band="ensemble"), careful.coords)["suitability"].to_numpy()
-        t = ls.sdm.threshold(at[careful.y == 1], at[careful.y == 0])
+        res = tf.sdm.fit(careful, models)
+        suit = tf.sdm.predict(res, env)
+        at = tf.extract(suit.sel(band="ensemble"), careful.coords)["suitability"].to_numpy()
+        t = tf.sdm.threshold(at[careful.y == 1], at[careful.y == 0])
         _SDM.update(data=data, careful=careful, res=res, suit=suit, threshold=t)
     return _SDM
 
@@ -1289,9 +1289,9 @@ def sdm_folds_map(ax, data, env, title, random=False):
 @figure
 def learn_sdm_folds():
     occ, env = sdm_inputs()
-    data = ls.sdm.prepare(occ, env, background=2000)
+    data = tf.sdm.prepare(occ, env, background=2000)
     fig, axes = plt.subplots(1, 2, figsize=(11, 5.6))
-    sdm_folds_map(axes[0], ls.sdm.random_folds(data, 5, seed=1), env, "Random folds", random=True)
+    sdm_folds_map(axes[0], tf.sdm.random_folds(data, 5, seed=1), env, "Random folds", random=True)
     sdm_folds_map(axes[1], data, env, "Spatial blocks (presences and background)")
     fig.tight_layout()
     save(fig, "learn_sdm_folds")
@@ -1302,11 +1302,11 @@ def learn_sdm_mess():
     from matplotlib.colors import TwoSlopeNorm
 
     occ, env = sdm_inputs()
-    data = ls.sdm.prepare(occ, env, background=2000)
+    data = tf.sdm.prepare(occ, env, background=2000)
     full = (-125.5, -31.5, -56.5, 40.5)
     fig, axes = plt.subplots(1, 2, figsize=(11, 5.8))
     for ax, clim, title in ((axes[0], env, "MESS, present climate"), (axes[1], sdm_warmer(env), "MESS, 2 °C warmer")):
-        m = ls.sdm.mess(data, clim.sel(band=data.predictors)).sel(band="mess")
+        m = tf.sdm.mess(data, clim.sel(band=data.predictors)).sel(band="mess")
         sdm_base(ax, env, f"{title}: {int((m < 0).sum())} novel cells", window=full)
         im = ax.imshow(np.asarray(m.values, dtype=float), extent=sdm_extent(m), interpolation="nearest",
                        cmap="RdBu", norm=TwoSlopeNorm(0, -15, 100))
@@ -1320,9 +1320,9 @@ def learn_sdm_mess():
 @figure
 def sdm_clean():
     _, env = sdm_inputs()
-    records = ls.load_table(ls.sdm.example_data("acaule"))
+    records = tf.load_table(tf.sdm.example_data("acaule"))
     records["species"] = "Solanum acaule"
-    flags = ls.sdm.clean_occurrences(records, action="flag", countries={"column": "ISO2"})
+    flags = tf.sdm.clean_occurrences(records, action="flag", countries={"column": "ISO2"})
     flags = flags[~flags["flag_invalid"]]
     fig, ax = plt.subplots(figsize=(6.4, 6.2))
     sdm_base(ax, env, "Solanum acaule: records and flags", window=(-85, -35, -45, 5))
@@ -1345,11 +1345,11 @@ def sdm_clean():
 @figure
 def sdm_prepare():
     occ, env = sdm_inputs()
-    occ1 = ls.sdm.one_per_cell(ls.sdm.clean_occurrences(occ), env)
-    occ2 = ls.sdm.thin(occ1, 50_000, seed=1)
-    area = ls.sdm.accessible_area(occ2, distance=500_000)
-    env2 = ls.sdm.select_predictors(env, vif=5, area=area, seed=1)
-    bg = ls.sdm.background(env2, 2000, occ=occ2, area=area, seed=1)
+    occ1 = tf.sdm.one_per_cell(tf.sdm.clean_occurrences(occ), env)
+    occ2 = tf.sdm.thin(occ1, 50_000, seed=1)
+    area = tf.sdm.accessible_area(occ2, distance=500_000)
+    env2 = tf.sdm.select_predictors(env, vif=5, area=area, seed=1)
+    bg = tf.sdm.background(env2, 2000, occ=occ2, area=area, seed=1)
     fig, ax = plt.subplots(figsize=(6.4, 6.2))
     sdm_base(ax, env, "Accessible area, background and records")
     area.boundary.plot(ax=ax, color="#2563eb", lw=1.2)
@@ -1392,7 +1392,7 @@ def sdm_ensemble():
 @figure
 def sdm_response():
     res = sdm_tutorial()["res"]
-    curves = ls.sdm.response_curves(res)
+    curves = tf.sdm.response_curves(res)
     labels = {"bio5": "bio5: max temperature of the warmest month (°C × 10)",
               "bio7": "bio7: annual range of temperature (°C × 10)",
               "bio16": "bio16: rain of the wettest quarter (mm)",
@@ -1434,12 +1434,12 @@ def sdm_future():
     warmer = sdm_warmer(env)
     ens = s["suit"].sel(band="ensemble")
     today = (ens >= t).values
-    later = (ls.sdm.predict(res, warmer).sel(band="ensemble") >= t).values
+    later = (tf.sdm.predict(res, warmer).sel(band="ensemble") >= t).values
     change = np.where(ens.notnull().values, 1.0, np.nan)
     change[today & later] = 2
     change[today & ~later] = 3
     change[~today & later] = 4
-    mess = ls.sdm.mess(careful, warmer.sel(band=careful.predictors)).sel(band="mess")
+    mess = tf.sdm.mess(careful, warmer.sel(band=careful.predictors)).sel(band="mess")
     fig, axes = plt.subplots(1, 2, figsize=(11, 5.6))
     sdm_base(axes[0], env, "Suitable today and 2 °C warmer")
     axes[0].imshow(change, extent=sdm_extent(ens), interpolation="nearest",
@@ -1464,17 +1464,17 @@ _SWAT = {}
 def swat_run():
     """The watershed model of the Watershed simulation tutorial (cached)."""
     if not _SWAT:
-        ex = ls.hydro.swat.example_landscape()
-        w = ls.hydro.swat.watershed(ex["dem"], ex["landuse"], ex["soils"], landuse_lookup=ex["landuse_lookup"],
+        ex = tf.hydro.swat.example_landscape()
+        w = tf.hydro.swat.watershed(ex["dem"], ex["landuse"], ex["soils"], landuse_lookup=ex["landuse_lookup"],
                                     soil_lookup=ex["soil_lookup"], soil_table=ex["soil_table"], stream_threshold=1.0,
                                     slope_bands=(15, 35), hru_method="filter", thresholds=(10, 10, 10))
-        wx = ls.hydro.swat.climate(ex["stations"], pcp=ex["pcp"], tmax=ex["tmax"], tmin=ex["tmin"],
+        wx = tf.hydro.swat.climate(ex["stations"], pcp=ex["pcp"], tmax=ex["tmax"], tmin=ex["tmin"],
                                    monthly=ex["monthly"])
-        project = ls.hydro.swat.from_tables(w, wx)
+        project = tf.hydro.swat.from_tables(w, wx)
         project.watershed = w
         tables = {"hru_ls": "aa", "channel_sd": "day"}
-        _SWAT.update(ex=ex, w=w, project=project, swatplus=ls.hydro.swat.run(project, tables=tables),
-                     plant=ls.hydro.swat.run(project, tables=tables, c_factor="plant"))
+        _SWAT.update(ex=ex, w=w, project=project, swatplus=tf.hydro.swat.run(project, tables=tables),
+                     plant=tf.hydro.swat.run(project, tables=tables, c_factor="plant"))
     return _SWAT
 
 
@@ -1482,8 +1482,8 @@ def swat_run():
 def swat_erosion():
     run = swat_run()
     project, ex = run["project"], run["ex"]
-    maps = [(ls.hydro.swat.hru_map(project, "sedyld", result=run["swatplus"]), "C of SWAT+ 62 (default)"),
-            (ls.hydro.swat.hru_map(project, "sedyld", result=run["plant"]), 'c_factor="plant"')]
+    maps = [(tf.hydro.swat.hru_map(project, "sedyld", result=run["swatplus"]), "C of SWAT+ 62 (default)"),
+            (tf.hydro.swat.hru_map(project, "sedyld", result=run["plant"]), 'c_factor="plant"')]
     fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.6))
     palette_map(axes[0], np.nan_to_num(ex["landuse"].values), {0: (255, 255, 255, 255), 1: (34, 120, 60, 255),
                 2: (230, 200, 90, 255)}, None, "land use and channels")
@@ -1503,7 +1503,7 @@ def swat_erosion():
 @figure
 def swat_discharge():
     run = swat_run()
-    q = ls.hydro.swat.reach_discharge(run["project"], result=run["swatplus"])
+    q = tf.hydro.swat.reach_discharge(run["project"], result=run["swatplus"])
     outlet = int(q.mean().idxmax())
     pcp = run["ex"]["pcp"]["valley"]
     fig, ax = plt.subplots(figsize=(10, 3.4))
@@ -1535,14 +1535,14 @@ def move_run():
     if not _MOVE:
         import warnings
 
-        tracks = ls.load_tracks(ls.move.example_data("fishers"))
+        tracks = tf.load_tracks(tf.move.example_data("fishers"))
         tracks = tracks[~tracks.geometry.is_empty]
-        landuse = ls.load_raster(ls.move.example_data("landuse"))
+        landuse = tf.load_raster(tf.move.example_data("landuse"))
         four = tracks[tracks["individual-local-identifier"].isin(["F1", "F2", "M1", "M4"])].to_crs(landuse.rio.crs)
-        bursts = ls.move.filter_min_n_burst(ls.move.resample(four, "30min", "3min"), 3)
+        bursts = tf.move.filter_min_n_burst(tf.move.resample(four, "30min", "3min"), 3)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            ssf = ls.move.random_steps(ls.move.steps(bursts), n_control=10, seed=1)
+            ssf = tf.move.random_steps(tf.move.steps(bursts), n_control=10, seed=1)
         _MOVE.update(four=four, landuse=landuse, ssf=ssf)
     return _MOVE
 

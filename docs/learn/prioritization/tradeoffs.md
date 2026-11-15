@@ -18,7 +18,7 @@ choosing a point on them, and sets of alternative plans that are almost equally 
 
 [Chapter 12.5](spatial.md) showed that a boundary penalty buys compactness with money, and that its value has
 units and must be calibrated. Calibrating means solving the problem for a range of values and choosing one on
-the resulting curve of cost against boundary. `ls.prioritize` offers the two approaches of prioritizr's
+the resulting curve of cost against boundary. `tf.prioritize` offers the two approaches of prioritizr's
 calibration guide (Hanson et al. 2025) and two ways to choose.
 
 ### The blended approach
@@ -27,11 +27,11 @@ Solve with several penalty values; every value gives a plan with some cost and s
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 p = P.problem(cost, features).add_min_set_objective().add_relative_targets(0.3).add_binary_decisions()
 
 cal = P.calibrate_penalty(p.add_highs_solver(gap=0.02), "boundary", values=[0.001, 0.003, 0.01, 0.03])
@@ -185,7 +185,7 @@ table[["step", "cost", "units"]].round(0)
 
 Phased plans cost a little more than a plan made at once for the final target, since early choices can't be
 undone. The steps can also take their input from a land-use simulation: [chapter 14](../simulation.md)'s
-`ls.simulate` changes the landscape between phases, and `protected_cells` passes the protected cells to it as
+`tf.simulate` changes the landscape between phases, and `protected_cells` passes the protected cells to it as
 areas where land use may not change.
 
 !!! success "Key points"

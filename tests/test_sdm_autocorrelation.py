@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.sdm.autocorrelation_range against blockCV::cv_spatial_autocor (automap / gstat)."""
+"""tf.sdm.autocorrelation_range against blockCV::cv_spatial_autocor (automap / gstat)."""
 
 from __future__ import annotations
 

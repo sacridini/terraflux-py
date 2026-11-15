@@ -12,6 +12,7 @@
 // adding zero does not change a double), in parallel over layers and segments of
 // layers; the losses are then summed per cell in layer order. Same bits.
 
+#include "env.hpp"
 #include "prio/prio.hpp"
 #include "prio/vdt.hpp"
 
@@ -74,10 +75,10 @@ int max_threads() {
 }
 
 // Total time of each stage over the iterations, printed to stderr when
-// LANDSCHAFT_PROFILE is set.
+// TERRAFLUX_PROFILE (or LANDSCHAFT_PROFILE) is set.
 class Profile {
   public:
-    Profile() : on_(std::getenv("LANDSCHAFT_PROFILE") != nullptr), last_(Clock::now()) {}
+    Profile() : on_(tfenv::is_set("PROFILE")), last_(Clock::now()) {}
     void operator()(int stage) {
         if (!on_) return;
         const auto now = Clock::now();

@@ -15,9 +15,9 @@ import xarray as xr
 from optimize_reference import result
 from scipy.sparse.csgraph import maximum_flow
 
-import landschaft as ls
-from landschaft import _core
-from landschaft.prioritize._milp_anneal import cut_applies, solve_cut
+import terraflux as tf
+from terraflux import _core
+from terraflux.prioritize._milp_anneal import cut_applies, solve_cut
 
 
 def _cut_value(i, j, cij, cji, s, t, side):
@@ -78,7 +78,7 @@ def _synthetic(side: int, penalty: float = 0.5):
     coords = {"y": np.arange(side)[::-1] + 0.5, "x": np.arange(side) + 0.5}
     feats = xr.DataArray(f, dims=("band", "y", "x"), coords={**coords, "band": [f"f{k}" for k in range(12)]})
     cost = xr.DataArray(rng.uniform(1, 10, (side, side)), dims=("y", "x"), coords=coords)
-    return (ls.prioritize.problem(cost, feats).add_min_set_objective().add_relative_targets(0.3)
+    return (tf.prioritize.problem(cost, feats).add_min_set_objective().add_relative_targets(0.3)
             .add_boundary_penalties(penalty).add_binary_decisions())
 
 

@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 import rasterio
 
-import landschaft as ls
+import terraflux as tf
 import lsm_reference
 import lsm_scenes
 
@@ -28,23 +28,23 @@ def tif(tmp_path):
 class TestWriteTable:
     def test_csv_and_parquet_round_trip(self, tmp_path):
         pytest.importorskip("pyarrow")
-        df = ls.Landscape(DATA).metrics()
-        ls.write_table(df, tmp_path / "m.parquet")
+        df = tf.Landscape(DATA).metrics()
+        tf.write_table(df, tmp_path / "m.parquet")
         back = pd.read_parquet(tmp_path / "m.parquet")
         pd.testing.assert_frame_equal(back, df)
-        ls.write_table(df, tmp_path / "m.csv.gz")
+        tf.write_table(df, tmp_path / "m.csv.gz")
         csv = pd.read_csv(tmp_path / "m.csv.gz", float_precision="round_trip")
         np.testing.assert_array_equal(csv["value"].to_numpy(), df["value"].to_numpy())
 
     @pytest.mark.parametrize("chunk_rows", [1, 7, 10**6])
     def test_write_metrics_chunked(self, tmp_path, chunk_rows):
         pytest.importorskip("pyarrow")
-        lm = ls.Landscape(DATA, res=10)
+        lm = tf.Landscape(DATA, res=10)
         df = lm.metrics(extras=True)
         path = lm.write_metrics(tmp_path / "m.parquet", extras=True, chunk_rows=chunk_rows)
         pd.testing.assert_frame_equal(pd.read_parquet(path), df)
         # CSV: the same text as write_table
-        ls.write_table(df, tmp_path / "whole.csv")
+        tf.write_table(df, tmp_path / "whole.csv")
         lm.write_metrics(tmp_path / "chunked.csv", extras=True, chunk_rows=chunk_rows)
         assert (tmp_path / "chunked.csv").read_bytes() == (tmp_path / "whole.csv").read_bytes()
         lm.write_metrics(tmp_path / "chunked.csv.gz", level="patch", what="lsm_p_area", chunk_rows=chunk_rows)
@@ -54,7 +54,7 @@ class TestWriteTable:
 
     def test_write_patch_metrics_chunked(self, tmp_path):
         pytest.importorskip("pyarrow")
-        lm = ls.Landscape(DATA, res=10)
+        lm = tf.Landscape(DATA, res=10)
         path = lm.write_patch_metrics(tmp_path / "p.parquet", chunk_rows=9)
         pd.testing.assert_frame_equal(pd.read_parquet(path), lm.patch_metrics())
         lm.write_patch_metrics(tmp_path / "p.csv", ["AREA", "shape"], chunk_rows=4)
@@ -66,29 +66,29 @@ class TestWriteTable:
 
     def test_write_metrics_all_na_and_out_of_core(self, tmp_path):
         pytest.importorskip("pyarrow")
-        empty = ls.Landscape(np.ma.masked_all((4, 5), dtype=int))
+        empty = tf.Landscape(np.ma.masked_all((4, 5), dtype=int))
         path = empty.write_metrics(tmp_path / "e.parquet", level="patch", what=["lsm_p_area", "lsm_p_perim"])
         pd.testing.assert_frame_equal(pd.read_parquet(path),
                                       empty.metrics(level="patch", what=["lsm_p_area", "lsm_p_perim"]))
         tif = tmp_path / "m.tif"
         lsm_reference.write_landscape(tif, DATA, (10.0, 10.0))
-        tiled = ls.Landscape(tif, block_rows=8)
+        tiled = tf.Landscape(tif, block_rows=8)
         path = tiled.write_metrics(tmp_path / "t.parquet", level=["patch", "class"], chunk_rows=50)
-        pd.testing.assert_frame_equal(pd.read_parquet(path), ls.Landscape(tif).metrics(level=["patch", "class"]))
+        pd.testing.assert_frame_equal(pd.read_parquet(path), tf.Landscape(tif).metrics(level=["patch", "class"]))
 
     def test_chunked_errors(self, tmp_path):
-        lm = ls.Landscape(DATA)
+        lm = tf.Landscape(DATA)
         with pytest.raises(ValueError, match="chunk"):
             lm.write_metrics(tmp_path / "m.gpkg")
         with pytest.raises(ValueError, match="chunk_rows"):
             lm.write_patch_metrics(tmp_path / "m.csv", chunk_rows=0)
 
     def test_errors(self, tmp_path):
-        df = ls.Landscape(DATA).metrics(level="landscape")
+        df = tf.Landscape(DATA).metrics(level="landscape")
         with pytest.raises(ValueError, match="format"):
-            ls.write_table(df, tmp_path / "m.xyz")
+            tf.write_table(df, tmp_path / "m.xyz")
         with pytest.raises(TypeError, match="GeoDataFrame"):
-            ls.write_table(df, tmp_path / "m.gpkg")
+            tf.write_table(df, tmp_path / "m.gpkg")
 
 
 class TestZonalMetrics:
@@ -102,16 +102,16 @@ class TestZonalMetrics:
 
     def test_matches_sample_metrics(self, tif, tmp_path):
         zones = self.zones()
-        z = ls.zonal_metrics(tif, zones, level=["class", "landscape"], metric=["ca", "np", "shdi", "ta"])
+        z = tf.zonal_metrics(tif, zones, level=["class", "landscape"], metric=["ca", "np", "shdi", "ta"])
         assert list(z["name"]) == ["a", "b", "c"] and z.crs == zones.crs
-        s = ls.sample_metrics(tif, [g.__geo_interface__ for g in zones.geometry], level=["class", "landscape"],
+        s = tf.sample_metrics(tif, [g.__geo_interface__ for g in zones.geometry], level=["class", "landscape"],
                               metric=["ca", "np", "shdi", "ta"], verbose=False)
         for _, row in s.iterrows():
             col = row["metric"] if row["level"] == "landscape" else f"{row['metric']}_{row['class']}"
             ours = z.loc[row["plot_id"] - 1, col]
             assert (np.isnan(ours) and np.isnan(row["value"])) or ours == row["value"]
         np.testing.assert_array_equal(z["percentage_inside"], s.groupby("plot_id")["percentage_inside"].first())
-        path = ls.write_table(z, tmp_path / "zones.gpkg")
+        path = tf.write_table(z, tmp_path / "zones.gpkg")
         import geopandas as gpd
 
         back = gpd.read_file(path)
@@ -120,14 +120,14 @@ class TestZonalMetrics:
     def test_errors(self, tif):
         zones = self.zones()
         with pytest.raises(ValueError, match="patch"):
-            ls.zonal_metrics(tif, zones, level="patch")
+            tf.zonal_metrics(tif, zones, level="patch")
         with pytest.raises(ValueError, match="polygons"):
-            ls.zonal_metrics(tif, [{"type": "Point", "coordinates": (5, 5)}])
+            tf.zonal_metrics(tif, [{"type": "Point", "coordinates": (5, 5)}])
 
 
 class TestToRaster:
     def test_class_metric_raster(self):
-        lm = ls.Landscape(DATA)
+        lm = tf.Landscape(DATA)
         pland = lm.class_metrics("pland").set_index("class")["pland"]
         r = lm.to_raster("pland")
         values = np.ma.getdata(DATA)
@@ -137,7 +137,7 @@ class TestToRaster:
         np.testing.assert_array_equal(lm.to_raster("np", level="class")[~mask] > 0, True)
 
     def test_write(self, tif, tmp_path):
-        lm = ls.Landscape(tif)
+        lm = tf.Landscape(tif)
         path = lm.to_raster("area", path=tmp_path / "area.tif")
         with rasterio.open(path) as src, rasterio.open(tif) as ref:
             assert src.transform == ref.transform and src.crs == ref.crs
@@ -145,7 +145,7 @@ class TestToRaster:
         paths = lm.to_raster(["area", "ca"], path=tmp_path / "out")
         assert sorted(p.name for p in paths.values()) == ["area.tif", "ca.tif"]
         # numpy input: the extent of the Landscape
-        arr = ls.Landscape(np.ma.getdata(DATA), res=5).to_raster("area", path=tmp_path / "np.tif")
+        arr = tf.Landscape(np.ma.getdata(DATA), res=5).to_raster("area", path=tmp_path / "np.tif")
         with rasterio.open(arr) as src:
             assert src.transform.a == 5 and src.transform.f == 40 * 5
 
@@ -153,22 +153,22 @@ class TestToRaster:
 class TestScaleSample:
     def test_sizes_and_order(self, tif):
         pts = np.array([[250.0, 200.0], [100.0, 300.0]])
-        out = ls.scale_sample(tif, pts, size=[50, 100], level="landscape", metric=["ta", "np"])
+        out = tf.scale_sample(tif, pts, size=[50, 100], level="landscape", metric=["ta", "np"])
         assert out["size"].tolist() == [50, 100, 50, 100, 50, 100, 50, 100]
         assert out["plot_id"].tolist() == [1] * 4 + [2] * 4
-        one = ls.sample_metrics(tif, pts, size=100, level="landscape", metric=["ta", "np"], verbose=False)
+        one = tf.sample_metrics(tif, pts, size=100, level="landscape", metric=["ta", "np"], verbose=False)
         np.testing.assert_array_equal(out.loc[out["size"] == 100, "value"], one["value"])
         with pytest.raises(ValueError, match="points"):
-            ls.scale_sample(tif, [{"type": "Polygon", "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 0)]]}], size=5)
+            tf.scale_sample(tif, [{"type": "Polygon", "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 0)]]}], size=5)
 
 
 class TestBatch:
     def test_landscape_metrics(self, tif, tmp_path):
         out = tmp_path / "out"
-        res = ls.batch("landscape_metrics", [tif], out, level="landscape", metric=["ta", "shdi"])
+        res = tf.batch("landscape_metrics", [tif], out, level="landscape", metric=["ta", "shdi"])
         assert res[0].ok, res[0].error
         table = pd.read_csv(out / "map_landscape_metrics.csv", float_precision="round_trip")
-        expected = ls.landscape_metrics(tif, level="landscape", metric=["ta", "shdi"])
+        expected = tf.landscape_metrics(tif, level="landscape", metric=["ta", "shdi"])
         np.testing.assert_array_equal(table["value"], expected["value"])
         meta = json.loads((out / "map_landscape_metrics.json").read_text())
         assert meta["tool"] == "landscape_metrics"
@@ -176,13 +176,13 @@ class TestBatch:
     def test_parquet_and_block_rows(self, tif, tmp_path):
         pytest.importorskip("pyarrow")
         out = tmp_path / "pq"
-        res = ls.batch("landscape_metrics", [tif], out, table_format="parquet", block_rows=64, level="class")
+        res = tf.batch("landscape_metrics", [tif], out, table_format="parquet", block_rows=64, level="class")
         assert res[0].ok, res[0].error
         table = pd.read_parquet(out / "map_landscape_metrics.parquet")
-        expected = ls.landscape_metrics(tif, level="class")
+        expected = tf.landscape_metrics(tif, level="class")
         np.testing.assert_array_equal(table["value"].to_numpy(), expected["value"].to_numpy())
 
     def test_window_metrics(self, tif, tmp_path):
-        res = ls.batch("window_metrics", [tif], tmp_path / "w", window=3, what=["lsm_l_shdi"])
+        res = tf.batch("window_metrics", [tif], tmp_path / "w", window=3, what=["lsm_l_shdi"])
         assert res[0].ok, res[0].error
         assert (tmp_path / "w" / "map_window_metrics_shdi.tif").exists()

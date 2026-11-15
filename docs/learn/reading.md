@@ -108,7 +108,7 @@ at the end of each chapter give the primary sources of every method.
 
 - Soille, P., & Vogt, P. (2009). Morphological segmentation of binary patterns. *Pattern Recognition Letters*, 30(4), 456–459.
 - Vogt, P., & Riitters, K. (2017). GuidosToolbox: universal digital image object analysis. *European Journal of Remote Sensing*, 50(1), 352–361.
-  The toolbox whose pattern, fragmentation and restoration methods Landschaft reproduces.
+  The toolbox whose pattern, fragmentation and restoration methods Terraflux reproduces.
 
 </div>
 
@@ -152,7 +152,7 @@ at the end of each chapter give the primary sources of every method.
 
 </div>
 
-## Software whose methods Landschaft reproduces
+## Software whose methods Terraflux reproduces
 
 | Software | Methods | Reference |
 |---|---|---|

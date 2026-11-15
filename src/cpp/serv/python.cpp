@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the ecosystem services (landschaft._core.serv_*).
+// Python bindings of the ecosystem services (terraflux._core.serv_*).
 
 #include "serv/python.hpp"
 

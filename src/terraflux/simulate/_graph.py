@@ -1,0 +1,1337 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Models as Terraflux graphs: ``Model.save``, ``Model.load`` and running them with Terraflux.
+
+`Terraflux <https://github.com/sacridini/terraflux>`_ runs land change models
+as graphs of operators, on one machine or many, with the same C++ kernels as
+``tf.simulate``. ``Model.save`` writes a fitted model as such a graph (JSON):
+the fitted pieces as they are (weights of evidence, regressions, Markov
+chains, demands, patch settings, rules), the data it runs on as GeoTIFF files
+next to it; ``terraflux run`` then gives the same maps as ``Model.run`` with
+the same seed. ``Model.load`` reads such a graph back, and graphs made by
+``terraflux new`` too (fitting their pieces as Terraflux would).
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+from ._change import _class_value
+
+FORMAT = "terraflux/1"
+
+__all__ = ["load_model", "save_model", "terraflux"]
+
+
+# ----------------------------------------------------------------------------- writing
+
+def _clean(v):
+    """JSON values: NaN as null, numpy numbers as Python ones."""
+    if isinstance(v, dict):
+        return {str(k): _clean(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_clean(x) for x in v]
+    if isinstance(v, np.ndarray):
+        return _clean(v.tolist())
+    if isinstance(v, (np.bool_, bool)):
+        return bool(v)
+    if isinstance(v, (np.integer,)):
+        return int(v)
+    if isinstance(v, (float, np.floating)):
+        f = float(v)
+        return None if math.isnan(f) or math.isinf(f) else f
+    return v
+
+
+def _num(v):
+    """A class as JSON: an int when whole."""
+    return _class_value(float(v))
+
+
+class _Writer:
+    """Writes the data a graph reads next to it (float64 GeoTIFF, the values as the model reads them)."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.dir = path.with_name(path.stem + "_data")
+        self.inputs: dict = {}
+
+    def _write(self, name: str, layers: list, names: list | None, template):
+        from ..io import write_raster
+
+        self.dir.mkdir(parents=True, exist_ok=True)
+        data = np.stack([np.asarray(x, dtype=np.float64) for x in layers])
+        f = self.dir / f"{name}.tif"
+        if template is not None:
+            da = xr.DataArray(data, dims=("band", *template.dims),
+                              coords={"band": np.arange(1, data.shape[0] + 1), **{k: template.coords[k] for k in template.dims}})
+            try:
+                da = da.rio.write_crs(template.rio.crs) if template.rio.crs is not None else da
+                da = da.rio.write_transform(template.rio.transform())
+            except Exception:  # noqa: BLE001, S110  (no georeference)
+                pass
+        else:
+            da = xr.DataArray(data, dims=("band", "y", "x"))
+        write_raster(da, f, dtype="float64", band_names=names, colormap=None, compress="deflate")
+        return f"{self.dir.name}/{f.name}"
+
+    def map(self, name: str, x, nodata=None, note=None) -> str:
+        from ._maps import read_map
+
+        if isinstance(x, (str, os.PathLike)):
+            self.inputs[name] = {"kind": "map", "path": str(x), **({"note": note} if note else {})}
+            return f"${name}"
+        m = read_map(x, nodata)
+        self.inputs[name] = {"kind": "map", "path": self._write(name, [m.as_float()], None, m.template),
+                             **({"note": note} if note else {})}
+        return f"${name}"
+
+    def stack(self, name: str, maps, note=None) -> str:
+        from ._maps import read_map
+
+        if isinstance(maps, (str, os.PathLike)):
+            self.inputs[name] = {"kind": "stack", "path": str(maps), **({"note": note} if note else {})}
+            return f"${name}"
+
+        names = [str(k) for k in maps]
+        ms = [read_map(v) for v in maps.values()]
+        self.inputs[name] = {"kind": "stack", "path": self._write(name, [m.as_float() for m in ms], names, ms[0].template),
+                             **({"note": note} if note else {})}
+        return f"${name}"
+
+    def value(self, name: str, v, note=None) -> str:
+        self.inputs[name] = {"kind": "value", "value": _clean(v), **({"note": note} if note else {})}
+        return f"${name}"
+
+
+def _node(id_, op, inputs=None, params=None, note=None, body=None) -> dict:
+    n = {"id": id_, "op": op}
+    if inputs:
+        n["inputs"] = inputs
+    if params:
+        n["params"] = _clean(params)
+    if note:
+        n["note"] = note
+    if body:
+        n["body"] = body
+    return n
+
+
+def _woe_json(w) -> dict:
+    """WeightsOfEvidence as Terraflux's woe.weights."""
+    w._check()
+    entries = []
+    for f, t in w.transitions:
+        for name, spec in w._plan[(f, t)].items():
+            lay = w._layouts[(f, t, name)]
+            inc = spec.increment if not isinstance(spec.increment, str) else None
+            entries.append({
+                "from": _num(f), "to": _num(t), "variable": name,
+                "spec": {"categorical": bool(spec.categorical), "increment": inc, "min_delta": spec.min_delta,
+                         "max_delta": spec.max_delta, "tolerance": spec.tolerance,
+                         "breaks": None if spec.breaks is None else list(spec.breaks)},
+                "layout": {"categorical": bool(lay.categorical), "classes": list(lay.classes), "start": lay.start,
+                           "increment": lay.increment, "n": int(lay.n)},
+                "limits": [int(x) for x in w._ranges[(f, t, name)]],
+                "weights": list(w._weights[(f, t, name)]),
+            })
+    rows = [{"from": _num(r[0]), "to": _num(r[1]), "variable": r[2], "lower": r[3], "upper": r[4], "possible": int(r[5]),
+             "executed": int(r[6]), "weight": r[7], "contrast": r[8], "significant": bool(r[9])} for r in w._rows]
+    return {"transitions": [[_num(f), _num(t)] for f, t in w.transitions], "entries": entries, "rows": rows,
+            "fix_abnormal": bool(w.fix_abnormal)}
+
+
+def _glm_json(lr) -> list:
+    lr._check()
+    return [{"class": _num(k), "drivers": list(f["drivers"]), "coefficients": list(f["coefficients"]),
+             "pivot": [int(x) for x in f["pivot"]], "rank": int(f["rank"]), "iterations": int(f["iterations"]),
+             "converged": bool(f["converged"]), "deviance": f["deviance"], "null_deviance": f["null_deviance"],
+             "cells": int(f["n"])} for k, f in lr._fits.items()]
+
+
+def _drivers_of(drivers) -> dict:
+    from ._woe import _drivers
+
+    return {k: m for k, m in _drivers(drivers).items()}
+
+
+def _transition_input(w: _Writer, name: str, tr, template) -> tuple[str, dict]:
+    """A cost transition as an input (a layer per direction, as ``Transition.values``) and its layout."""
+    layers = {}
+    for j in range(tr.values.shape[0]):
+        v = tr.values[j].reshape(tr.shape)
+        layers[f"direction_{j + 1}"] = template.copy(data=v) if template is not None else v
+    ref = w.stack(name, layers, note="a transition of conductances, a layer per direction of gdistance's layout")
+    return ref, {"directions": tr.directions, "symmetric": tr.symmetric, "extent": list(tr.grid.extent),
+                 "wrap": bool(tr.grid.wrap)}
+
+
+def _dynamic_nodes(model, drivers_ref: str, w: _Writer, template=None) -> tuple[list, str]:
+    """The nodes of the dynamic variables in a loop: each computed from @landscape and set in the drivers."""
+    from ._dynamic import distance_to, share_of
+
+    nodes, ref = [], drivers_ref
+    for k, (name, piece) in enumerate((model.dynamic or {}).items()):
+        if isinstance(piece, distance_to):
+            if piece.cost is not None:
+                cost, layout = _transition_input(w, f"cost_{k}", piece.cost, template)
+                nodes.append(_node(f"dynamic_{k}", "dynamic.distance_to", {"landscape": "@landscape", "cost": cost},
+                                   {"classes": [_num(c) for c in piece.classes], "layout": layout},
+                                   f"The dynamic variable {name!r}: the accumulated cost from classes "
+                                   f"{piece.classes}."))
+            else:
+                nodes.append(_node(f"dynamic_{k}", "dynamic.distance_to", {"landscape": "@landscape"},
+                                   {"classes": [_num(c) for c in piece.classes], "unit": piece.unit},
+                                   f"The dynamic variable {name!r}: the distance to classes {piece.classes}."))
+            port = "distance"
+        elif isinstance(piece, share_of):
+            nodes.append(_node(f"dynamic_{k}", "dynamic.share_of", {"landscape": "@landscape"},
+                               {"classes": [_num(c) for c in piece.classes], "window": piece.window},
+                               f"The dynamic variable {name!r}: the share of classes {piece.classes} around."))
+            port = "share"
+        else:
+            raise TypeError(f"the dynamic variable {name!r} is a function Terraflux does not know (yet): use "
+                             "distance_to or share_of")
+        nodes.append(_node(f"drivers_{k}", "stack.set", {"stack": ref, "map": f"dynamic_{k}.{port}"}, {"name": str(name)}))
+        ref = f"drivers_{k}.stack"
+    return nodes, ref
+
+
+def _potential_node(model, w: _Writer, drivers, landscape, kind: str):
+    """The node(s) of the potential: fitted pieces as given, rasters as inputs. kind: 'class' or 'transition'."""
+    from ._estimator import RasterPotential
+    from ._glm import LogisticRegression
+    from ._woe import WeightsOfEvidence
+
+    p = model.potential
+    if isinstance(p, WeightsOfEvidence):
+        return [_node("potential", "woe.weights", params={"weights": _woe_json(p)},
+                      note="Weights of evidence fitted with terraflux.")], "woe"
+    if isinstance(p, LogisticRegression):
+        return [_node("potential", "glm.coefficients", params={"fits": _glm_json(p)},
+                      note="Logistic regressions fitted with terraflux.")], "glm"
+    if isinstance(p, RasterPotential):
+        names = [f"{_num(n[0])}_to_{_num(n[1])}" if isinstance(n, tuple) else str(_num(n)) for n in p._names]
+        ref = w.stack("potential", dict(zip(names, p._layers)), note="the potential, one layer per " + kind)
+        return [_node("potential", "stack.classes", {"stack": ref})], "raster"
+    if isinstance(p, dict):
+        layers = {f"{_num(f)}_to_{_num(t)}": v for (f, t), v in p.items()}
+        ref = w.stack("potential", layers, note="the probability of each transition")
+        return [_node("potential", "stack.classes", {"stack": ref})], "raster"
+    if hasattr(p, "predict" if kind == "class" else "probability"):
+        layers = _predicted(model, w, drivers, landscape, kind)
+        ref = w.stack("potential", layers, note=f"the predictions of the {type(p).__name__} on the start, one "
+                                                f"layer per {kind}")
+        return [_node("potential", "stack.classes", {"stack": ref},
+                      note=f"The {type(p).__name__} fitted with terraflux, as its predictions.")], "raster"
+    raise TypeError(f"Terraflux cannot run a potential {type(p).__name__}: use WeightsOfEvidence, "
+                     "LogisticRegression, RasterPotential or a piece with predict()")
+
+
+def _read_given(x, w: _Writer, what: str):
+    """A map or stack given to save: as is, or read from its path (relative to the model file)."""
+    import terraflux as tf
+
+    if not isinstance(x, (str, os.PathLike)):
+        return x
+    p = Path(x)
+    da = tf.load_raster(p if p.is_absolute() else w.path.parent / p)
+    if what == "map" and da.ndim == 3:
+        da = da[0]
+    return da
+
+
+def _predicted(model, w: _Writer, drivers, landscape, kind: str) -> dict:
+    """A potential without a form Terraflux knows (an estimator...), as its predictions on the start.
+
+    The same layers ``Model.run`` reads from it when the drivers do not change: per class (``predict``) or
+    per transition (``probability``, as the Expander and Patcher read it).
+    """
+    p = model.potential
+    if model.dynamic:
+        raise ValueError(f"Terraflux cannot predict with a {type(p).__name__} at every step: save it without "
+                         "dynamic variables (its predictions are written as maps), or use a LogisticRegression "
+                         "or WeightsOfEvidence")
+    land = _read_given(landscape, w, "map")
+    drv = None if drivers is None else _read_given(drivers, w, "stack")
+    if kind == "class":
+        out = p.predict(drv, landscape=land) if drv is not None else p.predict(landscape=land)
+        names = [_class_value(c) for c in out[out.dims[0]].values]
+        return {str(_num(c)): out[k] for k, c in enumerate(names)}
+    out = p.probability(land, drv) if drv is not None else p.probability(land)
+    layers = {}
+    for k, name in enumerate(str(v) for v in out[out.dims[0]].values):
+        if not name.startswith("probability_") or "_to_" not in name:
+            raise ValueError(f"the {type(p).__name__} gives a layer {name!r}, not probability_<from>_to_<to>")
+        f, t = name[len("probability_"):].split("_to_")
+        layers[f"{_num(float(f))}_to_{_num(float(t))}"] = out[k]
+    return layers
+
+
+def _table_json(demand) -> dict:
+    t = demand.table
+    times = [float(x) for x in t.index] if np.issubdtype(np.asarray(t.index).dtype, np.number) else None
+    return {"classes": [_num(c) for c in t.columns], "rows": t.to_numpy(dtype=np.float64), "times": times}
+
+
+def _markov_json(demand) -> dict:
+    """A Markov chain as markov.matrix's settings; a rate table (the Expander and Patcher's) as a chain of one
+    step whose rates are the table."""
+    from ._markov import Markov
+    from ._patches import ExpanderPatcher
+
+    if isinstance(demand, Markov):
+        return {"classes": [_num(c) for c in demand.classes], "single": demand._single,
+                "multi": demand.multi.to_numpy(), "steps": demand.steps}
+    rates = ExpanderPatcher._rates(None, demand)
+    if list(rates.index) != list(rates.columns):
+        raise ValueError("Terraflux takes a rate table with the classes of its rows and columns in the same order")
+    m = rates.to_numpy(dtype=np.float64)
+    return {"classes": [_num(c) for c in rates.index], "single": m, "multi": m, "steps": 1}
+
+
+def _demand_node(demand, w: _Writer | None = None, landscape=None, nodata=None) -> dict:
+    from ._demand import AreaDemand
+    from ._markov import Markov
+    from ._regional import Regional
+
+    if isinstance(demand, AreaDemand):
+        return _node("demand", "demand.table", params={"table": _table_json(demand)},
+                     note="The demand given (cells of each class at each step).")
+    if isinstance(demand, Markov):
+        return _node("demand", "markov.matrix", params=_markov_json(demand),
+                     note="The Markov chain fitted with terraflux (its matrix per step included).")
+    if isinstance(demand, Regional):
+        parts = []
+        for d in demand.demands.values():
+            if isinstance(d, AreaDemand):
+                parts.append({"table": _table_json(d)})
+            else:
+                parts.append({"markov": _markov_json(d)})
+        regions = _regions_map(demand, w, landscape, nodata)
+        return _node("demand", "demand.regional", {"regions": regions},
+                     {"ids": [int(i) for i in demand.ids], "demands": parts},
+                     note="A demand per region (each region's cells meet its own).")
+    raise TypeError(f"Terraflux cannot run a demand {type(demand).__name__} yet (AreaDemand, Markov or Regional)")
+
+
+def _regions_map(demand, w: _Writer, landscape, nodata) -> str:
+    """The regions written on the landscape's grid (their own when they have one)."""
+    from ._maps import read_map
+
+    if demand.template is not None or isinstance(landscape, (str, os.PathLike)):
+        tpl = demand.template
+    else:
+        tpl = read_map(landscape, nodata).template
+    x = demand.map if tpl is None else tpl.copy(data=demand.map)
+    return w.map("regions", x, note="the region of each cell (its id)")
+
+
+def to_graph(model, path, landscape, drivers=None, *, seed=None, nodata=None, name=None, description=None) -> dict:
+    """The graph of a fitted model (see :meth:`Model.save`)."""
+    from ._allocation import CLUE, Ordered
+    from ._clumondo import CLUMondo
+    from ._futures import PatchGrowing
+    from ._landsystems import LandSystemStack
+    from ._molusce import MolusceCA
+    from ._patches import ExpanderPatcher
+    from ._plus import CARS
+    from ._regional import Regional
+
+    path = Path(path)
+    w = _Writer(path)
+    regional = isinstance(model.demand, Regional)
+    if isinstance(drivers, dict) and drivers and all(isinstance(k, (int, np.integer)) for k in drivers):
+        raise ValueError("Terraflux takes the drivers fixed, not given per step")
+    if seed is None:
+        seed = int(np.random.default_rng().integers(1, 2**31 - 1))
+    start = w.map("start", landscape.map if isinstance(landscape, LandSystemStack) else landscape, nodata,
+                  "the map the simulation starts from")
+    seed_ref = w.value("seed", int(seed), "the seed of the simulation")
+    if drivers is None:
+        drv_ref = None
+    else:
+        drv = drivers if isinstance(drivers, (str, os.PathLike)) else _drivers_of(drivers)
+        drv_ref = w.stack("drivers", drv, "the explanatory variables")
+    rules = model.rules
+    nodes, outputs = [], {}
+    alloc = model.allocation
+
+    def loop_drivers():
+        if not model.dynamic:
+            return [], drv_ref
+        if drv_ref is None:
+            raise ValueError("dynamic variables need the drivers")
+        tpl = None if isinstance(landscape, (str, os.PathLike)) else _template_of(landscape, nodata)
+        return _dynamic_nodes(model, drv_ref, w, tpl)
+
+    if isinstance(alloc, (CLUE, Ordered)):
+        pot, kind = _potential_node(model, w, drivers, landscape, "class")
+        nodes += pot
+        nodes.append(_demand_node(model.demand, w, landscape, nodata))
+        if kind == "woe":
+            raise ValueError("CLUE and the ordered allocation take suitabilities of classes, not weights of evidence")
+        dyn, dref = loop_drivers()
+        if kind == "glm":
+            predict = _node("suitability", "glm.predict", {"model": "potential.model", "drivers": dref,
+                                                           "landscape": "@landscape" if dyn else start})
+            suit = "suitability.suitability"
+        else:
+            predict, suit = None, "potential.stack"
+        if predict is not None and not dyn:
+            nodes.append(predict)
+        nodes.append(_node("rng", "rng.r", {"seed": seed_ref}, note="R's generator after set.seed(seed)."))
+        hist_in = {"landscape": start}
+        if rules.history is not None:
+            hist_in["history"] = w.map("history", rules.history, note="the steps each cell has had its class")
+        nodes.append(_node("history", "lulcc.history", hist_in))
+        params = {"allocation": ({"method": "clue", "jitter": alloc.jitter, "scale": alloc.scale,
+                                  "max_iter": alloc.max_iter, "max_diff": alloc.max_diff, "mean_diff": alloc.mean_diff}
+                                 if isinstance(alloc, CLUE) else
+                                 {"method": "ordered", "order": [_num(c) for c in alloc.order],
+                                  "stochastic": bool(alloc.stochastic)})}
+        classes = list(model.demand.classes)
+        if rules.elasticity is not None:
+            params["elasticity"] = list(rules.elasticities(classes))
+        m = rules.matrix(classes)
+        if m is not None:
+            params["allowed"] = m
+        if rules.neighbourhood is not None:
+            nb = rules.neighbourhood
+            params["neighbourhood"] = {"rules": {str(_num(c)): float(v) for c, v in nb.rules.items()},
+                                       "weights": ({str(_num(c)): nb.window(c) for c in nb.rules}
+                                                   if nb.weights is not None else None)}
+        step_in = {"landscape": "@landscape", "history": "@history", "suitability": suit,
+                   **({"regional": "demand.regional"} if regional else {"demand": "demand.demand"}),
+                   "step": "@step", "rng": "rng.rng"}
+        if rules.restrictions is not None:
+            step_in["restrictions"] = w.map("restrictions", rules.restrictions, note="restricted cells keep their class")
+        body_nodes = dyn + ([predict] if (predict is not None and dyn) else [])
+        body_nodes.append(_node("allocate", "lulcc.step", step_in, params))
+        nodes.append(_node("simulation", "control.repeat",
+                           {"times": "demand.steps", "landscape": start, "history": "history.history"},
+                           body={"nodes": body_nodes,
+                                 "carry": {"landscape": "allocate.landscape", "history": "allocate.history"},
+                                 "collect": {"maps": "allocate.landscape", "info": "allocate.info"}}))
+    elif isinstance(alloc, ExpanderPatcher):
+        from ._model import Model  # noqa: F401
+
+        pot, kind = _potential_node(model, w, drivers, landscape, "transition")
+        nodes += pot
+        nodes.append(_demand_node(model.demand, w, landscape, nodata))
+        trs = []
+        for d in (model.demand.demands.values() if regional else [model.demand]):
+            rates = alloc._rates(d)
+            trs += [(f, t) for f in rates.index for t in rates.columns if f != t and rates.loc[f, t] > 0]
+        trs = list(dict.fromkeys(trs))
+        from ._maps import read_map
+        from ._patches import _per_transition
+
+        land = read_map(landscape, nodata) if not isinstance(landscape, (str, os.PathLike)) else None
+        if alloc.size_unit != "cells" and land is None:
+            raise ValueError("patch sizes in area units need the landscape as a map, not a path")
+        share = dict(zip(trs, _per_transition(alloc.expansion, trs, "expansion share")))
+        e_par = dict(zip(trs, _per_transition(alloc.expander, trs, "expander parameters")))
+        p_par = dict(zip(trs, _per_transition(alloc.patcher, trs, "patcher parameters")))
+
+        def cells(v):
+            return v if alloc.size_unit == "cells" else alloc._cells(v, land)
+
+        settings = [{"from": _num(f), "to": _num(t), "expansion": float(share[(f, t)]),
+                     "expander": [cells(e_par[(f, t)][0]), cells(e_par[(f, t)][1]) * cells(1), e_par[(f, t)][2]],
+                     "patcher": [cells(p_par[(f, t)][0]), cells(p_par[(f, t)][1]) * cells(1), p_par[(f, t)][2]]}
+                    for f, t in trs]
+        nodes.append(_node("patches", "patches.settings", params={"transitions": settings}))
+        steps = alloc.steps if alloc.steps is not None else getattr(model.demand, "steps", None)
+        if steps is None:
+            raise ValueError("give the steps (ExpanderPatcher(steps=...))")
+        dyn, dref = loop_drivers()
+        if kind == "woe":
+            prob = _node("probability", "woe.probability", {"model": "potential.model", "landscape": "@landscape",
+                                                             "drivers": dref})
+            prob_ref = "probability.probability"
+            body = dyn + [prob]
+        elif kind == "raster":
+            if dyn:
+                raise ValueError("dynamic variables need a potential computed from drivers, not given maps")
+            prob_ref, body = "potential.stack", []
+        else:
+            raise ValueError("the Expander and Patcher take transition probabilities (weights of evidence or maps)")
+        body.append(_node("allocate", "dinamica.step", {"landscape": "@landscape", "probability": prob_ref,
+                                                         **({"regional": "demand.regional"} if regional
+                                                            else {"rates": "demand.markov"}),
+                                                         "patches": "patches.patches",
+                                                         "step": "@step", "seed": seed_ref},
+                          {"prune_factor": alloc.prune_factor, "window": list(alloc.window)}))
+        nodes.append(_node("simulation", "control.repeat", {"times": int(steps), "landscape": start},
+                           body={"nodes": body, "carry": {"landscape": "allocate.landscape"},
+                                 "collect": {"maps": "allocate.landscape", "info": "allocate.info"}}))
+    elif isinstance(alloc, CARS):
+        CARS._check_rules(rules)
+        pot, kind = _potential_node(model, w, drivers, landscape, "class")
+        nodes += pot
+        d = _demand_node(model.demand, w, landscape, nodata)
+        nodes.append(d)
+        port = {"markov.matrix": ("markov", "demand.markov"), "demand.table": ("demand", "demand.demand"),
+                "demand.regional": ("regional", "demand.regional")}[d["op"]]
+        dem_in = {"start": start, port[0]: port[1]}
+        nodes.append(_node("cars_demand", "plus.demand", dem_in, {"steps": alloc.steps} if alloc.steps else None))
+        dyn, dref = loop_drivers()
+        if kind == "glm":
+            predict = _node("probability", "glm.predict", {"model": "potential.model", "drivers": dref,
+                                                           "landscape": "@landscape" if dyn else start})
+            prob_ref = "probability.suitability"
+        elif kind == "raster":
+            if dyn:
+                raise ValueError("dynamic variables need a potential computed from drivers, not given maps")
+            predict, prob_ref = None, "potential.stack"
+        else:
+            raise ValueError("CARS takes growth probabilities of classes")
+        if predict is not None and not dyn:
+            nodes.append(predict)
+        classes = list(model.demand.classes)
+        params = {"weights": {str(_num(c)): v for c, v in zip(classes, _per_class_of(alloc.weights, classes, 1.0))},
+                  "seeds": {str(_num(c)): v for c, v in zip(classes, _per_class_of(alloc.seeds, classes, 0.1))},
+                  "decay": alloc.decay, "step_size": alloc.step_size, "window": alloc.window, "max_iter": alloc.max_iter}
+        m = rules.matrix(classes) if rules is not None else None
+        if m is not None:
+            params["allowed"] = m
+        step_in = {"landscape": "@landscape", "probability": prob_ref,
+                   **({"regional": "cars_demand.regional"} if regional else {"demand": "cars_demand.demand"}),
+                   "step": "@step", "seed": seed_ref}
+        if rules is not None and rules.restrictions is not None:
+            step_in["restrictions"] = w.map("restrictions", rules.restrictions, note="restricted cells keep their class")
+        body = dyn + ([predict] if (predict is not None and dyn) else [])
+        body.append(_node("allocate", "cars.step", step_in, params))
+        nodes.append(_node("simulation", "control.repeat", {"times": "cars_demand.steps", "landscape": start},
+                           body={"nodes": body, "carry": {"landscape": "allocate.landscape"},
+                                 "collect": {"maps": "allocate.landscape", "info": "allocate.info"}}))
+    elif isinstance(alloc, MolusceCA):
+        nodes += _molusce_nodes(model, w, landscape, nodata, drivers, start, seed_ref, loop_drivers)
+    elif isinstance(alloc, CLUMondo):
+        nodes += _clumondo_nodes(model, w, landscape, nodata, drivers, start, seed, seed_ref, loop_drivers)
+    elif isinstance(alloc, PatchGrowing):
+        nodes += _futures_nodes(model, w, landscape, nodata, drivers, start, seed_ref, drv_ref)
+    else:
+        raise TypeError(f"Terraflux cannot run the allocation {type(alloc).__name__} yet "
+                         "(CLUE, Ordered, ExpanderPatcher, CARS, MolusceCA, CLUMondo or PatchGrowing)")
+    outputs = {"maps": {"from": "simulation.maps"}, "steps": {"from": "simulation.info"}}
+    g = {"format": FORMAT, "name": name or f"terraflux {type(alloc).__name__} model",
+         "description": description or "Written by terraflux's Model.save.", "inputs": w.inputs, "nodes": nodes,
+         "outputs": outputs}
+    return _clean(g)
+
+
+def _molusce_json(woe) -> dict:
+    """MolusceWoE's weights as molusce.total's settings."""
+    entries = []
+    for code, per in woe.weights.items():
+        f, t = woe.decode(code)
+        for k in woe.drivers:
+            cats, ws = per[k]
+            entries.append({"from": _num(f), "to": _num(t), "driver": k,
+                            "categories": np.asarray(cats, dtype=np.float64), "weights": np.asarray(ws, dtype=np.float64)})
+    return {"classes": [_num(c) for c in woe.classes], "drivers": list(woe.drivers),
+            "bins": {k: list(v) for k, v in woe.bins.items()}, "weights": entries}
+
+
+def _molusce_nodes(model, w: _Writer, landscape, nodata, drivers, start: str, seed_ref: str, loop_drivers) -> list:
+    """MOLUSCE's simulator: the weights' totals (fitted maps, or from the drivers at every step with dynamic
+    variables) or a potential per class, numpy's generator and the iterations."""
+    from ._maps import read_map
+    from ._molusce import MolusceWoE, _counts
+
+    alloc, p = model.allocation, model.potential
+    counts = _counts(model.demand)
+    land = read_map(_read_given(landscape, w, "map"), nodata).as_float()
+    found = {_class_value(c) for c in np.unique(land[~np.isnan(land)])}
+    classes = list(getattr(p, "classes", None) or sorted({c for pair in counts for c in pair} | found))
+    nodes, body = [], []
+    dyn, dref = loop_drivers()
+    if isinstance(p, MolusceWoE):
+        if not p.codes:
+            raise RuntimeError("fit the MolusceWoE first")
+        if dyn:
+            body.append(_node("total", "molusce.total", {"drivers": dref}, _molusce_json(p),
+                              note="MOLUSCE's weights of evidence fitted with terraflux, on the drivers of the step."))
+            forecast = {"total": "total.total"}
+        else:
+            layers = {}
+            for code, v in p._maps.items():
+                f, t = p.decode(code)
+                layers[f"{_num(f)}_to_{_num(t)}"] = v
+            ref = w.stack("potential", layers, note="the total weight of each transition, as fitted (MOLUSCE's maps)")
+            nodes.append(_node("potential", "stack.classes", {"stack": ref},
+                               note="MOLUSCE's weights of evidence fitted with terraflux, as their maps."))
+            forecast = {"total": "potential.stack"}
+    else:
+        pot, kind = _potential_node(model, w, drivers, landscape, "class")
+        nodes += pot
+        if kind == "woe":
+            raise ValueError("MOLUSCE's simulator takes MOLUSCE's weights or a potential per class")
+        if kind == "glm":
+            predict = _node("suitability", "glm.predict", {"model": "potential.model", "drivers": dref,
+                                                           "landscape": "@landscape" if dyn else start})
+            (body if dyn else nodes).append(predict)
+            forecast = {"potential": "suitability.suitability"}
+        else:
+            forecast = {"potential": "potential.stack"}
+    nodes.append(_node("rng", "rng.numpy", {"seed": seed_ref}, note="numpy's legacy generator after "
+                                                                    "numpy.random.seed(seed), as MOLUSCE draws."))
+    body = dyn + body
+    body.append(_node("allocate", "molusce.step",
+                      {"landscape": "@landscape", **forecast, "rng": "rng.rng", "step": "@step"},
+                      {"classes": [_num(c) for c in classes],
+                       "counts": [{"from": _num(f), "to": _num(t), "cells": int(n)} for (f, t), n in counts.items()]}))
+    nodes.append(_node("simulation", "control.repeat", {"times": int(alloc.iterations), "landscape": start},
+                       body={"nodes": body, "carry": {"landscape": "allocate.landscape"},
+                             "collect": {"maps": "allocate.landscape", "info": "allocate.info"}}))
+    return nodes
+
+
+def _f32(v) -> float:
+    return float(np.float32(v))
+
+
+def _clumondo_nodes(model, w: _Writer, landscape, nodata, drivers, start: str, seed: int, seed_ref: str,
+                    loop_drivers) -> list:
+    """CLUMondo: its settings as the simulation compiles them (CLUMondo._setup), the ages, the years."""
+    from ._landsystems import LandSystemStack
+
+    alloc, rules = model.allocation, model.rules
+    land = landscape if isinstance(landscape, LandSystemStack) else _read_given(landscape, w, "map")
+    c = alloc._setup(model, land, seed, nodata)
+    tpl = c.land.template
+    systems, services = c.systems, c.services
+
+    def like(v):
+        v = np.asarray(v, dtype=np.float64).reshape(c.shape)
+        return tpl.copy(data=v) if tpl is not None else v
+
+    nodes, ins = [], {}
+    # the potential
+    dyn, dref = loop_drivers()
+    if c.lr is not None:
+        nodes.append(_node("potential", "glm.coefficients", params={"fits": _glm_json(c.lr)},
+                           note="CLUMondo's logistic regressions fitted with terraflux (computed in floats)."))
+        ins.update(model="potential.model", drivers=dref)
+    else:
+        pot, kind = _potential_node(model, w, drivers, landscape if not isinstance(landscape, LandSystemStack)
+                                    else landscape.map, "class")
+        if kind != "raster":
+            raise ValueError("CLUMondo takes logistic regressions or a suitability per land system")
+        nodes += pot
+        ins["suitability"] = "potential.stack"
+    if rules.restrictions is not None:
+        ins["restrictions"] = w.map("restrictions", rules.restrictions, note="restricted cells keep their system")
+    if c.allow_maps.shape[0]:
+        ins["allow"] = w.stack("allow", {f"map_{k + 2}": like(m) for k, m in enumerate(c.allow_maps)},
+                               note="the conversion maps (codes 2, 3... of the conversion matrix)")
+    # the ages at the start
+    h = rules.history
+    age_in = {"landscape": start}
+    age_params = None
+    if h is not None and np.isscalar(h):
+        age_in["seed"] = seed_ref
+        age_params = {"max_age": int(h)}
+    elif h is not None:
+        age_in["history"] = w.map("history", h, note="the years each cell has had its system")
+    nodes.append(_node("ages", "clumondo.ages", age_in, age_params))
+    # the settings
+    x = c.extra
+    settings = {
+        "systems": [_num(v) for v in systems], "services": list(services),
+        "supply": [{"step": int(k), "rows": t.loc[systems, services].to_numpy(dtype=np.float64)}
+                   for k, t in alloc.supply.tables.items()],
+        "demand": model.demand.table[services].to_numpy(dtype=np.float64),
+        "order": c.lusconv, "weights": [_f32(v) for v in c.weight], "resistance": [_f32(v) for v in c.resistance],
+        "allowed": c.allowed, "deviation": alloc.deviation, "mean_deviation": _f32(alloc.mean_deviation),
+        "max_deviation": float(c.max_dev), "speed": _f32(alloc.speed), "max_loops": int(alloc.max_loops)}
+    if "kind" in x:
+        settings["kind"] = x["kind"]
+    if "dev_limit" in x:
+        settings["dev_limit"] = [float(v) for v in x["dev_limit"]]
+    if "patch_radius" in x:
+        settings["patches"] = {"radius": x["patch_radius"], "threshold": [float(v) for v in x["patch_threshold"]],
+                               "min": x["patch_min"]}
+    if "pair_resistance" in x:
+        settings["pair_resistance"] = x["pair_resistance"].astype(np.float64)
+    if "cap_cells" in x:
+        settings["caps"] = [{"pairs": x["cap_pairs"][k], "cells": int(n)} for k, n in enumerate(x["cap_cells"])]
+    if c.nb:
+        settings["neighbourhood"] = [
+            {"system": int(i), "weight": float(p["weight"]), "kernel": p["kernel"].astype(np.float64),
+             "from": [bool(f) for f in p["from"]], "constant": _f32(p["constant"]),
+             "coefficients": [[int(k), float(b)] for k, b in p["coefficients"]]} for i, p in c.nb.items()]
+    if alloc.preferences:
+        layers, prefs = {}, []
+        for key, (mp, wt) in alloc.preferences.items():
+            given = mp.items() if isinstance(mp, dict) and mp and all(isinstance(k, (int, np.integer)) for k in mp)                 else [(None, mp)]
+            refs = []
+            for st, m in given:
+                refs.append([None if st is None else int(st), len(layers)])
+                layers[f"preference_{len(layers) + 1}"] = m
+            prefs.append({"system": systems.index(_class_value(key)), "weight": _f32(wt), "layers": refs})
+        ins["preferences"] = w.stack("preferences", layers, note="the location preferences' maps")
+        settings["preferences"] = prefs
+    body = dyn + [_node("allocate", "clumondo.step",
+                        {"landscape": "@landscape", "age": "@age", "elasticity": "@elasticity", "step": "@step",
+                         **ins}, {"settings": settings})]
+    nodes.append(_node("simulation", "control.repeat",
+                       {"times": int(model.demand.steps), "landscape": start, "age": "ages.age",
+                        "elasticity": [0.0] * len(services)},
+                       body={"nodes": body,
+                             "carry": {"landscape": "allocate.landscape", "age": "allocate.age",
+                                       "elasticity": "allocate.elasticity"},
+                             "collect": {"maps": "allocate.landscape", "info": "allocate.info"},
+                             "until": "allocate.stop"}))
+    return nodes
+
+
+def _futures_nodes(model, w: _Writer, landscape, nodata, drivers, start: str, seed_ref: str, drv_ref) -> list:
+    """FUTURES: its pieces as given (the starting pressure as a map, computed when not given), one node."""
+    from ._futures import (
+        _APPROACHES,
+        DevelopmentDemand,
+        DevelopmentPotential,
+        development_pressure,
+    )
+
+    alloc, pot, demand = model.allocation, model.potential, model.demand
+    if model.dynamic:
+        raise ValueError("PatchGrowing updates its development pressure itself: it takes no dynamic variables")
+    if not isinstance(pot, DevelopmentPotential):
+        raise TypeError("PatchGrowing needs a DevelopmentPotential")
+    if not isinstance(demand, DevelopmentDemand):
+        raise TypeError("PatchGrowing needs a DevelopmentDemand")
+    ins = {"landscape": start, "seed": seed_ref}
+    if drv_ref is not None:
+        ins["drivers"] = drv_ref
+    elif pot.predictors:
+        raise ValueError("the potential's predictors need the drivers")
+    for name in ("subregions", "potential_subregions", "weight", "zoning"):
+        v = getattr(alloc, name)
+        if v is not None:
+            ins[name] = w.map(name, v, note=f"PatchGrowing's {name.replace('_', ' ')}")
+    if model.rules.restrictions is not None:
+        ins["restrictions"] = w.map("restrictions", model.rules.restrictions, note="cells never developed")
+    pressure = alloc.pressure
+    if pressure is None:
+        dev = _read_given(landscape, w, "map")
+        from ._maps import read_map
+
+        v = read_map(dev, nodata)
+        pressure = development_pressure(v.template.copy(data=v.as_float()) if v.template is not None else v.as_float(),
+                                         alloc.neighborhood, method=alloc.approach, gamma=alloc.gamma,
+                                         scaling_factor=alloc.scaling_factor)
+    ins["pressure"] = w.map("pressure", pressure, note="the development pressure at the start")
+    t = pot.table
+    single = None in t.index
+    params = {
+        "potential": {"ids": None if single else [int(i) for i in t.index], "intercept": t["intercept"].to_numpy(),
+                      "devpressure": t["devpressure"].to_numpy(), "predictors": list(pot.predictors),
+                      "coefficients": t[pot.predictors].to_numpy(dtype=np.float64) if pot.predictors
+                      else [[] for _ in range(len(t))]},
+        "demand": {"subregions": [int(c) for c in demand.table.columns],
+                   "rows": demand.table.to_numpy(dtype=np.float64),
+                   "years": [float(y) for y in demand.table.index] if np.issubdtype(
+                       np.asarray(demand.table.index).dtype, np.number) else None,
+                   "population": None if demand.population is None else
+                   demand.population[[int(c) for c in demand.table.columns]].to_numpy(dtype=np.float64)},
+        "neighborhood": int(alloc.neighborhood), "approach": alloc.approach, "gamma": float(alloc.gamma),
+        "scaling_factor": float(alloc.scaling_factor), "discount_factor": float(alloc.discount_factor),
+        "compactness_mean": float(alloc.compactness_mean), "compactness_range": float(alloc.compactness_range),
+        "num_neighbors": int(alloc.num_neighbors), "seed_search": alloc.seed_search,
+        "incentive_power": float(alloc.incentive_power)}
+    assert alloc.approach in _APPROACHES
+    ps = alloc.patch_sizes
+    if isinstance(ps, pd.DataFrame):
+        ps = {int(c): ps[c].dropna().tolist() for c in ps.columns}
+    if isinstance(ps, dict):
+        params["patch_sizes"] = {"ids": [int(k) for k in ps], "lists": [list(map(float, v)) for v in ps.values()]}
+    else:
+        params["patch_sizes"] = {"ids": None, "lists": [list(map(float, ps))]}
+    if alloc.zoning_effects is not None:
+        ze = pd.DataFrame(alloc.zoning_effects).copy()
+        ze.index = [int(i) for i in ze.index]
+        zones = [c for c in ze.columns if c != "stringency"]
+        params["zoning_effects"] = {"ids": list(ze.index), "stringency": ze["stringency"].astype(float).to_numpy(),
+                                    "zones": [int(z) for z in zones],
+                                    "effects": ze[zones].astype(float).to_numpy() if zones else [[] for _ in ze.index]}
+    if alloc.climate is not None:
+        params["climate"] = _flooding_json(alloc.climate, w, ins)
+    return [_node("simulation", "futures.simulation", ins, params,
+                  note="FUTURES' patch growing (r.futures.simulation), every step in one run.")]
+
+
+def _flooding_json(f, w: _Writer, ins: dict) -> dict:
+    """FUTURES' flood submodel: its maps as inputs, the rest as settings."""
+    ins["catchments"] = w.map("catchments", f.catchments, note="the catchments (HUCs) floods are drawn in")
+    ins["adaptive_capacity"] = w.map("adaptive_capacity", f.adaptive_capacity, note="adaptive capacity, -1 to 1")
+    dmg = pd.DataFrame(f.damage)
+    c = {"damage": {"levels": [float(x) for x in dmg.columns], "ids": [int(i) for i in dmg.index],
+                    "rows": dmg.to_numpy(dtype=np.float64)},
+         "response": [float(x) for x in f.response], "stddev": float(f.response_stddev), "depths": None,
+         "probabilities": None, "hand_percentile": None, "redistribution": None}
+    src = f.damage_regions
+    if src is None or isinstance(src, str):
+        c["damage_regions"] = src
+    else:
+        c["damage_regions"] = "map"
+        ins["damage_regions"] = w.map("damage_regions", src, note="the depth-damage region of each cell")
+    layers = {}
+    if f.depths is not None:
+        c["depths"] = []
+        for st in sorted(int(k) for k in f.depths):
+            given = {float(p): m for p, m in f.depths[st].items()}
+            refs = []
+            for p_, m in sorted(given.items()):
+                refs.append(len(layers))
+                layers[f"depth_{st}_{len(refs)}"] = m
+            c["depths"].append({"step": st, "probabilities": sorted(given), "layers": refs})
+    else:
+        c["probabilities"] = []
+        for st in sorted(int(k) for k in f.probabilities):
+            c["probabilities"].append({"step": st, "layer": len(layers)})
+            layers[f"probability_{st}"] = f.probabilities[st]
+        ins["hand"] = w.map("hand", f.hand, note="height above the nearest drainage")
+        c["hand_percentile"] = float(f.hand_percentile)
+    ins["floods"] = w.stack("floods", layers, note="the flood maps (depths or probabilities) by step")
+    if f.adaptation is not None:
+        ins["adaptation"] = w.map("adaptation", f.adaptation, note="the return period each cell is protected against")
+    if f.redistribution is not None:
+        m = pd.DataFrame(f.redistribution)
+        c["redistribution"] = {"from": [int(i) for i in m.index], "to": [int(i) for i in m.columns],
+                               "rows": m.to_numpy(dtype=np.float64)}
+    return c
+
+
+def _template_of(landscape, nodata):
+    from ._maps import read_map
+
+    return read_map(landscape, nodata).template
+
+
+def _per_class_of(value, classes, default):
+    from ._plus import _per_class
+
+    return list(_per_class(value, classes, "values", default))
+
+
+def save_model(model, path, landscape, drivers=None, *, seed=None, nodata=None, name=None, description=None) -> Path:
+    """Write a fitted model as a Terraflux graph (JSON) and the data it runs on (GeoTIFF, next to it)."""
+    path = Path(path)
+    if path.suffix.lower() != ".json":
+        raise ValueError("the model is written as JSON: give a path ending in .json")
+    g = to_graph(model, path, landscape, drivers, seed=seed, nodata=nodata, name=name, description=description)
+    path.write_text(json.dumps(g, indent=2, allow_nan=False))
+    return path
+
+
+# ----------------------------------------------------------------------------- reading
+
+def _read_graph(path: Path) -> dict:
+    text = path.read_text()
+    if path.suffix.lower() == ".toml":
+        import tomllib
+
+        g = tomllib.loads(text)
+    else:
+        g = json.loads(text)
+    if g.get("format") != FORMAT:
+        raise ValueError(f"{path} is not a Terraflux model in format {FORMAT!r}")
+    return g
+
+
+def _floats(v):
+    return np.array([math.nan if x is None else float(x) for x in v], dtype=np.float64)
+
+
+def _woe_from(j):
+    from ._woe import WeightsOfEvidence, _Layout, _Variable
+
+    w = WeightsOfEvidence()
+    w.transitions = [(_class_value(f), _class_value(t)) for f, t in j["transitions"]]
+    w.fix_abnormal = bool(j.get("fix_abnormal", False))
+    w._plan, w._layouts, w._ranges, w._weights = {}, {}, {}, {}
+    for e in j["entries"]:
+        key = (_class_value(e["from"]), _class_value(e["to"]))
+        s, lay = e["spec"], e["layout"]
+        spec = _Variable(e["variable"], categorical=s["categorical"],
+                         increment="auto" if s["increment"] is None else s["increment"], min_delta=s["min_delta"],
+                         max_delta=s["max_delta"], tolerance=s["tolerance"], breaks=s["breaks"])
+        w._plan.setdefault(key, {})[e["variable"]] = spec
+        w._layouts[(*key, e["variable"])] = _Layout(lay["categorical"], np.asarray(lay["classes"], dtype=np.float64),
+                                                    lay["start"], lay["increment"], lay["n"])
+        w._ranges[(*key, e["variable"])] = list(e["limits"])
+        w._weights[(*key, e["variable"])] = list(e["weights"])
+    w.variables = sorted({e["variable"] for e in j["entries"]})
+    w._rows = [(_class_value(r["from"]), _class_value(r["to"]), r["variable"], r["lower"], r["upper"], r["possible"],
+                r["executed"], r["weight"], r["contrast"], int(r["significant"])) for r in j["rows"]]
+    return w
+
+
+def _glm_from(fits):
+    from ._glm import LogisticRegression
+
+    lr = LogisticRegression()
+    for f in fits:
+        lr._fits[_class_value(f["class"])] = {
+            "coefficients": _floats(f["coefficients"]), "pivot": np.asarray(f["pivot"], dtype=np.int32),
+            "rank": int(f["rank"]), "drivers": list(f["drivers"]), "n": int(f.get("cells", 0)),
+            "iterations": int(f.get("iterations", 0)), "converged": bool(f.get("converged", True)),
+            "deviance": math.nan if f.get("deviance") is None else f["deviance"],
+            "null_deviance": math.nan if f.get("null_deviance") is None else f["null_deviance"]}
+    lr.drivers = sorted({d for f in lr._fits.values() for d in f["drivers"]})
+    lr.formulas = {k: list(f["drivers"]) for k, f in lr._fits.items()}
+    return lr
+
+
+def _load_input(spec: dict, base: Path):
+    import terraflux as tf
+
+    if spec["kind"] == "value":
+        return spec["value"]
+    p = Path(spec["path"])
+    p = p if p.is_absolute() else base / p
+    da = tf.load_raster(p)
+    if spec.get("nodata") is not None:
+        da = da.where(da != spec["nodata"])
+    if spec["kind"] == "map":
+        if da.ndim == 3:
+            band = spec.get("band")
+            names = [str(v) for v in da[da.dims[0]].values]
+            k = names.index(band) if band in names else int(band) if band is not None else 0
+            da = da[k]
+        return da
+    if da.ndim == 2:  # a stack of one layer read as a map
+        da = da.expand_dims("band") if "band" in da.coords else da.expand_dims(band=[1])
+    bands = spec.get("bands")
+    if bands is not None and da.ndim == 3:
+        names = [str(v) for v in da[da.dims[0]].values]
+        da = da[[names.index(b) if b in names else int(b) for b in bands]]
+    return da
+
+
+def _area_from(t):
+    import pandas as pd
+
+    from ._demand import AreaDemand
+
+    idx = pd.Index(t["times"], name="time") if t.get("times") else None
+    return AreaDemand(pd.DataFrame(np.asarray(t["rows"], dtype=np.float64), index=idx,
+                                   columns=[_class_value(c) for c in t["classes"]]))
+
+
+def _markov_from(p):
+    from ._markov import Markov
+
+    m = Markov(np.asarray(p["single"], dtype=np.float64), p["classes"], int(p.get("steps", 1)))
+    if p.get("multi") is not None:
+        m._multi = np.asarray(p["multi"], dtype=np.float64)
+    return m
+
+
+def _transition_from(stack, layout: dict):
+    """A cost transition from its layers (one per direction) and layout."""
+    from ..cost._transition import GridInfo, Transition
+
+    values = np.asarray(stack.values, dtype=np.float64).reshape(stack.shape[0], -1)
+    grid = GridInfo(tuple(stack.shape[1:]), tuple(float(v) for v in layout["extent"]), wrap=bool(layout.get("wrap")))
+    return Transition(values, grid, int(layout["directions"]), bool(layout["symmetric"]))
+
+
+def load_model(path):
+    """Read a Terraflux graph of tf.simulate's pieces: ``(Model, inputs)``, inputs by name (maps read)."""
+    from ._estimator import RasterPotential
+    from ._regional import Regional
+
+    path = Path(path)
+    g = _read_graph(path)
+    inputs = {k: _load_input(v, path.parent) for k, v in g.get("inputs", {}).items()}
+    nodes = {n["id"]: n for n in g.get("nodes", [])}
+    sim = nodes.get("simulation")
+    if sim is not None and sim.get("op") == "futures.simulation":
+        return _futures_from(sim, inputs), inputs
+    if sim is None or sim.get("op") != "control.repeat":
+        raise ValueError("not a graph of tf.simulate's pieces: run it with terraflux")
+    body = {n["id"]: n for n in sim["body"]["nodes"]}
+    alloc_node = body.get("allocate")
+    if alloc_node is None:
+        raise ValueError("not a graph of tf.simulate's pieces: run it with terraflux")
+
+    def ref_input(r):
+        return r[1:] if isinstance(r, str) and r.startswith("$") else None
+
+    def dynamic_of(sim):
+        return _dynamic_from(sim, inputs, ref_input)
+
+    if alloc_node["op"] == "molusce.step":
+        return _molusce_from(nodes, body, sim, alloc_node, inputs, ref_input, dynamic_of(sim)), inputs
+    if alloc_node["op"] == "clumondo.step":
+        return _clumondo_from(nodes, alloc_node, inputs, ref_input, dynamic_of(sim)), inputs
+    # the potential
+    pn = nodes.get("potential")
+    if pn is None:
+        raise ValueError("the graph has no potential node: models made by `terraflux new` are fitted by terraflux")
+    if pn["op"] == "woe.weights":
+        potential = _woe_from(pn["params"]["weights"])
+    elif pn["op"] == "glm.coefficients":
+        potential = _glm_from(pn["params"]["fits"])
+    elif pn["op"] == "stack.classes":
+        stack = inputs[ref_input(pn["inputs"]["stack"])]
+        names = [str(v) for v in stack[stack.dims[0]].values]
+
+        def key(n):
+            if "_to_" in n:
+                f, t = n.split("_to_")
+                return (_class_value(float(f)), _class_value(float(t)))
+            return _class_value(float(n))
+        keys = [key(n) for n in names]
+        if isinstance(keys[0], tuple):
+            potential = {k: stack[i] for i, k in enumerate(keys)}
+        else:
+            potential = RasterPotential({k: stack[i] for i, k in enumerate(keys)})
+    else:
+        raise ValueError(f"unknown potential {pn['op']}")
+    # the demand
+    dn = nodes["demand"]
+    if dn["op"] == "demand.table":
+        demand = _area_from(dn["params"]["table"])
+    elif dn["op"] == "markov.matrix":
+        demand = _markov_from(dn["params"])
+    elif dn["op"] == "demand.regional":
+        p = dn["params"]
+        parts = {int(i): (_area_from(d["table"]) if "table" in d else _markov_from(d["markov"]))
+                 for i, d in zip(p["ids"], p["demands"])}
+        demand = Regional(inputs[ref_input(dn["inputs"]["regions"])], parts)
+    else:
+        raise ValueError(f"unknown demand {dn['op']}")
+    dynamic = dynamic_of(sim)
+    # the allocation and rules
+    return _ls_model(nodes, sim, alloc_node, inputs, ref_input, potential, demand, dynamic), inputs
+
+
+def _dynamic_from(sim, inputs, ref_input) -> dict:
+    """The dynamic variables of a loop."""
+    from ._dynamic import distance_to, share_of
+
+    dynamic = {}
+    for n in sim["body"]["nodes"]:
+        if n["op"] in ("dynamic.distance_to", "dynamic.share_of"):
+            setter = next(x for x in sim["body"]["nodes"] if x["op"] == "stack.set"
+                          and x["inputs"]["map"].startswith(n["id"] + "."))
+            name = setter["params"]["name"]
+            prm = n.get("params", {})
+            if n["op"] == "dynamic.distance_to" and "cost" in n.get("inputs", {}):
+                cost = _transition_from(inputs[ref_input(n["inputs"]["cost"])], prm["layout"])
+                dynamic[name] = distance_to(prm["classes"], cost=cost)
+            elif n["op"] == "dynamic.distance_to":
+                dynamic[name] = distance_to(prm["classes"], unit=prm.get("unit", "map"))
+            else:
+                dynamic[name] = share_of(prm["classes"], prm.get("window", 3))
+    return dynamic
+
+
+def _ls_model(nodes, sim, alloc_node, inputs, ref_input, potential, demand, dynamic):
+    """The model of a lulcc, Dinamica or CARS loop."""
+    from ._allocation import CLUE, Ordered
+    from ._model import Model
+    from ._patches import ExpanderPatcher
+    from ._plus import CARS
+    from ._rules import Neighbourhood, Rules
+
+    op, prm, ins = alloc_node["op"], alloc_node.get("params", {}), alloc_node["inputs"]
+    rules = Rules()
+    if op == "lulcc.step":
+        a = prm["allocation"]
+        if a["method"] == "clue":
+            allocation = CLUE(**{k: v for k, v in a.items() if k != "method"})
+        else:
+            allocation = Ordered(a["order"], a.get("stochastic", True))
+        if "elasticity" in prm:
+            rules.elasticity = prm["elasticity"]
+        if "allowed" in prm:
+            rules.allowed = np.asarray(prm["allowed"], dtype=np.int64)
+        if prm.get("neighbourhood"):
+            nb = prm["neighbourhood"]
+            w = nb.get("weights")
+            if isinstance(w, dict):
+                w = {_class_value(float(k)): np.asarray(v, dtype=np.float64) for k, v in w.items()}
+            rules.neighbourhood = Neighbourhood({_class_value(float(k)): v for k, v in nb["rules"].items()}, w)
+        hn = nodes.get("history", {})
+        if "history" in hn.get("inputs", {}):
+            rules.history = inputs[ref_input(hn["inputs"]["history"])]
+    elif op == "dinamica.step":
+        pt = nodes["patches"]["params"]["transitions"]
+        trs = [(_class_value(x["from"]), _class_value(x["to"])) for x in pt]
+        allocation = ExpanderPatcher(
+            expansion={tr: x["expansion"] for tr, x in zip(trs, pt)},
+            expander={tr: tuple(x["expander"]) for tr, x in zip(trs, pt)},
+            patcher={tr: tuple(x["patcher"]) for tr, x in zip(trs, pt)},
+            prune_factor=prm.get("prune_factor", 10.0), window=tuple(prm.get("window", (3, 3))),
+            steps=sim["inputs"]["times"] if isinstance(sim["inputs"]["times"], int) else None)
+    elif op == "cars.step":
+        steps = nodes.get("cars_demand", {}).get("params", {}).get("steps")
+        allocation = CARS(weights={_class_value(float(k)): v for k, v in prm.get("weights", {}).items()} or 1.0,
+                          seeds={_class_value(float(k)): v for k, v in prm.get("seeds", {}).items()} or 0.1,
+                          decay=prm.get("decay", 0.9), step_size=prm.get("step_size", 500.0),
+                          window=prm.get("window", 3), max_iter=prm.get("max_iter", 5000), steps=steps)
+        if "allowed" in prm:
+            rules.allowed = np.asarray(prm["allowed"], dtype=np.int64)
+    else:
+        raise ValueError(f"unknown allocation {op}")
+    if "restrictions" in ins:
+        rules.restrictions = inputs[ref_input(ins["restrictions"])]
+    return Model(potential, demand, allocation, rules, dynamic or None)
+
+
+def _futures_from(node, inputs):
+    """The model of a FUTURES node."""
+    from ._futures import (
+        DevelopmentDemand,
+        DevelopmentPotential,
+        Flooding,
+        PatchGrowing,
+    )
+    from ._model import Model
+    from ._rules import Rules
+
+    prm, ins = node["params"], node["inputs"]
+
+    def given(name):
+        r = ins.get(name)
+        return inputs[r[1:]] if isinstance(r, str) and r.startswith("$") else None
+    pt = prm["potential"]
+    cols = {"intercept": pt["intercept"], "devpressure": pt["devpressure"],
+            **{n: [row[k] for row in pt["coefficients"]] for k, n in enumerate(pt["predictors"])}}
+    idx = pd.Index([None] if pt["ids"] is None else pt["ids"], name="subregion")
+    pot = DevelopmentPotential(pd.DataFrame(cols, index=idx))
+    d = prm["demand"]
+    index = pd.Index([int(y) if float(y).is_integer() else y for y in d["years"]]) if d.get("years") else None
+    table = pd.DataFrame(np.asarray(d["rows"], dtype=np.float64), index=index, columns=d["subregions"])
+    population = None if d.get("population") is None else \
+        pd.DataFrame(np.asarray(d["population"], dtype=np.float64), index=index, columns=d["subregions"])
+    demand = DevelopmentDemand(table, population=population)
+    ps = prm["patch_sizes"]
+    patches = ps["lists"][0] if ps["ids"] is None else dict(zip(ps["ids"], ps["lists"]))
+    ze = prm.get("zoning_effects")
+    effects = None
+    if ze is not None:
+        effects = pd.DataFrame({"stringency": ze["stringency"],
+                                **{z: [row[k] for row in ze["effects"]] for k, z in enumerate(ze["zones"])}},
+                               index=ze["ids"])
+    climate = None
+    if prm.get("climate") is not None:
+        c = prm["climate"]
+        floods = given("floods")
+        dm = c["damage"]
+        damage = pd.DataFrame(np.asarray(dm["rows"], dtype=np.float64), index=dm["ids"], columns=dm["levels"])
+        kw = {}
+        if c.get("depths") is not None:
+            kw["depths"] = {e["step"]: {p_: floods[k] for p_, k in zip(e["probabilities"], e["layers"])}
+                            for e in c["depths"]}
+        else:
+            kw.update(probabilities={e["step"]: floods[e["layer"]] for e in c["probabilities"]}, hand=given("hand"),
+                      hand_percentile=c["hand_percentile"])
+        regions = c.get("damage_regions")
+        redistribution = None
+        if c.get("redistribution") is not None:
+            r = c["redistribution"]
+            redistribution = pd.DataFrame(np.asarray(r["rows"], dtype=np.float64), index=r["from"], columns=r["to"])
+        climate = Flooding(given("catchments"), given("adaptive_capacity"), damage, tuple(c["response"]),
+                           response_stddev=c["stddev"], damage_regions=given("damage_regions") if regions == "map"
+                           else regions, adaptation=given("adaptation"), redistribution=redistribution, **kw)
+    alloc = PatchGrowing(patches, subregions=given("subregions"), potential_subregions=given("potential_subregions"),
+                         pressure=given("pressure"), neighborhood=prm["neighborhood"], approach=prm["approach"],
+                         gamma=prm["gamma"], scaling_factor=prm["scaling_factor"],
+                         discount_factor=prm["discount_factor"], compactness_mean=prm["compactness_mean"],
+                         compactness_range=prm["compactness_range"], num_neighbors=prm["num_neighbors"],
+                         seed_search=prm["seed_search"], incentive_power=prm["incentive_power"],
+                         weight=given("weight"), zoning=given("zoning"), zoning_effects=effects, climate=climate)
+    return Model(pot, demand, alloc, Rules(restrictions=given("restrictions")))
+
+
+def _clumondo_from(nodes, alloc_node, inputs, ref_input, dynamic):
+    """The model of a CLUMondo loop, its rules from the compiled settings."""
+    import pandas as pd
+
+    from ._clumondo import CLUMondo, NeighbourhoodEffect, ServiceDemand, Supply
+    from ._estimator import RasterPotential
+    from ._landsystems import Cap
+    from ._model import Model
+    from ._rules import Rules
+
+    st, ins = alloc_node["params"]["settings"], alloc_node["inputs"]
+    systems = [_class_value(v) for v in st["systems"]]
+    services = list(st["services"])
+
+    def frame(rows, index=None):
+        return pd.DataFrame(np.asarray(rows, dtype=np.float64), index=index, columns=services)
+    tables = {int(t["step"]): frame(t["rows"], systems) for t in st["supply"]}
+    supply = Supply(tables if len(tables) > 1 else tables[1])
+    demand = ServiceDemand(frame(st["demand"]))
+    kinds = None
+    if st.get("kind") is not None:
+        names = {0: "exact", 1: "minimum", 2: "maximum"}
+        kinds = {sv: names[int(k)] for sv, k in zip(services, st["kind"])}
+    max_dev = st["max_deviation"]
+    if st.get("dev_limit") is not None:
+        max_dev = dict(zip(services, st["dev_limit"]))
+    nb = None
+    if st.get("neighbourhood"):
+        nb = NeighbourhoodEffect({systems[p["system"]]: {
+            "weight": p["weight"], "kernel": np.asarray(p["kernel"], dtype=np.float32),
+            "from": [systems[k] for k, f in enumerate(p["from"]) if f], "constant": p["constant"],
+            "coefficients": {systems[k]: b for k, b in p["coefficients"]}} for p in st["neighbourhood"]})
+    prefs = None
+    if st.get("preferences"):
+        stack = inputs[ref_input(ins["preferences"])]
+        prefs = {}
+        for p in st["preferences"]:
+            maps = {stp: stack[k] for stp, k in p["layers"]}
+            prefs[systems[p["system"]]] = (maps.get(None, maps), p["weight"])
+    patches = None
+    if st.get("patches"):
+        pt = st["patches"]
+        patches = {systems[i]: (pt["radius"][i], pt["threshold"][i], pt["min"][i])
+                   for i in range(len(systems)) if pt["radius"][i] > 0}
+    alloc = CLUMondo(supply, order=pd.DataFrame(st["order"], index=systems, columns=services),
+                     weights=list(st["weights"]), deviation=st["deviation"], mean_deviation=st["mean_deviation"],
+                     max_deviation=max_dev, speed=st["speed"], max_loops=int(st["max_loops"]), kinds=kinds,
+                     neighbourhood=nb, preferences=prefs, patches=patches)
+    allowed = np.asarray(st["allowed"], dtype=np.int64)
+    rules = Rules(allowed=allowed, elasticity=list(st["resistance"]))
+    if "restrictions" in ins:
+        rules.restrictions = inputs[ref_input(ins["restrictions"])]
+    if "allow" in ins:
+        stack = inputs[ref_input(ins["allow"])]
+        maps = {}
+        for k in range(stack.shape[0]):
+            i, j = map(int, np.argwhere(allowed == k + 2)[0])
+            maps[(systems[i], systems[j])] = stack[k]
+        rules.allow_maps = maps
+    if st.get("pair_resistance") is not None:
+        pr = np.asarray(st["pair_resistance"], dtype=np.float64)
+        rules.transition_resistance = {(systems[i], systems[j]): pr[i, j] for i, j in np.argwhere(pr != 0)}
+    if st.get("caps"):
+        rules.caps = [Cap(role=None, cells=int(cp["cells"]),
+                          pairs=[(systems[i], systems[j]) for i, j in np.argwhere(np.asarray(cp["pairs"]) != 0)])
+                      for cp in st["caps"]]
+    an = nodes.get("ages", {})
+    if an.get("params", {}).get("max_age") is not None:
+        rules.history = int(an["params"]["max_age"])
+    elif "history" in an.get("inputs", {}):
+        rules.history = inputs[ref_input(an["inputs"]["history"])]
+    if "model" in ins:
+        potential = _glm_from(nodes["potential"]["params"]["fits"])
+    else:
+        stack = inputs[ref_input(nodes["potential"]["inputs"]["stack"])]
+        potential = RasterPotential({_class_value(float(n)): stack[k]
+                                     for k, n in enumerate(str(v) for v in stack[stack.dims[0]].values)})
+    return Model(potential, demand, alloc, rules, dynamic or None)
+
+
+def _molusce_from(nodes, body, sim, alloc_node, inputs, ref_input, dynamic):
+    """The model of a MOLUSCE loop: MolusceWoE (its maps or weights) or a potential per class."""
+    from ._model import Model
+    from ._molusce import MolusceCA, MolusceWoE
+
+    prm, ins = alloc_node.get("params", {}), alloc_node["inputs"]
+    classes = [_class_value(c) for c in prm["classes"]]
+    counts = {(_class_value(c["from"]), _class_value(c["to"])): int(c["cells"]) for c in prm["counts"]}
+
+    def woe_of(classes):
+        woe = MolusceWoE()
+        woe.classes = classes
+        return woe
+    if "total" in ins:
+        src = ins["total"].split(".")[0]
+        woe = woe_of(classes)
+        if src in body and body[src]["op"] == "molusce.total":
+            j = body[src]["params"]
+            woe.bins = {k: list(v) for k, v in j.get("bins", {}).items()}
+            woe.drivers = list(j["drivers"])
+            for e in j["weights"]:
+                code = woe.encode(e["from"], e["to"])
+                woe.weights.setdefault(code, {})[e["driver"]] = (np.asarray(e["categories"], dtype=np.float64),
+                                                                 _floats(e["weights"]))
+            woe.codes = sorted(woe.weights)
+        else:
+            stack = inputs[ref_input(nodes[src]["inputs"]["stack"])]
+            for k, name in enumerate(str(v) for v in stack[stack.dims[0]].values):
+                f, t = name.split("_to_")
+                woe._maps[woe.encode(float(f), float(t))] = np.asarray(stack[k].values, dtype=np.float64)
+            woe.codes = sorted(woe._maps)
+            woe.weights = {c: {} for c in woe.codes}
+        potential = woe
+    else:
+        pn = nodes["potential"]
+        if pn["op"] == "glm.coefficients":
+            potential = _glm_from(pn["params"]["fits"])
+        else:
+            stack = inputs[ref_input(pn["inputs"]["stack"])]
+            from ._estimator import RasterPotential
+
+            potential = RasterPotential({_class_value(float(n)): stack[k]
+                                         for k, n in enumerate(str(v) for v in stack[stack.dims[0]].values)})
+    return Model(potential, counts, MolusceCA(int(sim["inputs"]["times"])), None, dynamic or None)
+
+
+# ----------------------------------------------------------------------------- running
+
+def _executable(exe=None) -> str:
+    exe = exe or os.environ.get("TERRAFLUX") or shutil.which("terraflux")
+    if not exe:
+        raise FileNotFoundError("terraflux was not found: install it (https://github.com/sacridini/terraflux), put "
+                                "it on PATH or give its path (exe= or the TERRAFLUX variable)")
+    return str(exe)
+
+
+def terraflux(model, *, out=None, seed=None, exe=None, quiet: bool = True) -> xr.DataArray:
+    """Run a Terraflux model with the ``terraflux`` command; the simulated maps ``(step, y, x)``.
+
+    Parameters
+    ----------
+    model
+        The model file (``Model.save`` writes one).
+    out
+        The folder of the outputs (default: ``output`` next to the model).
+    seed
+        Replace the model's seed.
+    exe
+        The ``terraflux`` executable (default: the ``TERRAFLUX`` variable, else the one on PATH).
+
+    Returns
+    -------
+    xarray.DataArray
+        The ``maps`` output: one map per step (1, 2...), the start not included.
+    """
+    import terraflux as tf
+
+    model = Path(model)
+    out = Path(out) if out is not None else model.with_name("output")
+    cmd = [_executable(exe), "run", str(model), "--out", str(out)]
+    if seed is not None:
+        cmd += ["--set", f"seed={int(seed)}"]
+    if quiet:
+        cmd.append("--quiet")
+    r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if r.returncode != 0:
+        raise RuntimeError(f"terraflux failed:\n{r.stderr}")
+    maps = tf.load_raster(out / "maps.tif", masked=False)
+    nodata = maps.rio.nodata
+    maps = maps.astype(np.float64)
+    if nodata is not None and not np.isnan(nodata):
+        maps = maps.where(maps != nodata)
+    if maps.ndim == 2:
+        maps = maps.expand_dims("band")
+    return maps.rename({maps.dims[0]: "step"}).assign_coords(step=np.arange(1, maps.shape[0] + 1))

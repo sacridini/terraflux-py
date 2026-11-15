@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Rivers as a network (ls.hydro.snap_points, upstream, upstream_catchment, network_distance, along_network,
-centrality, dci) against ls.hydro's own D8 kernels and brute force (Terraflux's tests): the land upstream of a link's
+"""Rivers as a network (tf.hydro.snap_points, upstream, upstream_catchment, network_distance, along_network,
+centrality, dci) against tf.hydro's own D8 kernels and brute force (Terraflux's tests): the land upstream of a link's
 last cell is what the D8 accumulation sums there, a point's catchment is the watershed of that point alone, distances
 are the paths walked down cell by cell, the centrality of the links is igraph's by breadth-first search; the DCI, the
 reach of every segment and the gain of removing each barrier are R's riverconn 0.3 (tests/data/reference/rivers,
@@ -16,10 +16,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft.hydro._rivers import _Segments
+import terraflux as tf
+from terraflux.hydro._rivers import _Segments
 
-H = ls.hydro
+H = tf.hydro
 REF = Path(__file__).parent / "data" / "reference"
 
 

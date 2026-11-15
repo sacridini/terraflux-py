@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Integration of the optimization with the rest of ls.prioritize and landschaft: Zonation's feature
+"""Integration of the optimization with the rest of tf.prioritize and terraflux: Zonation's feature
 transforms, the species-area extinction risk (objective and evaluation, against enumeration), the
 comparison with Zonation at the same cost, SDM features, reports and plots."""
 
@@ -14,9 +14,9 @@ import optimize_cases as oc
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 @pytest.fixture(autouse=True)
@@ -58,7 +58,7 @@ def _sar_table():
 def test_extinction_risk_objective_is_its_definition():
     """The optimum equals enumeration of every selection within the budget, the risk being the
     piecewise-linear 1 - r^z through the breakpoints (plus the cost tie-break 0.01 x cost / total cost)."""
-    from landschaft.prioritize._milp_compile import sar_lines
+    from terraflux.prioritize._milp_compile import sar_lines
 
     t = _sar_table()
     budget, z, segs = 12.0, np.array([0.25, 0.4, 0.15]), 8
@@ -114,10 +114,10 @@ def test_sdm_features():
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    occ = ls.load_table(ls.sdm.example_data("bradypus"))
-    env = ls.load_raster(ls.sdm.example_data("bioclim"))
-    data = ls.sdm.prepare(occ, env, clean=False, background=500, seed=1)
-    res = ls.sdm.fit(data, {"glm": make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))})
+    occ = tf.load_table(tf.sdm.example_data("bradypus"))
+    env = tf.load_raster(tf.sdm.example_data("bioclim"))
+    data = tf.sdm.prepare(occ, env, clean=False, background=500, seed=1)
+    res = tf.sdm.fit(data, {"glm": make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))})
     f = P.sdm_features({"bradypus": res}, env)
     assert list(f["band"].values) == ["bradypus"] and f.shape[1:] == env.shape[1:]
     b = P.sdm_features([res], env, threshold="max_tss")
@@ -132,16 +132,16 @@ def test_report_and_plots(tmp_path):
     r = P.report(p, zonation=True, extinction_z=0.25)
     assert set(r.tables) == {"summary", "representation", "targets", "extinction risk"}
     assert "irreplaceability" in r.maps and r.comparison is not None
-    page = ls.plot(r, show=False).save(tmp_path / "report.html")
+    page = tf.plot(r, show=False).save(tmp_path / "report.html")
     html = page.read_text(encoding="utf-8")
     assert "<html" in html.lower() and len(html) > 10000
-    ls.save(r, tmp_path / "report")
+    tf.save(r, tmp_path / "report")
     assert (tmp_path / "report" / "selection.tif").exists()
     for obj in (p.solve(), p.add_cuts_portfolio(2).solve(), P.calibrate_penalty(p, values=[0.01, 1])):
-        assert ls.plot(obj, show=False).panels
+        assert tf.plot(obj, show=False).panels
     # table units: a report without boundary and maps
     tr = P.report(oc._table().add_relative_targets(0.3).add_binary_decisions(), importance=False)
-    assert "boundary" not in tr.tables["summary"] and ls.plot(tr, show=False).panels
+    assert "boundary" not in tr.tables["summary"] and tf.plot(tr, show=False).panels
 
 
 def test_actions_plots():
@@ -151,9 +151,9 @@ def test_actions_plots():
                   names=["fire", "cattle"])
     d = P.actions_raster_data(cost, oc.features(), thr, 2.0, target_recovery=0.2)
     s = d.problem("minimizeCosts").add_highs_solver(gap=0.01).solve()
-    assert any(pn.kind == "map" for pn in ls.plot(s, show=False).panels)
+    assert any(pn.kind == "map" for pn in tf.plot(s, show=False).panels)
     port = d.problem("minimizeCosts").add_cuts_portfolio(2).add_highs_solver(gap=0.01).solve()
-    assert ls.plot(port, show=False).panels
+    assert tf.plot(port, show=False).panels
 
 
 def test_coarsen_and_refine():

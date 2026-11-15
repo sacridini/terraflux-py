@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the landschaft C++ core.
+// Python bindings of the terraflux C++ core.
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -635,7 +635,7 @@ int team_size() {
 }
 
 // OpenMP thread count of the calling thread's next parallel regions (the
-// Python side sets it before every compiled call; see landschaft/_threads.py).
+// Python side sets it before every compiled call; see terraflux/_threads.py).
 void set_num_threads(int n) {
 #if defined(_OPENMP)
     omp_set_num_threads(n > 0 ? n : 1);
@@ -1058,14 +1058,14 @@ void bind_landscape(py::module_& m) {
         },
         py::arg("x"), "R's sin(x) and cos(x) (the x87 bits of R on x86-64 Windows).");
     m.def("lsm_r_statistics", &lsm::r_statistics, py::arg("x"),
-          "R's sum, mean, sd and median of x, log(x[0]) and sqrt(x[0]), as landschaft computes them.");
+          "R's sum, mean, sd and median of x, log(x[0]) and sqrt(x[0]), as terraflux computes them.");
     m.def(
         "lsm_r_lm_slope",
         [](const std::vector<double>& x, const std::vector<double>& y) {
             if (x.size() != y.size()) throw py::value_error("x and y must have the same length");
             return lsm::r_lm_slope(x.data(), y.data(), static_cast<int>(x.size()));
         },
-        py::arg("x"), py::arg("y"), "The slope of R's lm(y ~ x), as landschaft computes it (NaN for R's NA).");
+        py::arg("x"), py::arg("y"), "The slope of R's lm(y ~ x), as terraflux computes it (NaN for R's NA).");
 
     m.def(
         "lsm_window",
@@ -1404,7 +1404,7 @@ py::dict conn_samc_transitions(const CArray<double>& resistance, const CArray<do
     return out;
 }
 
-// AVX2 and FMA usable (CPU and OS): landschaft._circuit_avx2 may be loaded.
+// AVX2 and FMA usable (CPU and OS): terraflux._circuit_avx2 may be loaded.
 bool cpu_supports_avx2_fma() {
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
     int r[4];
@@ -1427,7 +1427,7 @@ bool cpu_supports_avx2_fma() {
 }  // namespace
 
 PYBIND11_MODULE(_core, m) {
-    m.doc() = "landschaft C++ core (MSPA, GTN, FAD, distance, entropy and landscape metrics).";
+    m.doc() = "terraflux C++ core (MSPA, GTN, FAD, distance, entropy and landscape metrics).";
     bind_landscape(m);
     m.def("conn_analyse", &conn_analyse, py::arg("pi"), py::arg("pj"), py::arg("value"), py::arg("area"),
           py::arg("kind"), py::arg("threshold"), py::arg("probability"), py::arg("pij_min"), py::arg("expand_limit"),
@@ -1462,7 +1462,7 @@ PYBIND11_MODULE(_core, m) {
     stats::register_python(m);
     move::register_python(m);
     swat::register_python(m);
-    m.def("cpu_supports_avx2_fma", &cpu_supports_avx2_fma, "AVX2 and FMA usable (landschaft._circuit_avx2).");
+    m.def("cpu_supports_avx2_fma", &cpu_supports_avx2_fma, "AVX2 and FMA usable (terraflux._circuit_avx2).");
     m.def("conn_raster_nodes", &conn_raster_nodes, py::arg("values"), py::arg("na"), py::arg("xmin"), py::arg("xmax"),
           py::arg("ymin"), py::arg("ymax"), py::arg("centroids"), py::arg("keep_index"), py::arg("n_threads") = 0,
           "Patch ids, cell counts, centroids and node index of a raster of patch ids.");

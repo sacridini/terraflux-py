@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cases shared by tools/make_reference_prioritize.py and the ls.prioritize tests.
+"""Cases shared by tools/make_reference_prioritize.py and the tf.prioritize tests.
 
 Every raster is a float64 array (NaN = NoData) written as a one-strip GeoTIFF of
 ``dtype`` (NaN becomes ``nodata`` for integer types), so Zonation 5 reads it in
@@ -8,7 +8,7 @@ the feature list (the ``filename`` column plus ``columns``), the settings file
 (values naming a raster become its path), extra link files, the command-line
 switches, the marginal loss rule (``--mode``) and the quantization (8 or 16
 bits, i.e. ``z5.exe`` or ``z5_16bit.exe``). ``params`` are the arguments of
-``ls.prioritize.zonation`` giving the same run.
+``tf.prioritize.zonation`` giving the same run.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class Case:
     bits: int = 8
     extract: dict[int, float] = field(default_factory=dict)  # layer index -> value extracted ("f.tif/3")
     load: bool = True  # also evaluate Zonation's final rank map in LOAD mode (curves of the final ranking)
-    params: dict = field(default_factory=dict)  # ls.prioritize.zonation arguments (besides features)
+    params: dict = field(default_factory=dict)  # tf.prioritize.zonation arguments (besides features)
     extra: tuple[str, ...] = ()  # other rasters the link files name ("<raster>.tif")
 
 
@@ -298,7 +298,7 @@ CONN = [f"conn{i}" for i in range(5)]
 
 
 def _connectivity() -> dict[str, Case]:
-    from landschaft.prioritize import Interaction, Kernel
+    from terraflux.prioritize import Interaction, Kernel
 
     c: dict[str, Case] = {}
     g = "connectivity"
@@ -356,7 +356,7 @@ def _connectivity() -> dict[str, Case]:
 
 def IA(t):
     """An Interaction with its resource as a raster name (the tests give its path)."""
-    from landschaft.prioritize import Interaction
+    from terraflux.prioritize import Interaction
 
     res, kern, pos, beta, norm = t
     return Interaction(kern, res, pos, beta, norm)

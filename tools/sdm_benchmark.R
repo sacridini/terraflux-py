@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Timings of the R packages behind ls.sdm for tools/benchmark_sdm.py: each
+# Timings of the R packages behind tf.sdm for tools/benchmark_sdm.py: each
 # task on the inputs the Python script wrote to `work`, the best of `reps`
 # runs (a fast task repeated until a run takes 0.5 s), as "task<TAB>seconds".
 #

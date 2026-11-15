@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import lsm_scenes
 from conftest import DATA, same_bits
 from test_lsm_reference import NOT_BITWISE, ULPS
@@ -52,12 +52,12 @@ def assert_same(a, b, label: str) -> None:
     assert same.all(), f"{label}: {int((~same).sum())} values differ, first at {np.argwhere(~same)[:3].tolist()}"
 
 
-def landscape(case: str) -> ls.Landscape:
+def landscape(case: str) -> tf.Landscape:
     info = MANIFEST["files"][case]
     directions = info["options"].get("directions", 8)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return ls.Landscape(DATA / "lsm" / info["input"], directions=directions)
+        return tf.Landscape(DATA / "lsm" / info["input"], directions=directions)
 
 
 def boundary_options(case: str) -> dict:
@@ -135,7 +135,7 @@ def test_boundaries(case):
     for patch_id in (False, True):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            ours = ls.raster_boundaries(tif, patch_id=patch_id, **opts)
+            ours = tf.raster_boundaries(tif, patch_id=patch_id, **opts)
         assert_same(ours, matrix(case, f"boundaries_values_{str(patch_id).lower()}", lm.shape),
                     f"{case} raster values patch_id={patch_id}")
     assert_same(lm.boundaries(patch_id=True, **opts), matrix(case, "boundaries_patches", lm.shape), f"{case} patches")
@@ -167,7 +167,7 @@ def test_check_landscape(case):
     ref = read(case, "check").iloc[0]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ours = ls.check_landscape(DATA / "lsm" / MANIFEST["files"][case]["input"], verbose=False).iloc[0]
+        ours = tf.check_landscape(DATA / "lsm" / MANIFEST["files"][case]["input"], verbose=False).iloc[0]
     for col in ("crs", "units", "class", "n_classes"):
         a, b = ours[col], ref[col]
         assert (pd.isna(a) and pd.isna(b)) or a == b, f"{case} {col}: {a!r} vs {b!r}"
@@ -184,12 +184,12 @@ def test_correlation(case, method):
     metrics = lm.metrics(what=what)
     if case == "augusta":
         stack = [DATA / "lsm" / "augusta.tif"] + [DATA / "lsm" / f for f in MANIFEST["stack"]]
-        land = ls.landscape_metrics(stack, what=["lsm_l_ta", "lsm_l_np", "lsm_l_shdi", "lsm_l_contag", "lsm_l_ed",
+        land = tf.landscape_metrics(stack, what=["lsm_l_ta", "lsm_l_np", "lsm_l_shdi", "lsm_l_contag", "lsm_l_ed",
                                                  "lsm_l_area_mn"])
         metrics = pd.concat([metrics.assign(layer=1), land], ignore_index=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        result = ls.calculate_correlation(metrics, method=method)
+        result = tf.calculate_correlation(metrics, method=method)
     for level, ours in result.items():
         ref = read(case, f"correlation_{method}_{level}")
         assert list(ours["metric_1"]) == list(ref["metric_1"]), level
@@ -236,7 +236,7 @@ def test_live_utilities(rscript, tmp_path, seed, maker, res, options):
     lsm_reference.run_utils(rscript, tif, out, points=tmp_path / "points.csv", **options)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        lm = ls.Landscape(tif, directions=options.get("directions", 8))
+        lm = tf.Landscape(tif, directions=options.get("directions", 8))
     for cc in (False, True):
         ref = read(out, f"centroids_{str(cc).lower()}")
         assert_same(lm.centroids(cc)[["class", "id", "x", "y"]], ref[["class", "id", "x", "y"]], f"centroids {cc}")
@@ -253,7 +253,7 @@ def test_live_utilities(rscript, tmp_path, seed, maker, res, options):
     for pid in (False, True):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            ours = ls.raster_boundaries(tif, patch_id=pid, **b_opts)
+            ours = tf.raster_boundaries(tif, patch_id=pid, **b_opts)
         assert_same(ours, matrix(out, f"boundaries_values_{str(pid).lower()}", lm.shape), f"values {pid}")
     ref = read(out, "extract")
     ours = lm.extract_metrics(pts.to_numpy())
@@ -270,13 +270,13 @@ SMALL = np.array([[1, 1, 2], [1, 2, 2], [3, 3, 2]])
 
 class TestUtilities:
     def test_centroids_by_hand(self):
-        c = ls.Landscape(SMALL, res=10).centroids()
+        c = tf.Landscape(SMALL, res=10).centroids()
         # terra's cell centres of a matrix: x = (col + 0.5) * 10, y from the top
         np.testing.assert_allclose(c["x"], [(5 + 15 + 5) / 3, (25 + 15 + 25 + 25) / 4, 10])
         np.testing.assert_allclose(c["y"], [(25 + 25 + 15) / 3, (25 + 15 + 15 + 5) / 4, 5])
 
     def test_patches(self):
-        lm = ls.Landscape(SMALL)
+        lm = tf.Landscape(SMALL)
         p = lm.patches()
         assert sorted(p) == [1, 2, 3]
         labels = lm.labels()
@@ -288,13 +288,13 @@ class TestUtilities:
     def test_boundaries_are_the_complement_of_core(self):
         data = lsm_scenes.clustered((40, 50), [1, 2, 3], seed=3, na_fraction=0.05)
         for depth in (1, 2, 3):
-            lm = ls.Landscape(data, edge_depth=depth)
+            lm = tf.Landscape(data, edge_depth=depth)
             b = np.asarray(lm.boundaries(edge_depth=depth))
             core_cells = np.nansum(b == 0) * 1e-4
             assert core_cells == pytest.approx(lm.landscape_metrics("tca")["tca"][0])
 
     def test_extract_on_edges_and_outside(self):
-        lm = ls.Landscape(SMALL, res=1)  # extent 0..3 x 0..3
+        lm = tf.Landscape(SMALL, res=1)  # extent 0..3 x 0..3
         pts = np.array([[0.0, 3.0], [3.0, 0.0], [1.0, 2.0], [-1.0, 1.0], [2.5, 0.5]])
         out = lm.extract_metrics(pts, what="lsm_p_area")
         # (0, 3): top-left cell; (3, 0): bottom-right (last column / row); (1, 2): right/down of the corner
@@ -303,28 +303,28 @@ class TestUtilities:
 
     def test_extract_ids_and_layers(self):
         pts = np.array([[0.5, 2.5], [2.5, 0.5]])
-        out = ls.extract_metrics([SMALL, SMALL], pts, extract_id=["a", "b"], what=["lsm_p_area", "lsm_p_perim"])
+        out = tf.extract_metrics([SMALL, SMALL], pts, extract_id=["a", "b"], what=["lsm_p_area", "lsm_p_perim"])
         assert out["layer"].tolist() == [1, 1, 1, 1, 2, 2, 2, 2]
         assert out["extract_id"].tolist() == ["a", "a", "b", "b"] * 2
         with pytest.raises(ValueError, match="patch level"):
-            ls.extract_metrics(SMALL, pts, what="lsm_c_ca")
+            tf.extract_metrics(SMALL, pts, what="lsm_c_ca")
 
     def test_check_landscape(self):
         with pytest.warns(UserWarning):
-            df = ls.check_landscape(np.array([[1.5, 2.0]]))
+            df = tf.check_landscape(np.array([[1.5, 2.0]]))
         assert df["class"][0] == "non-integer" and df["OK"][0] == "✖"
         with pytest.warns(UserWarning, match="not metric"):
-            df = ls.check_landscape([SMALL, SMALL])
+            df = tf.check_landscape([SMALL, SMALL])
         assert df["layer"].tolist() == [1, 2] and df["OK"].tolist() == ["❓"] * 2
         assert df["n_classes"].tolist() == [3, 3]
 
     def test_correlation_errors(self):
-        one = ls.Landscape(SMALL).metrics(what=["lsm_l_ta", "lsm_l_np"])
+        one = tf.Landscape(SMALL).metrics(what=["lsm_l_ta", "lsm_l_np"])
         with pytest.raises(ValueError, match="several landscapes"):
-            ls.calculate_correlation(one)
+            tf.calculate_correlation(one)
         with pytest.raises(ValueError, match="more than one metric"):
-            ls.calculate_correlation(ls.Landscape(SMALL).metrics(what=["lsm_c_ca"]))
-        res = ls.calculate_correlation(ls.Landscape(SMALL).metrics(what=["lsm_c_ca", "lsm_c_te", "lsm_c_np"]),
+            tf.calculate_correlation(tf.Landscape(SMALL).metrics(what=["lsm_c_ca"]))
+        res = tf.calculate_correlation(tf.Landscape(SMALL).metrics(what=["lsm_c_ca", "lsm_c_te", "lsm_c_np"]),
                                        simplify=True)
         assert isinstance(res, pd.DataFrame)
         # np is constant: its correlations are NA and left out, its diagonal stays
@@ -336,7 +336,7 @@ class TestUtilities:
 
         tif = tmp_path / "m.tif"
         lsm_reference.write_landscape(tif, SMALL)
-        lm = ls.Landscape(tif, block_rows=64)
+        lm = tf.Landscape(tif, block_rows=64)
         for method in (lm.centroids, lm.nearest_neighbours, lm.boundaries, lm.patches):
             with pytest.raises(NotImplementedError):
                 method()

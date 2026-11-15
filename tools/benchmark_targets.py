@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Objectives that reward the targets met (max features, max phylogenetic diversity and endemism) in
-ls.prioritize against Gurobi.
+tf.prioritize against Gurobi.
 
 The instances of the MILP prioritization's phase 9: side x side cells, 30 Gaussian features (each over 30 % of
 the area: the field above its 70 % quantile, minus it), costs from 1 to 10 (a field), relative targets
 (``--target``, 30 % by default), a budget of 10 % of the total cost and, for the phylogenetic objectives, a
 random tree of the features (branch lengths 0.5 to 3).
 
-Solvers: ``landschaft`` (``Problem.solve`` on HiGHS: the wide engine, then the search over the targets met) and
+Solvers: ``terraflux`` (``Problem.solve`` on HiGHS: the wide engine, then the search over the targets met) and
 ``gurobi`` (the same compiled model). Every run: objective, bound, gap and seconds.
 """
 
@@ -25,13 +25,13 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
 
-import landschaft as ls  # noqa: E402
+import terraflux as tf  # noqa: E402
 
-P = ls.prioritize
+P = tf.prioritize
 
 
 def _field(side: int, seed: int) -> np.ndarray:
-    return ls.nlm.gaussian_field(side, side, autocorr_range=max(side / 25, 2), seed=seed).values
+    return tf.nlm.gaussian_field(side, side, autocorr_range=max(side / 25, 2), seed=seed).values
 
 
 def tree(names, seed=7) -> str:
@@ -66,7 +66,7 @@ def problem(side: int, objective: str, target: float, budget_share: float = 0.1,
 
 
 def run(p, solver: str, gap: float, time_limit: float, threads: int) -> dict:
-    q = (p.add_highs_solver if solver == "landschaft" else p.add_gurobi_solver)(gap=gap, time_limit=time_limit,
+    q = (p.add_highs_solver if solver == "terraflux" else p.add_gurobi_solver)(gap=gap, time_limit=time_limit,
                                                                                  n_threads=threads)
     t0 = time.perf_counter()
     s = q.solve()
@@ -78,7 +78,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sides", nargs="+", type=int, default=[100])
     ap.add_argument("--objectives", nargs="+", default=["max_features", "max_phylo_div", "max_phylo_end"])
-    ap.add_argument("--solvers", nargs="+", default=["landschaft", "gurobi"])
+    ap.add_argument("--solvers", nargs="+", default=["terraflux", "gurobi"])
     ap.add_argument("--target", type=float, default=0.3)
     ap.add_argument("--gap", type=float, default=0.0)
     ap.add_argument("--time-limit", type=float, default=60.0)

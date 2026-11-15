@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Sediment delivery ratio (ls.services.sdr) against InVEST's outputs (tools/make_reference_invest.py)."""
+"""Sediment delivery ratio (tf.services.sdr) against InVEST's outputs (tools/make_reference_invest.py)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from test_services import CRS, _case, _gt, _on_invest_grid, _raster
 
-import landschaft as ls
+import terraflux as tf
 
 CASES = ["sdr_mfd", "sdr_d8", "sdr_drainage", "sdr_grids"]
 FIELDS = ["usle_tot", "sed_export", "sed_dep", "avoid_exp", "avoid_eros"]
@@ -31,7 +31,7 @@ def _run(name, **kw):
     extra = {}
     if "drainage" in inputs:
         extra["drainage"] = _raster(inputs["drainage"], 255, _gt(meta, "drainage"))
-    s = ls.services.sdr(_raster(inputs["dem"], nd, _gt(meta, "dem")), _raster(inputs["erosivity"], nd, _gt(meta, "erosivity")),
+    s = tf.services.sdr(_raster(inputs["dem"], nd, _gt(meta, "dem")), _raster(inputs["erosivity"], nd, _gt(meta, "erosivity")),
                         _raster(inputs["erodibility"], nd, _gt(meta, "erodibility")),
                         _raster(inputs["lulc"], meta["nodata"], _gt(meta, "lulc")), bio, _polygons(meta["watersheds"]),
                         threshold=p["threshold_flow_accumulation"], k=p["k_param"], ic_0=p["ic_0_param"],
@@ -78,9 +78,9 @@ def test_connectivity_index_is_the_sdr_ic():
     inputs = _case("sdr_mfd")[0]
     dem = _raster(np.where(np.isnan(ref["masked_dem"]), np.nan, ref["masked_dem"]))
     w = s.intermediate["w"]
-    ic = ls.hydro.connectivity_index(dem, w, threshold=meta["params"]["threshold_flow_accumulation"])
+    ic = tf.hydro.connectivity_index(dem, w, threshold=meta["params"]["threshold_flow_accumulation"])
     np.testing.assert_array_equal(ic.values, ref["ic"])
-    ic2 = ls.hydro.connectivity_index(dem, w, streams=s.stream.where(s.stream != 255))
+    ic2 = tf.hydro.connectivity_index(dem, w, streams=s.stream.where(s.stream != 255))
     np.testing.assert_array_equal(ic2.values, ref["ic"])
     assert inputs["dem"].shape == ic.shape
 

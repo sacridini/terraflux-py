@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Coastal vulnerability (ls.services.coastal_vulnerability) against InVEST (tools/make_reference_invest_coastal.py).
+"""Coastal vulnerability (tf.services.coastal_vulnerability) against InVEST (tools/make_reference_invest_coastal.py).
 
 The references are InVEST with two of its bugs corrected (the tool's doc). Everything is
 compared bit for bit but the fetch: a ray that crosses two or more coast edges ends, in
@@ -20,8 +20,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
-from landschaft.services._coastal import SECTORS
+import terraflux as tf
+from terraflux.services._coastal import SECTORS
 
 REF = Path(__file__).parent / "data" / "reference" / "invest"
 CASES = ["coastal_full", "coastal_required", "coastal_lonlat"]
@@ -54,7 +54,7 @@ def _raster(z, meta, name):
                                                   "x": gt[0] + (np.arange(nx) + 0.5) * gt[1]})
     t = Affine(gt[1], 0, gt[0], 0, gt[5], gt[3])
     crs = f"EPSG:{info['epsg']}"
-    if a.dtype.kind == "f":  # as ls.load_raster reads it: NaN for NoData
+    if a.dtype.kind == "f":  # as tf.load_raster reads it: NaN for NoData
         da = da.where(a != nd).astype(a.dtype)
         da = da.rio.write_transform(t).rio.write_crs(crs)
         return da.rio.write_nodata(nd, encoded=True)
@@ -82,7 +82,7 @@ def _inputs(name):
 
 @cache
 def _run(name, threads=4):
-    return ls.services.coastal_vulnerability(**_inputs(name), n_threads=threads)
+    return tf.services.coastal_vulnerability(**_inputs(name), n_threads=threads)
 
 
 def _exact(ours, ref, what, exact=True):
@@ -202,15 +202,15 @@ def test_files_and_habitat_table(tmp_path):
         args[k] = str(p)
     for k in ("bathymetry", "dem"):
         p = tmp_path / f"{k}.tif"
-        ls.write_raster(args[k], p)
+        tf.write_raster(args[k], p)
         args[k] = p
     rows = []
     for hid, (data, rank, dist) in args["habitats"].items():
         p = tmp_path / (f"{hid}.gpkg" if hasattr(data, "geometry") else f"{hid}.tif")
-        data.to_file(p) if hasattr(data, "geometry") else ls.write_raster(data, p)
+        data.to_file(p) if hasattr(data, "geometry") else tf.write_raster(data, p)
         rows.append({"id": hid, "path": str(p), "rank": rank, "protection distance (m)": dist})
     args["habitats"] = pd.DataFrame(rows)
-    r = ls.services.coastal_vulnerability(**args, n_threads=2)
+    r = tf.services.coastal_vulnerability(**args, n_threads=2)
     ref = _run("coastal_required")
     pd.testing.assert_frame_equal(r.exposure.drop(columns="geometry"), ref.exposure.drop(columns="geometry"),
                                   check_exact=True)
@@ -227,22 +227,22 @@ def test_save(tmp_path):
 def test_validation():
     args = _inputs("coastal_required")
     with pytest.raises(ValueError, match="population_radius"):
-        ls.services.coastal_vulnerability(**args, population=args["dem"])
+        tf.services.coastal_vulnerability(**args, population=args["dem"])
     with pytest.raises(ValueError, match="rank"):
-        ls.services.coastal_vulnerability(**{**args, "habitats": {"reef": (args["habitats"]["reef"][0], 7, 100.0)}})
+        tf.services.coastal_vulnerability(**{**args, "habitats": {"reef": (args["habitats"]["reef"][0], 7, 100.0)}})
     aoi = args["aoi"].to_crs(4326)
     with pytest.raises(ValueError, match="projected"):
-        ls.services.coastal_vulnerability(**{**args, "aoi": aoi})
+        tf.services.coastal_vulnerability(**{**args, "aoi": aoi})
     far = args["wwiii"].copy()
     far["geometry"] = far.geometry.translate(5e6, 0)
     with pytest.raises(ValueError, match="Wave Watch III"):
-        ls.services.coastal_vulnerability(**{**args, "wwiii": far})
+        tf.services.coastal_vulnerability(**{**args, "wwiii": far})
 
 
 def test_ray_kernel():
     """A ray starts 1 m off the point (InVEST's): east from (0, 0) it meets the edge at
     x = 10 after 9 m; a ray that misses gets the full distance, one that starts on land 0."""
-    from landschaft import _core
+    from terraflux import _core
 
     pts = np.array([[0.0, 0.0]])
     deltas = np.array([[1.0, 0.0]] + [[0.0, 1.0]] * 15)
@@ -261,5 +261,5 @@ def test_fewer_than_three_wave_watch_points():
     args = _inputs("coastal_required")
     w = args["wwiii"]
     near = w.distance(args["aoi"].geometry.iloc[0].centroid).sort_values().index[:2]
-    r = ls.services.coastal_vulnerability(**{**args, "wwiii": w.loc[near]}, n_threads=2)
+    r = tf.services.coastal_vulnerability(**{**args, "wwiii": w.loc[near]}, n_threads=2)
     assert np.isfinite(r.fetch["REI"]).all() and np.isfinite(r.exposure["exposure"]).all()

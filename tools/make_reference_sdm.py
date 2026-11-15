@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of the R packages behind ls.sdm.
+"""Generate golden outputs of the R packages behind tf.sdm.
 
 Usage::
 
@@ -63,11 +63,11 @@ def write_input(name: str, obj, tmp: Path) -> dict:
         obj.to_file(path, driver="GPKG")
         return {"kind": "vector", "file": path.as_posix()}
     if isinstance(obj, xr.DataArray):
-        import landschaft as ls
+        import terraflux as tf
 
         path = tmp / f"raster_{name}.tif"
         data = obj if "band" in obj.dims else obj.expand_dims(band=[name])
-        ls.write_raster(data.astype("float64"), path, nodata=np.nan, compress="none")
+        tf.write_raster(data.astype("float64"), path, nodata=np.nan, compress="none")
         return {"kind": "raster", "file": path.as_posix()}
     if isinstance(obj, pd.DataFrame):
         columns = []

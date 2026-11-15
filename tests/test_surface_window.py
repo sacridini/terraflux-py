@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.surface.window_metrics against each window's metrics in R (and unit checks)."""
+"""tf.surface.window_metrics against each window's metrics in R (and unit checks)."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import surface_cases
 import surface_reference
 
@@ -38,30 +38,30 @@ def test_windows_are_whole_raster_metrics():
     rng = np.random.default_rng(5)
     z = rng.normal(size=(14, 17))
     names = ["sa", "sq", "sv", "sph", "sds", "sdq", "ssc", "s10z", "sk"]
-    t = ls.surface.window_metrics(z, names, 5)
+    t = tf.surface.window_metrics(z, names, 5)
     for r, c in [(0, 0), (3, 7), (13, 16), (6, 0)]:
         w, e = _window(z, r, c, 5)
-        ref = ls.surface.metrics(w, names, extent=e)
+        ref = tf.surface.metrics(w, names, extent=e)
         for n in names:
             np.testing.assert_equal(t[n].values[r, c], ref[n], err_msg=f"{n} at {(r, c)}")
 
 
 def test_circle_masks_the_corners():
     z = np.arange(49, dtype=float).reshape(7, 7)
-    t = ls.surface.window_metrics(z, ["sph", "sv"], 5, "circle")
+    t = tf.surface.window_metrics(z, ["sph", "sv"], 5, "circle")
     # the centre's window: radius 2, the corners (and cells at distance > 2) masked
     assert t["sph"].values[3, 3] == z[5, 3] and t["sv"].values[3, 3] == z[1, 3]
-    sq = ls.surface.window_metrics(z, ["sph"], 5)
+    sq = tf.surface.window_metrics(z, ["sph"], 5)
     assert sq["sph"].values[3, 3] == z[5, 5]
 
 
 def test_window_errors():
     z = np.zeros((6, 6))
     with pytest.raises(ValueError, match="odd"):
-        ls.surface.window_metrics(z, "sa", 4)
+        tf.surface.window_metrics(z, "sa", 4)
     with pytest.raises(ValueError, match="unknown"):
-        ls.surface.window_metrics(z, "nope")
+        tf.surface.window_metrics(z, "nope")
     with pytest.raises(ValueError, match="shape"):
-        ls.surface.window_metrics(z, "sa", 3, "hexagon")
-    t = ls.surface.window_metrics(z, "sa", 3)
+        tf.surface.window_metrics(z, "sa", 3, "hexagon")
+    t = tf.surface.window_metrics(z, "sa", 3)
     assert t.attrs["window"] == 3 and t["sa"].shape == z.shape

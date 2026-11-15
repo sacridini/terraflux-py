@@ -2,7 +2,7 @@
 //
 // The species distribution modelling Python functions (sdm_*) and R's random
 // number generator as a Python object (RRandom), registered into
-// landschaft._core.
+// terraflux._core.
 #pragma once
 
 #include <pybind11/pybind11.h>

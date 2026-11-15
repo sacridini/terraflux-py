@@ -6,7 +6,7 @@
 // centre takes the value of its nearest germ, as terra::rasterize() of the
 // Voronoi polygons takes the polygon containing it). The order of GEOS's
 // Voronoi cells, which decides which value goes to which germ in NLMR, is
-// found in Python (landschaft.nlm._tess).
+// found in Python (terraflux.nlm._tess).
 
 #include <algorithm>
 #include <cmath>

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Running the reference land change tools behind ls.simulate.
+"""Running the reference land change tools behind tf.simulate.
 
 One function per engine, each taking a case's job and a scratch folder and
 giving a dict ``key -> numpy array or list of str``:
@@ -99,9 +99,9 @@ def read_table(path: Path) -> dict[str, np.ndarray | list[str]]:
 
 
 def write_geotiff(path: Path, da) -> None:
-    import landschaft as ls
+    import terraflux as tf
 
-    ls.write_raster(da, path, compress="none")
+    tf.write_raster(da, path, compress="none")
 
 
 def write_dinamica_raster(path: Path, da, name: str) -> None:

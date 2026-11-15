@@ -5,7 +5,7 @@
 # [tool.cibuildwheel] in pyproject.toml), the wheels and the sdist go to PyPI,
 # the tag and the GitHub release are made (notes from CHANGELOG.md's section of
 # the version), the website is published (docs.yml) and the container images
-# (containers.yml, ghcr.io/sacridini/landschaft). Nothing is published
+# (containers.yml, ghcr.io/sacridini/terraflux-py). Nothing is published
 # when any wheel fails its tests.
 #
 # Actions > Release > Run workflow builds and tests every wheel without publishing
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/landschaft/${{ needs.version.outputs.version }}/
+      url: https://pypi.org/project/terraflux/${{ needs.version.outputs.version }}/
     permissions:
       id-token: write
     steps:
@@ -136,8 +136,8 @@ jobs:
         run: |
           awk -v head="## [$VERSION]" 'index($0, head) == 1 { on = 1; next } on && /^## \[/ { exit } on' \
             CHANGELOG.md > notes.md
-          printf '\nInstall: `pip install landschaft==%s`\n' "$VERSION" >> notes.md
-      - run: gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "Landschaft $VERSION" --notes-file notes.md
+          printf '\nInstall: `pip install terraflux==%s`\n' "$VERSION" >> notes.md
+      - run: gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "Terraflux $VERSION" --notes-file notes.md
 
   docs:
     name: Website

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""What R's gstat (2.1) gives for points of a field, for landschaft's tests (the same file as Terraflux's), written to
+"""What R's gstat (2.1) gives for points of a field, for terraflux's tests (the same file as Terraflux's), written to
 tests/data/reference/stats/interpolation.npz:
 
     python tools/make_reference_interpolation.py

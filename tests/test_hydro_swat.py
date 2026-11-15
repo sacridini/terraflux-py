@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.hydro.swat against SWAT+ 62.0.1 (tools/make_reference_swat.py): the daily dump
+"""tf.hydro.swat against SWAT+ 62.0.1 (tools/make_reference_swat.py): the daily dump
 of the reference, record by record, and the Fortran input it reads."""
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
-from landschaft import _core
+import terraflux as tf
+from terraflux import _core
 from conftest import assert_swat_close
 
-S = ls.hydro.swat
+S = tf.hydro.swat
 REF = Path(__file__).parent / "data" / "reference" / "swat"
 CASES = ["hubbard_brook", "ames"]
 

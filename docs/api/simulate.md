@@ -2,31 +2,31 @@
 
 Land use and land cover change models: analysing the changes between maps,
 estimating where change is likely, allocating future change and validating
-the simulated maps: the `ls.simulate` module. It brings the tools of the
+the simulated maps: the `tf.simulate` module. It brings the tools of the
 field together as interchangeable pieces of one model (CLUE-S, CLUMondo,
 Dinamica EGO, PLUS, FUTURES), each reproducing its reference. The module is
 being built phase by phase; this page grows with it.
 
 <!-- no-run -->
 ```python
-import landschaft as ls
+import terraflux as tf
 
-lu = ls.load_raster(ls.simulate.example_data("pie_landuse"))   # 1985, 1991, 1999
-ch = ls.simulate.changes(lu)                                   # transitions, areas, change counts
+lu = tf.load_raster(tf.simulate.example_data("pie_landuse"))   # 1985, 1991, 1999
+ch = tf.simulate.changes(lu)                                   # transitions, areas, change counts
 ia = ch.intensity(gain=2, loss=1)                              # intensity analysis
-ls.simulate.difference_components(ch.matrix())                 # quantity, exchange, shift
+tf.simulate.difference_components(ch.matrix())                 # quantity, exchange, shift
 mk = ch.markov(steps=14)                                       # transition rates per year
 
-ef = ls.load_raster(ls.simulate.example_data("pie_drivers"))
-woe = ls.simulate.weights_of_evidence(lu[0], lu[2], ef, {"dist_built_1985": 100})
+ef = tf.load_raster(tf.simulate.example_data("pie_drivers"))
+woe = tf.simulate.weights_of_evidence(lu[0], lu[2], ef, {"dist_built_1985": 100})
 p = woe.probability(lu[2], ef)                                 # Dinamica EGO's transition probabilities
 
 forms = {1: ["elevation", "slope"], 2: ["elevation", "slope", "dist_built_1985"], 3: ["elevation", "slope"]}
-model = ls.simulate.Model(                                     # CLUE-S, as lulcc
-    potential=ls.simulate.LogisticRegression(forms).fit(lu[0], ef),
-    demand=ls.simulate.AreaDemand.from_maps(lu, times=[0, 6, 14]),
-    allocation=ls.simulate.CLUE(jitter=0.0002, scale=1e-6, max_diff=50, mean_diff=50),
-    rules=ls.simulate.Rules(elasticity=[0.2, 0.2, 0.2]))
+model = tf.simulate.Model(                                     # CLUE-S, as lulcc
+    potential=tf.simulate.LogisticRegression(forms).fit(lu[0], ef),
+    demand=tf.simulate.AreaDemand.from_maps(lu, times=[0, 6, 14]),
+    allocation=tf.simulate.CLUE(jitter=0.0002, scale=1e-6, max_diff=50, mean_diff=50),
+    rules=tf.simulate.Rules(elasticity=[0.2, 0.2, 0.2]))
 sim = model.run(lu[0], ef, seed=1)                             # 14 yearly maps
 ```
 
@@ -35,7 +35,7 @@ binary layers:
 
 <!-- no-run -->
 ```python
-S = ls.simulate
+S = tf.simulate
 st = S.LandSystemStack({"forest": f, "extensive": pe, "intensive": pi, "soy": soy})
 st.overlaps()                                                  # the combinations (mosaics) found
 roles = S.Roles(natural=["forest"], families={"cattle": ["extensive", "intensive"], "crops": ["soy"]})
@@ -67,183 +67,183 @@ sim.development                                                # step in which e
 
 ## Change between maps
 
-::: landschaft.simulate.changes
+::: terraflux.simulate.changes
 
-::: landschaft.simulate.Changes
+::: terraflux.simulate.Changes
 
-::: landschaft.simulate.IntensityAnalysis
+::: terraflux.simulate.IntensityAnalysis
 
-::: landschaft.simulate.crosstab
+::: terraflux.simulate.crosstab
 
 ## Components of difference
 
-::: landschaft.simulate.difference_components
+::: terraflux.simulate.difference_components
 
-::: landschaft.simulate.overall_difference
+::: terraflux.simulate.overall_difference
 
-::: landschaft.simulate.difference_resolutions
+::: terraflux.simulate.difference_resolutions
 
-::: landschaft.simulate.composite_matrix
+::: terraflux.simulate.composite_matrix
 
-::: landschaft.simulate.memberships
+::: terraflux.simulate.memberships
 
-::: landschaft.simulate.mad
+::: terraflux.simulate.mad
 
-::: landschaft.simulate.sample_to_population
+::: terraflux.simulate.sample_to_population
 
 ## Markov chains
 
-::: landschaft.simulate.Markov
+::: terraflux.simulate.Markov
 
 ## Transition potential
 
-::: landschaft.simulate.WeightsOfEvidence
+::: terraflux.simulate.WeightsOfEvidence
 
-::: landschaft.simulate.weights_of_evidence
+::: terraflux.simulate.weights_of_evidence
 
-::: landschaft.simulate.LogisticRegression
+::: terraflux.simulate.LogisticRegression
 
-::: landschaft.simulate.Estimator
+::: terraflux.simulate.Estimator
 
-::: landschaft.simulate.MultiCriteria
+::: terraflux.simulate.MultiCriteria
 
-::: landschaft.simulate.RasterPotential
+::: terraflux.simulate.RasterPotential
 
 ## Allocation
 
-::: landschaft.simulate.Model
+::: terraflux.simulate.Model
 
-::: landschaft.simulate.Simulation
+::: terraflux.simulate.Simulation
 
-::: landschaft.simulate.AreaDemand
+::: terraflux.simulate.AreaDemand
 
-::: landschaft.simulate.Rules
+::: terraflux.simulate.Rules
 
-::: landschaft.simulate.Neighbourhood
+::: terraflux.simulate.Neighbourhood
 
-::: landschaft.simulate.CLUE
+::: terraflux.simulate.CLUE
 
-::: landschaft.simulate.Ordered
+::: terraflux.simulate.Ordered
 
 ## Dynamic variables and regions
 
-::: landschaft.simulate.distance_to
+::: terraflux.simulate.distance_to
 
-::: landschaft.simulate.share_of
+::: terraflux.simulate.share_of
 
-::: landschaft.simulate.gravity_of
+::: terraflux.simulate.gravity_of
 
-::: landschaft.simulate.Regional
+::: terraflux.simulate.Regional
 
 ## Land systems (CLUMondo)
 
-::: landschaft.simulate.CLUMondo
+::: terraflux.simulate.CLUMondo
 
-::: landschaft.simulate.ServiceDemand
+::: terraflux.simulate.ServiceDemand
 
-::: landschaft.simulate.Supply
+::: terraflux.simulate.Supply
 
-::: landschaft.simulate.NeighbourhoodEffect
+::: terraflux.simulate.NeighbourhoodEffect
 
-::: landschaft.simulate.LandSystemStack
+::: terraflux.simulate.LandSystemStack
 
-::: landschaft.simulate.Roles
+::: terraflux.simulate.Roles
 
-::: landschaft.simulate.Cap
+::: terraflux.simulate.Cap
 
-::: landschaft.simulate.Succession
+::: terraflux.simulate.Succession
 
 ## Expander and Patcher (Dinamica)
 
-::: landschaft.simulate.ExpanderPatcher
+::: terraflux.simulate.ExpanderPatcher
 
 ## Stock taken by patches (Dinamica's continuous Patcher)
 
-::: landschaft.simulate.ContinuousPatcher
+::: terraflux.simulate.ContinuousPatcher
 
-::: landschaft.simulate.StockAllocation
+::: terraflux.simulate.StockAllocation
 
-::: landschaft.simulate.StockSimulation
+::: terraflux.simulate.StockSimulation
 
 ## Roads built by the model (Dinamica's road constructor)
 
-::: landschaft.simulate.RoadBuilder
+::: terraflux.simulate.RoadBuilder
 
-::: landschaft.simulate.RoadDistance
+::: terraflux.simulate.RoadDistance
 
-::: landschaft.simulate.friction_cost
+::: terraflux.simulate.friction_cost
 
-::: landschaft.simulate.destinations
+::: terraflux.simulate.destinations
 
-::: landschaft.simulate.pathways
+::: terraflux.simulate.pathways
 
 ## Multi-type random patch seeds (PLUS)
 
-::: landschaft.simulate.CARS
+::: terraflux.simulate.CARS
 
 ## MOLUSCE
 
-::: landschaft.simulate.MolusceWoE
+::: terraflux.simulate.MolusceWoE
 
-::: landschaft.simulate.MolusceCA
+::: terraflux.simulate.MolusceCA
 
 ## Urban growth (FUTURES)
 
-::: landschaft.simulate.PatchGrowing
+::: terraflux.simulate.PatchGrowing
 
-::: landschaft.simulate.DevelopmentDemand
+::: terraflux.simulate.DevelopmentDemand
 
-::: landschaft.simulate.DevelopmentPotential
+::: terraflux.simulate.DevelopmentPotential
 
-::: landschaft.simulate.development_pressure
+::: terraflux.simulate.development_pressure
 
-::: landschaft.simulate.Flooding
+::: terraflux.simulate.Flooding
 
-::: landschaft.simulate.patch_library
+::: terraflux.simulate.patch_library
 
-::: landschaft.simulate.calibrate_patches
+::: terraflux.simulate.calibrate_patches
 
 ## Validation
 
-::: landschaft.simulate.three_map_comparison
+::: terraflux.simulate.three_map_comparison
 
-::: landschaft.simulate.ThreeMapComparison
+::: terraflux.simulate.ThreeMapComparison
 
-::: landschaft.simulate.compare_maps
+::: terraflux.simulate.compare_maps
 
-::: landschaft.simulate.error_budget
+::: terraflux.simulate.error_budget
 
-::: landschaft.simulate.futures_validation
+::: terraflux.simulate.futures_validation
 
-::: landschaft.simulate.futures_validation_grid
+::: terraflux.simulate.futures_validation_grid
 
-::: landschaft.simulate.fuzzy_similarity
+::: terraflux.simulate.fuzzy_similarity
 
-::: landschaft.simulate.FuzzySimilarity
+::: terraflux.simulate.FuzzySimilarity
 
-::: landschaft.simulate.differences
+::: terraflux.simulate.differences
 
-::: landschaft.simulate.similarity_of_differences
+::: terraflux.simulate.similarity_of_differences
 
-::: landschaft.simulate.validate
+::: terraflux.simulate.validate
 
-::: landschaft.simulate.Validation
+::: terraflux.simulate.Validation
 
 ## Calibration
 
-::: landschaft.simulate.calibrate
+::: terraflux.simulate.calibrate
 
-::: landschaft.simulate.Calibration
+::: terraflux.simulate.Calibration
 
 ## Presets and one-call projection
 
-::: landschaft.simulate.run
+::: terraflux.simulate.run
 
-::: landschaft.simulate.Projection
+::: terraflux.simulate.Projection
 
-::: landschaft.simulate.agreement
+::: terraflux.simulate.agreement
 
-::: landschaft.simulate.presets
+::: terraflux.simulate.presets
 
 ## Running models with Terraflux
 
@@ -252,14 +252,14 @@ same C++ kernels: `Model.save` writes a fitted model as its graph (with the data
 it back, and `terraflux` runs it with the `terraflux` command, giving the same maps as `Model.run` with the same
 seed.
 
-::: landschaft.simulate.terraflux
+::: terraflux.simulate.terraflux
 
 ## Scenarios and replicates
 
-::: landschaft.simulate.scenarios
+::: terraflux.simulate.scenarios
 
-::: landschaft.simulate.Ensemble
+::: terraflux.simulate.Ensemble
 
 ## Example data
 
-::: landschaft.simulate.example_data
+::: terraflux.simulate.example_data

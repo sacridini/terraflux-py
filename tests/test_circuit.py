@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Raster circuits (Circuitscape's advanced mode, ls.circuit.advanced)."""
+"""Raster circuits (Circuitscape's advanced mode, tf.circuit.advanced)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 
 REF = Path(__file__).parent / "data" / "reference" / "circuit"
 
@@ -39,7 +39,7 @@ def _dense(g, s, gr, four=False):
 
 
 def test_two_cells():
-    r = ls.circuit.advanced(np.array([[1.0, 1.0]]), np.array([[1.0, 0.0]]), np.array([[0.0, np.inf]]))
+    r = tf.circuit.advanced(np.array([[1.0, 1.0]]), np.array([[1.0, 0.0]]), np.array([[0.0, np.inf]]))
     # The 10 eps diagonal shift of Circuitscape's CHOLMOD path moves the last bits.
     np.testing.assert_allclose(r.current, [[1.0, 1.0]], rtol=1e-14)
     np.testing.assert_allclose(r.voltage, [[1.0, 0.0]], rtol=1e-14)
@@ -47,15 +47,15 @@ def test_two_cells():
 
 def test_series_and_diagonal_weights():
     # A chain: 2 A through edges of (1+3)/2 = 2 and (3+2)/2 = 2.5.
-    r = ls.circuit.advanced(np.array([[1.0, 3.0, 2.0]]), np.array([[2.0, 0, 0]]), np.array([[0, 0, np.inf]]))
+    r = tf.circuit.advanced(np.array([[1.0, 3.0, 2.0]]), np.array([[2.0, 0, 0]]), np.array([[0, 0, np.inf]]))
     np.testing.assert_allclose(r.voltage, [[2 / 2.5 + 2 / 2, 2 / 2.5, 0]], rtol=1e-13)
     # Only a diagonal joins the two cells: (x + y) / (2 sqrt 2).
     g = np.array([[1.0, np.nan], [np.nan, 1.0]])
-    r = ls.circuit.advanced(g, np.array([[1.0, 0], [0, 0]]), np.array([[0, 0], [0, np.inf]]))
+    r = tf.circuit.advanced(g, np.array([[1.0, 0], [0, 0]]), np.array([[0, 0], [0, np.inf]]))
     np.testing.assert_allclose(r.voltage[0, 0], np.sqrt(2), rtol=1e-13)
     assert np.isnan(r.voltage[0, 1]) and r.current[0, 1] == 0
     # With four neighbours they are two components and nothing flows.
-    r = ls.circuit.advanced(g, np.array([[1.0, 0], [0, 0]]), np.array([[0, 0], [0, np.inf]]), four_neighbors=True)
+    r = tf.circuit.advanced(g, np.array([[1.0, 0], [0, 0]]), np.array([[0, 0], [0, np.inf]]), four_neighbors=True)
     np.testing.assert_array_equal(r.current, 0)
 
 
@@ -66,7 +66,7 @@ def test_matches_dense_solve(four):
     s = np.where(rng.random(g.shape) < 0.3, rng.uniform(0, 1, g.shape), 0.0)
     gr = np.zeros(g.shape)
     gr[4, 5] = np.inf
-    r = ls.circuit.advanced(g, s, gr, four_neighbors=four)
+    r = tf.circuit.advanced(g, s, gr, four_neighbors=four)
     nodes, L, v = _dense(g, s, gr, four)
     ours = np.array([r.voltage[c] for c in nodes])
     np.testing.assert_allclose(ours, v, rtol=1e-12, atol=1e-14)
@@ -88,7 +88,7 @@ def test_components_and_conflicts():
     gr[2, 2] = np.inf
     s[2, 2] = 5.0  # a source on a ground is dropped
     s[1, 5] = 1.0  # no ground on the right
-    r = ls.circuit.advanced(g, s, gr)
+    r = tf.circuit.advanced(g, s, gr)
     np.testing.assert_allclose(r.current[2, 2], 1.0, rtol=1e-12)
     np.testing.assert_array_equal(r.current[:, 4:], 0)
     np.testing.assert_array_equal(r.voltage[:, 4:], 0)
@@ -100,7 +100,7 @@ def test_finite_grounds_split_the_current():
     g = np.ones((1, 3))
     s = np.array([[0.0, 1.0, 0.0]])
     gr = np.array([[1.0, 0.0, 1.0]])
-    r = ls.circuit.advanced(g, s, gr)
+    r = tf.circuit.advanced(g, s, gr)
     np.testing.assert_allclose(r.current, [[0.5, 1.0, 0.5]], rtol=1e-13)
 
 
@@ -113,8 +113,8 @@ def test_dataarray_and_threads():
     gr = np.zeros(g.shape)
     gr[5, 5] = gr[25, 30] = np.inf
     da = xr.DataArray(g, dims=("y", "x"), coords={"y": np.arange(30)[::-1] + 0.5, "x": np.arange(40) + 0.5})
-    r1 = ls.circuit.advanced(da, s, gr, n_threads=1)
-    r2 = ls.circuit.advanced(g, s, gr)
+    r1 = tf.circuit.advanced(da, s, gr, n_threads=1)
+    r2 = tf.circuit.advanced(g, s, gr)
     assert isinstance(r1.current, xr.DataArray) and r1.current.name == "current"
     np.testing.assert_array_equal(r1.current.values, r2.current)
     np.testing.assert_array_equal(r1.voltage.values, r2.voltage)
@@ -122,9 +122,9 @@ def test_dataarray_and_threads():
 
 def test_bad_inputs():
     with pytest.raises(ValueError, match="same shape"):
-        ls.circuit.advanced(np.ones((2, 2)), np.ones((2, 3)), np.ones((2, 2)))
+        tf.circuit.advanced(np.ones((2, 2)), np.ones((2, 3)), np.ones((2, 2)))
     with pytest.raises(ValueError, match="negative"):
-        ls.circuit.advanced(np.ones((2, 2)), np.ones((2, 2)), -np.ones((2, 2)))
+        tf.circuit.advanced(np.ones((2, 2)), np.ones((2, 2)), -np.ones((2, 2)))
 
 
 def _advanced_cases():
@@ -137,7 +137,7 @@ def _advanced_cases():
 def test_advanced_matches_circuitscape(name):
     inputs = np.load(REF / "advanced_inputs.npz")
     ref = np.load(REF / "advanced.npz")
-    r = ls.circuit.advanced(inputs[f"{name}/conductance"], inputs[f"{name}/source"], inputs[f"{name}/ground"],
+    r = tf.circuit.advanced(inputs[f"{name}/conductance"], inputs[f"{name}/source"], inputs[f"{name}/ground"],
                             four_neighbors=bool(inputs[f"{name}/four"]))
     chol = ref[f"{name}/current_cholmod"]
     top = chol.max()

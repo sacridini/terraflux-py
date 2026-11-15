@@ -39,7 +39,7 @@ distances between them (m):
 
 ```python
 import numpy as np
-import landschaft as ls
+import terraflux as tf
 
 areas = [100, 50, 20, 80]
 distances = np.array([
@@ -48,7 +48,7 @@ distances = np.array([
     [1500, 600,  0,    3000],
     [5000, 4000, 3000, 0],
 ])
-toy = ls.HabitatGraph(areas, distances, landscape_area=10_000)
+toy = tf.HabitatGraph(areas, distances, landscape_area=10_000)
 toy.overall(["NC", "PC"], distance=1000, probability=0.5)[["NC", "PC", "EC(PC)"]]
 ```
 
@@ -62,8 +62,8 @@ the total habitat (250 ha).
 and the distances between them:
 
 ```python
-landcover = ls.load_raster(ls.example_data("clc"))
-forest_net = ls.HabitatGraph.from_raster(
+landcover = tf.load_raster(tf.example_data("clc"))
+forest_net = tf.HabitatGraph.from_raster(
     landcover,
     habitat=[23, 24, 25],            # broad-leaved, coniferous and mixed forest
     area_unit="ha",
@@ -75,7 +75,7 @@ forest_net
 ```
 
 ```python
-ls.plot(forest_net, distance=1000)   # the patches and their links up to 1 km
+tf.plot(forest_net, distance=1000)   # the patches and their links up to 1 km
 ```
 
 | Argument | Options |
@@ -123,8 +123,8 @@ Put the values back on the map:
 ```python
 dpc_map = forest_net.to_raster(importance, "dPC")
 components = forest_net.components(distance=1000)
-ls.plot(dpc_map)
-ls.write_raster(dpc_map, "forest_dpc.tif")
+tf.plot(dpc_map)
+tf.write_raster(dpc_map, "forest_dpc.tif")
 ```
 
 ![Components at 1 km and the importance of every patch](../assets/figures/net_importance.png)
@@ -161,7 +161,7 @@ import geopandas as gpd
 import rasterio.features
 import shapely
 
-nodes = ls.conn.node_table(landcover, habitat=[23, 24, 25], area_unit="ha")
+nodes = tf.conn.node_table(landcover, habitat=[23, 24, 25], area_unit="ha")
 patch_area = forest_net.to_raster(nodes, "attribute")
 large = (patch_area.values > 200).astype("uint8")                # forests above 200 ha
 shapes = rasterio.features.shapes(large, mask=large == 1, transform=landcover.rio.transform())
@@ -169,16 +169,16 @@ protected = gpd.GeoDataFrame(geometry=[shapely.geometry.shape(s) for s, _ in sha
                              crs=landcover.rio.crs)
 region = gpd.GeoDataFrame(geometry=[shapely.box(*landcover.rio.bounds())], crs=landcover.rio.crs)
 
-protconn = ls.conn.protconn(protected, region, distance=[1000, 5000], probability=0.5)
+protconn = tf.conn.protconn(protected, region, distance=[1000, 5000], probability=0.5)
 protconn[["distance", "Prot", "ProtConn", "ProtUnconn", "RelConn"]]
 ```
 
 `Prot` is the protected share of the region (%), `ProtConn` the protected
 and connected share, `ProtUnconn` the difference and `RelConn` their ratio.
 Transboundary protected areas (`transboundary=`), several regions
-(`ls.conn.protconn_regions`), rasters of protected areas
-(`ls.conn.protconn_raster`) and hexagonal grids (`ls.conn.make_grid`,
-`ls.conn.connectivity_grid`) are covered in the
+(`tf.conn.protconn_regions`), rasters of protected areas
+(`tf.conn.protconn_raster`) and hexagonal grids (`tf.conn.make_grid`,
+`tf.conn.connectivity_grid`) are covered in the
 [API reference](../api/networks.md#protected-area-connectivity).
 
 ## Networks from habitat patterns
@@ -188,9 +188,9 @@ nodes and its bridges links. `gtn_components` and `gtn_importance` measure it
 directly on the map:
 
 ```python
-forest = ls.load_raster(ls.example_data("input"))
-morph = ls.mspa(forest)
-network = ls.gtn_components(morph)
+forest = tf.load_raster(tf.example_data("input"))
+morph = tf.mspa(forest)
+network = tf.gtn_components(morph)
 network.num_components, network.eca, network.doc
 ```
 
@@ -200,9 +200,9 @@ network.num_components, network.eca, network.doc
 |---|---|
 | Least-cost distances through a resistance map | `from_raster(..., distance="least-cost", resistance=resistance)` |
 | Random-walk (commute-time) distances | `distance="commute-time"` |
-| Connectivity over time, ECA change | `ls.conn.eca_change([net_2000, net_2020], "PC", distance=..., landscape_area=...)` |
+| Connectivity over time, ECA change | `tf.conn.eca_change([net_2000, net_2020], "PC", distance=..., landscape_area=...)` |
 | Candidate patches for restoration | `HabitatGraph(..., restoration=flags)`, then `node_importance` |
-| Connectivity around every patch | `ls.conn.focal_nodes(patches, ...)` |
+| Connectivity around every patch | `tf.conn.focal_nodes(patches, ...)` |
 | Settlement probabilities of a random walk | `HabitatGraph.from_samc(patches, resistance, ...)` |
 | Export to other software | `graph.to_conefor("nodes.txt", "distances.txt")` |
 

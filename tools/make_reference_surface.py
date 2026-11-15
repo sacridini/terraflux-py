@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of the R packages geodiv and spatialEco for ls.surface.
+"""Generate golden outputs of the R packages geodiv and spatialEco for tf.surface.
 
 Usage::
 

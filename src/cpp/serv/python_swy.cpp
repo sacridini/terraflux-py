@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the seasonal water yield routing (landschaft._core.serv_swy_*).
+// Python bindings of the seasonal water yield routing (terraflux._core.serv_swy_*).
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

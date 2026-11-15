@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.hydro.swat results: SwatResult's tables are what SWAT+ prints (print.prt), as
+"""tf.hydro.swat results: SwatResult's tables are what SWAT+ prints (print.prt), as
 DataFrames with SWAT+'s column names, and SwatProject.set_print chooses them."""
 
 from __future__ import annotations
@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 from conftest import assert_swat_close
 
-S = ls.hydro.swat
+S = tf.hydro.swat
 REF = Path(__file__).parent / "data" / "reference" / "swat"
 
 
@@ -92,7 +92,7 @@ def test_results_save(tmp_path, hb):
 
 
 def test_run_many_equals_one_by_one():
-    base = ls.hydro.swat.load_txtinout(ls.example_data("swat_hubbard_brook"))
+    base = tf.hydro.swat.load_txtinout(tf.example_data("swat_hubbard_brook"))
     other = base.copy()
     other.set_text("time.sim", base.text("time.sim").replace("2002", "2001"))
     tables = {"hru_wb": "year", "channel_sd": "day"}
@@ -106,7 +106,7 @@ def test_run_many_equals_one_by_one():
 
 
 def test_load_txtinout_reads_folders_and_zips(tmp_path):
-    zipped = S.load_txtinout(ls.example_data("swat_hubbard_brook"))
+    zipped = S.load_txtinout(tf.example_data("swat_hubbard_brook"))
     folder = S.load_txtinout(zipped.write(tmp_path / "TxtInOut"))
     assert folder.files == zipped.files
     with pytest.raises(FileNotFoundError):
@@ -150,4 +150,4 @@ def test_old_peak_rate_factor_warns():
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", S.SwatProjectWarning)
-        S.run(S.load_txtinout(ls.example_data("swat_hubbard_brook")), tables={"hru_ls": "aa"})
+        S.run(S.load_txtinout(tf.example_data("swat_hubbard_brook")), tables={"hru_ls": "aa"})

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""ls.prioritize.zonation against Zonation 5 v2.4 (tools/make_reference_prioritize.py) and its API."""
+"""tf.prioritize.zonation against Zonation 5 v2.4 (tools/make_reference_prioritize.py) and its API."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 import pytest
 
-import landschaft as ls
+import terraflux as tf
 import prioritize_cases
 from prioritize_reference import case_ids, load, parse_table, run_case, table_text
 
@@ -66,7 +66,7 @@ def test_tables_match_zonation(name, rasters, tmp_path):
         bad = [i for i, (a, b) in enumerate(zip(ours, ref)) if a != b]
         assert not bad, f"{key}: {len(bad)} lines differ, first {ours[bad[0]]!r} vs {ref[bad[0]]!r}"
     # features_info: Zonation prints the sums with 6 digits
-    from landschaft.prioritize._tables import _g
+    from terraflux.prioritize._tables import _g
 
     info = arrays[f"{name}/features_info"]
     cols = meta[f"{name}/features_info"]
@@ -101,10 +101,10 @@ def test_array_inputs_equal_files(rasters):
     w = prioritize_cases.W8
     stack = _stack("caz2_weights")
     for x in (stack, list(stack), xr.DataArray(stack, dims=("feature", "y", "x"))):
-        res = ls.prioritize.zonation(x, weights=w)
+        res = tf.prioritize.zonation(x, weights=w)
         np.testing.assert_array_equal(np.asarray(res.rank), np.asarray(ref.rank))
     da = pytest.importorskip("dask.array")
-    res = ls.prioritize.zonation(da.from_array(stack, chunks=(1, 7, 50)), weights=w)
+    res = tf.prioritize.zonation(da.from_array(stack, chunks=(1, 7, 50)), weights=w)
     np.testing.assert_array_equal(np.asarray(res.rank), np.asarray(ref.rank))
 
 
@@ -120,7 +120,7 @@ def test_rank_is_a_permutation_and_curves_start_full():
     rng = np.random.default_rng(3)
     x = (rng.random((4, 30, 40)) ** 2).astype(np.float32)
     x[:, :3, :5] = np.nan
-    res = ls.prioritize.zonation(x, rule="ABF")
+    res = tf.prioritize.zonation(x, rule="ABF")
     r = np.asarray(res.rank)
     ok = np.isfinite(r)
     n = int(ok.sum())
@@ -135,8 +135,8 @@ def test_rank_is_a_permutation_and_curves_start_full():
 
 def test_rand_reproducible_with_seed():
     x = np.random.default_rng(1).random((2, 10, 10))
-    a = ls.prioritize.zonation(x, rule="RAND", seed=5)
-    b = ls.prioritize.zonation(x, rule="RAND", seed=5)
+    a = tf.prioritize.zonation(x, rule="RAND", seed=5)
+    b = tf.prioritize.zonation(x, rule="RAND", seed=5)
     np.testing.assert_array_equal(np.asarray(a.rank), np.asarray(b.rank))
     assert a.iterations == 0
 
@@ -144,7 +144,7 @@ def test_rand_reproducible_with_seed():
 def test_load_evaluates_given_order():
     x = np.random.default_rng(2).random((3, 12, 15))
     sol = np.random.default_rng(4).random((12, 15))
-    res = ls.prioritize.zonation(x, rule="LOAD", solution=sol)
+    res = tf.prioritize.zonation(x, rule="LOAD", solution=sol)
     r = np.asarray(res.rank)
     assert np.array_equal(np.argsort(r, axis=None, kind="stable"), np.argsort(sol, axis=None, kind="stable"))
 
@@ -153,29 +153,29 @@ def test_empty_layer_left_out():
     x = np.random.default_rng(2).random((3, 8, 9))
     x[1] = 0.0
     with pytest.warns(UserWarning, match="left out"):
-        res = ls.prioritize.zonation(x)
+        res = tf.prioritize.zonation(x)
     assert res.features["number"].tolist() == [0, 2]
 
 
 def test_rule_parameter_forms():
     x = np.random.default_rng(6).random((3, 10, 11))
-    a = ls.prioritize.zonation(x, rule="ABF 0.4")
-    b = ls.prioritize.zonation(x, rule="ABF", rule_param=0.4)
+    a = tf.prioritize.zonation(x, rule="ABF 0.4")
+    b = tf.prioritize.zonation(x, rule="ABF", rule_param=0.4)
     np.testing.assert_array_equal(np.asarray(a.rank), np.asarray(b.rank))
     with pytest.raises(ValueError, match="unknown"):
-        ls.prioritize.zonation(x, rule="XYZ")
+        tf.prioritize.zonation(x, rule="XYZ")
     with pytest.raises(ValueError, match="twice"):
-        ls.prioritize.zonation(x, rule="ABF 0.3", rule_param=0.2)
+        tf.prioritize.zonation(x, rule="ABF 0.3", rule_param=0.2)
     with pytest.raises(ValueError, match="solution"):
-        ls.prioritize.zonation(x, rule="LOAD")
+        tf.prioritize.zonation(x, rule="LOAD")
     with pytest.raises(ValueError, match="bits"):
-        ls.prioritize.zonation(x, bits=12)
+        tf.prioritize.zonation(x, bits=12)
 
 
 def test_grid_mismatch_rejected():
     x = np.random.default_rng(6).random((2, 10, 11))
     with pytest.raises(ValueError, match="cost"):
-        ls.prioritize.zonation(x, cost=np.ones((10, 12)))
+        tf.prioritize.zonation(x, cost=np.ones((10, 12)))
 
 
 def test_dataarray_output_keeps_grid():
@@ -186,7 +186,7 @@ def test_dataarray_output_keeps_grid():
     da = xr.DataArray(x, dims=("band", "y", "x"),
                       coords={"band": [1, 2], "y": 1000 - np.arange(6) * 10 - 5, "x": np.arange(8) * 10 + 5})
     da = da.rio.write_transform(Affine(10, 0, 0, 0, -10, 1000)).rio.write_crs("EPSG:32633")
-    res = ls.prioritize.zonation(da)
+    res = tf.prioritize.zonation(da)
     assert res.rank.rio.crs.to_epsg() == 32633
     np.testing.assert_array_equal(res.rank["x"].values, da["x"].values)
 
@@ -196,7 +196,7 @@ def test_cazp_small_exponent_runs():
     rng = np.random.default_rng(0)
     x = rng.random((2, 10, 10))
     # CAZP with p < 1: 0^p is not zero in Zonation (fast_log(0) = -709.09)
-    res = ls.prioritize.zonation(x, rule="CAZP 0.5")
+    res = tf.prioritize.zonation(x, rule="CAZP 0.5")
     assert res.iterations > 0
 
 
@@ -248,7 +248,7 @@ def test_run_project_matches_zonation(name, tmp_path):
     write_project(case, tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        res = ls.prioritize.run_project(tmp_path / "settings.z5", case.flags, mode=case.mode, bits=case.bits)
+        res = tf.prioritize.run_project(tmp_path / "settings.z5", case.flags, mode=case.mode, bits=case.bits)
     ref = arrays[f"{name}/rank"]
     ours = np.asarray(res.rank)
     assert ((ours == ref) | (np.isnan(ours) & np.isnan(ref))).all()
@@ -258,35 +258,35 @@ def test_retention_forms_and_errors():
     rng = np.random.default_rng(9)
     x = rng.random((3, 12, 14)).astype(np.float32)
     frac = np.full((12, 14), 0.25, np.float32)
-    a = ls.prioritize.zonation(x, retention=[0.25, None, None])
-    b = ls.prioritize.zonation(x, retention=[frac, None, None])
+    a = tf.prioritize.zonation(x, retention=[0.25, None, None])
+    b = tf.prioritize.zonation(x, retention=[frac, None, None])
     np.testing.assert_array_equal(np.asarray(a.rank), np.asarray(b.rank))
     # the retained part stays: the curve ends near the retained fraction
     assert 0.2 < a.feature_curves.iloc[-1, 1] < 0.3
     with pytest.raises(ValueError, match="negative"):
-        ls.prioritize.zonation(x, retention=[("absolute", -frac), None, None])
+        tf.prioritize.zonation(x, retention=[("absolute", -frac), None, None])
     with pytest.raises(ValueError, match="0, 1"):
-        ls.prioritize.zonation(x, retention=[frac * 5, None, None])
+        tf.prioritize.zonation(x, retention=[frac * 5, None, None])
     with pytest.raises(ValueError, match="retention"):
-        ls.prioritize.zonation(x, retention=[0.1])
+        tf.prioritize.zonation(x, retention=[0.1])
 
 
 def test_condition_checks_and_renormalize():
     rng = np.random.default_rng(10)
     x = rng.random((2, 10, 10)).astype(np.float32)
     cond = np.full((10, 10), 0.5, np.float32)
-    r = ls.prioritize.zonation(x, condition=[cond, None])
+    r = tf.prioritize.zonation(x, condition=[cond, None])
     assert r.feature_curves.iloc[0, 1] == pytest.approx(0.5, abs=0.01)  # initial level: the conditioned fraction
-    rn = ls.prioritize.zonation(x, condition=[cond, None], renormalize=True)
+    rn = tf.prioritize.zonation(x, condition=[cond, None], renormalize=True)
     assert rn.feature_curves.iloc[0, 1] == 1.0
     with pytest.raises(ValueError, match="0, 1"):
-        ls.prioritize.zonation(x, condition=[cond * 3, None])
+        tf.prioritize.zonation(x, condition=[cond * 3, None])
 
 
 def test_mixed_sign_group_warns():
     x = np.random.default_rng(11).random((3, 8, 8))
     with pytest.warns(UserWarning, match="output group 1"):
-        ls.prioritize.zonation(x, weights=[1, -1, 1], groups=[1, 1, 2])
+        tf.prioritize.zonation(x, weights=[1, -1, 1], groups=[1, 1, 2])
 
 
 # ---------------------------------------------------------------- connectivity (phase 3)
@@ -318,7 +318,7 @@ def test_connectivity_matches_zonation(name, rasters, tmp_path):
 
 
 def test_kernel_sizes_and_shapes():
-    K = ls.prioritize.Kernel
+    K = tf.prioritize.Kernel
     assert K("negexp", 4, 3).size() == 128  # at least Z5_FILTER_MIN_SIZE
     assert K("negexp", 40, 3).size() == 256  # 2 * 2^ceil(log2(121))
     assert K("uniform", 100).size() == 256
@@ -341,8 +341,8 @@ def test_convolve_matches_direct_convolution():
 
     rng = np.random.default_rng(12)
     img = rng.random((150, 170))
-    k = ls.prioritize.Kernel("negexp", 3, 3)
-    ours = ls.prioritize.convolve(img, k)
+    k = tf.prioritize.Kernel("negexp", 3, 3)
+    ours = tf.prioritize.convolve(img, k)
     ker = k.image()
     ker = ker / ker.sum()
     full = convolve2d(img, ker, mode="full")
@@ -355,16 +355,16 @@ def test_self_multiply_and_interaction_forms():
     rng = np.random.default_rng(13)
     x = (rng.random((3, 40, 50)) ** 2).astype(np.float32)
     res_r = rng.random((40, 50)).astype(np.float32)
-    k = ls.prioritize.Kernel("gaussian", 2, 3)
-    a = ls.prioritize.zonation(x, connectivity=[k, None, k], self_multiply=True, transformed=True)
-    b = ls.prioritize.zonation(x, connectivity=[k, None, k], self_multiply=False, transformed=True)
+    k = tf.prioritize.Kernel("gaussian", 2, 3)
+    a = tf.prioritize.zonation(x, connectivity=[k, None, k], self_multiply=True, transformed=True)
+    b = tf.prioritize.zonation(x, connectivity=[k, None, k], self_multiply=False, transformed=True)
     assert not np.array_equal(np.asarray(a.transformed["feature_0"]), np.asarray(b.transformed["feature_0"]))
     np.testing.assert_array_equal(np.asarray(a.transformed["feature_1"]), np.asarray(b.transformed["feature_1"]))
-    ia = ls.prioritize.Interaction(k, res_r, positive=False, beta=0.5, normalize=False)
-    c = ls.prioritize.zonation(x, interaction=[None, ia, None])
+    ia = tf.prioritize.Interaction(k, res_r, positive=False, beta=0.5, normalize=False)
+    c = tf.prioritize.zonation(x, interaction=[None, ia, None])
     assert c.feature_curves.iloc[0, 2] < 1.0  # the level is what remains
     with pytest.raises(ValueError, match="matrix"):
-        ls.prioritize.zonation(x, matrix_connectivity=[(k, "M"), (k, "M"), None], matrices={"M": np.eye(3)})
+        tf.prioritize.zonation(x, matrix_connectivity=[(k, "M"), (k, "M"), None], matrices={"M": np.eye(3)})
 
 
 # ---------------------------------------------------------------- post-processing (phase 4)
@@ -432,7 +432,7 @@ def test_hierarchic_mask_ranks(rasters):
     _, meta = load("core")
     res = _run("caz2_hmask", rasters)
     stats = meta["caz2_hmask/stats"]
-    from landschaft.prioritize._tables import _g
+    from terraflux.prioritize._tables import _g
 
     for level, rank in res.hierarchic_mask_ranks.items():
         assert _g(rank) == stats[f"Hierarchic mask level {level} minimum rank"]
@@ -449,13 +449,13 @@ def test_run_project_postprocessing(tmp_path):
     write_project(case, tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ls.prioritize.run_project(tmp_path / "settings.z5", case.flags, mode=case.mode, output=tmp_path / "out")
+        tf.prioritize.run_project(tmp_path / "settings.z5", case.flags, mode=case.mode, output=tmp_path / "out")
     names = {p.name for p in (tmp_path / "out" / "post_processing").iterdir()}
     assert "area_stats.pos.ext.csv" in names and "flexibilitymap.flex.tif" in names
 
 
 def test_postprocessing_errors():
-    res = ls.prioritize.zonation(np.random.default_rng(14).random((2, 10, 12)))
+    res = tf.prioritize.zonation(np.random.default_rng(14).random((2, 10, 12)))
     with pytest.raises(ValueError, match="min_rank"):
         res.area_statistics_rank_range(0.9, 0.1)
     with pytest.raises(ValueError, match="0 and 1"):
@@ -488,7 +488,7 @@ def test_impacts_match_zonation(name, tmp_path):
     write_project(case, tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        res = ls.prioritize.run_project(tmp_path / "settings.z5", case.flags, mode=case.mode, output=tmp_path / "out")
+        res = tf.prioritize.run_project(tmp_path / "settings.z5", case.flags, mode=case.mode, output=tmp_path / "out")
     ref = arrays[f"{name}/rank"]
     ours = np.asarray(res.rank)
     assert ((ours == ref) | (np.isnan(ours) & np.isnan(ref))).all()
@@ -512,7 +512,7 @@ def test_impact_api():
     x = (rng.random((2, 30, 40)) ** 2).astype(np.float32)
     src = np.zeros((30, 40), np.uint16)
     src[15, :] = 1
-    P = ls.prioritize
+    P = tf.prioritize
     sc = P.ImpactScenario(src, [P.ImpactSource(1, 1, 100, ((3, 50),))], name="road")
     res = P.zonation(x, impact_groups=[1, -1], impact=sc)
     z = res.impacts["zones"]
@@ -543,7 +543,7 @@ def test_row_formats_and_storage_agree(monkeypatch, bits, tmp_path):
     got = {}
     for fmt in ("delta", "bitmap", ""):
         monkeypatch.setenv("LANDSCHAFT_PRIO_ROWS", fmt)
-        res = ls.prioritize.zonation(x, bits=bits, rule="CAZ2", storage=tmp_path / "tmp" if not fmt else None)
+        res = tf.prioritize.zonation(x, bits=bits, rule="CAZ2", storage=tmp_path / "tmp" if not fmt else None)
         got[fmt] = (np.asarray(res.rank), res.iterations, res.feature_curves.to_numpy())
         del res
     for fmt in ("bitmap", ""):
@@ -570,7 +570,7 @@ def test_storage_matches_zonation(name, rasters, tmp_path):
 def test_data_runs_roundtrip(bits, tmp_path):
     """The runs of NoData, zeros and values (long runs, LEB128 lengths) keep every
     layer's values, and rewriting a layer splits the runs of zeros."""
-    from landschaft import _core
+    from terraflux import _core
 
     rng = np.random.default_rng(3)
     L, h, w = 300, 6, 7
@@ -604,7 +604,7 @@ def test_data_runs_roundtrip(bits, tmp_path):
 def test_block_sums_inside_chunks():
     """Zonation's per-block sums, flushed inside a chunk of rows, equal adding and
     flushing block by block (bit for bit)."""
-    from landschaft import _core
+    from terraflux import _core
 
     rng = np.random.default_rng(8)
     L, h, w, z = 5, 23, 17, 4

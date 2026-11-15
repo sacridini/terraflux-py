@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the terrain hydrology (landschaft._core.hydro_*).
+// Python bindings of the terrain hydrology (terraflux._core.hydro_*).
 
 #include "hydro/python.hpp"
 

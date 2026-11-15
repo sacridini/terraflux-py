@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "env.hpp"
 #include "cost/frontal_lu.hpp"
 
 #include <algorithm>
@@ -225,7 +226,7 @@ bool FrontalLU::factorize(const double* diag, const double* val, const std::int6
         return true;
     };
 
-    const bool profile = std::getenv("LANDSCHAFT_PROFILE") != nullptr;
+    const bool profile = tfenv::is_set("PROFILE");
     auto t0 = std::chrono::steady_clock::now();
     const std::int64_t n_roots = static_cast<std::int64_t>(roots.size());
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1 && n_roots > 1)

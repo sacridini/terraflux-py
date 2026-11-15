@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # geodiv 1.1.1's surface metrics with their errors corrected: the reference
-# for ls.surface where geodiv is wrong (sourced by tools/surface_reference.R;
+# for tf.surface where geodiv is wrong (sourced by tools/surface_reference.R;
 # everything else is compared with geodiv itself). Each function takes a terra
 # SpatRaster, as geodiv's, and keeps geodiv's arithmetic wherever it is right.
 #

@@ -1,7 +1,7 @@
 # Conservation priorities
 
 Which places matter most for a set of species, habitats or ecosystem
-services, taken together? `ls.prioritize` ranks every cell of a landscape
+services, taken together? `tf.prioritize` ranks every cell of a landscape
 from the least to the most important, as [Zonation 5](https://zonationteam.github.io/Zonation5/)
 does (Moilanen et al. 2022): same rank maps and curves, bit for bit, several
 times faster. The ideas behind it are in the course chapter
@@ -21,17 +21,17 @@ times faster. The ideas behind it are in the course chapter
 Zonation ranks cells by **features**: anything with a value in every cell
 whose total should be kept, usually species distributions (occurrences,
 habitat suitability, abundance). Here eight hypothetical species take their
-habitat from the CORINE land-cover map that ships with landschaft: the
+habitat from the CORINE land-cover map that ships with terraflux: the
 fraction of every 125 m cell covered by the classes each one lives in.
 
 ```python
 import numpy as np
 import pandas as pd
 import xarray as xr
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-clc = ls.load_raster(ls.example_data("clc"))
+P = tf.prioritize
+clc = tf.load_raster(tf.example_data("clc"))
 
 def share(*codes):
     """The fraction of every 125 m cell (5 x 5 CORINE cells) in the classes."""
@@ -64,7 +64,7 @@ as a widespread one.
 
 ```python
 res = P.zonation(species, names=names)
-ls.plot(res)          # the rank map, the performance curves and the summary
+tf.plot(res)          # the rank map, the performance curves and the summary
 res.iterations, res.ranking_error
 ```
 
@@ -208,7 +208,7 @@ connected = P.zonation(species, names=names, connectivity=kernels)
 
 for r, label in ((res, "as mapped"), (connected, "with dispersal")):
     best = np.where(r.rank.values >= 0.9, 2, 1).astype("uint8")
-    n = ls.Landscape(best).class_metrics(["np"]).set_index("class").loc[2, "np"]
+    n = tf.Landscape(best).class_metrics(["np"]).set_index("class").loc[2, "np"]
     print(f"{label}: best 10 % in {int(n)} patches")
 ```
 
@@ -240,7 +240,7 @@ Projects prepared for Zonation 5 run as they are, with the switches of the
 
 <!-- no-run -->
 ```python
-res = ls.prioritize.run_project("settings.z5", "-wh", mode="CAZ2", output="output")
+res = tf.prioritize.run_project("settings.z5", "-wh", mode="CAZ2", output="output")
 ```
 
 ## Going further

@@ -3,7 +3,7 @@
 Models of [InVEST](https://naturalcapitalproject.stanford.edu/software/invest)
 (the Natural Capital Project's natcap.invest, Apache-2.0), reimplemented in C++
 from land use maps and parameter tables: their maps, bit for bit where the
-arithmetic permits. A simulated land use map (`ls.simulate`) or a series of
+arithmetic permits. A simulated land use map (`tf.simulate`) or a series of
 scenarios goes straight in.
 
 The input rasters may come on different grids (cell sizes, origins, extents,
@@ -14,11 +14,11 @@ they are, and the results come on the grid they were computed on.
 
 ## Carbon storage and sequestration
 
-::: landschaft.services.carbon
+::: terraflux.services.carbon
 
-::: landschaft.services.Carbon
+::: terraflux.services.Carbon
 
-::: landschaft.services.valuation_constant
+::: terraflux.services.valuation_constant
 
 ## Emissions and removals of land change
 
@@ -27,48 +27,48 @@ a stock per class, or a curve of regrowth from the date a class appeared in a
 cell (Chapman-Richards or linear, for secondary forest); emissions and removals
 by period, by transition and by cell.
 
-::: landschaft.services.emissions
+::: terraflux.services.emissions
 
-::: landschaft.services.Emissions
+::: terraflux.services.Emissions
 
 ## Annual water yield and hydropower
 
-::: landschaft.services.water_yield
+::: terraflux.services.water_yield
 
-::: landschaft.services.WaterYield
+::: terraflux.services.WaterYield
 
 ## Seasonal water yield
 
-::: landschaft.services.seasonal_water_yield
+::: terraflux.services.seasonal_water_yield
 
-::: landschaft.services.SeasonalWaterYield
+::: terraflux.services.SeasonalWaterYield
 
 ## Sediment delivery ratio
 
-::: landschaft.services.sdr
+::: terraflux.services.sdr
 
-::: landschaft.services.SDR
+::: terraflux.services.SDR
 
 ## Nutrient delivery ratio
 
-::: landschaft.services.ndr
+::: terraflux.services.ndr
 
-::: landschaft.services.NDR
+::: terraflux.services.NDR
 
 ## Habitat quality and rarity
 
-::: landschaft.services.habitat_quality
+::: terraflux.services.habitat_quality
 
-::: landschaft.services.HabitatQuality
+::: terraflux.services.HabitatQuality
 
 ## Crop pollination
 
-::: landschaft.services.pollination
+::: terraflux.services.pollination
 
-::: landschaft.services.Pollination
+::: terraflux.services.Pollination
 
 ## Coastal vulnerability
 
-::: landschaft.services.coastal_vulnerability
+::: terraflux.services.coastal_vulnerability
 
-::: landschaft.services.CoastalVulnerability
+::: terraflux.services.CoastalVulnerability

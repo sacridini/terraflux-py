@@ -4,7 +4,7 @@
 
 A solution is not the end of an analysis. It is a proposal to check: does it meet the targets, by how much,
 at what cost, in what shape? Which of its places are essential, and which could be swapped for others?
-This chapter covers the evaluation tools of `ls.prioritize`. All of them work on any plan, whether it came
+This chapter covers the evaluation tools of `tf.prioritize`. All of them work on any plan, whether it came
 from the solver, from Zonation, or was drawn by hand in a workshop.
 
 !!! abstract "In this chapter"
@@ -22,11 +22,11 @@ Every evaluation function takes the problem and a solution, and returns a table:
 ```python
 import numpy as np
 import pandas as pd
-import landschaft as ls
+import terraflux as tf
 
-P = ls.prioritize
-cost = ls.load_raster(P.example_data("cost"))
-features = ls.load_raster(P.example_data("features"))
+P = tf.prioritize
+cost = tf.load_raster(P.example_data("cost"))
+features = tf.load_raster(P.example_data("features"))
 p = (P.problem(cost, features).add_min_set_objective().add_relative_targets(0.3)
        .add_binary_decisions().add_highs_solver(gap=0.001))
 sol = p.solve()
@@ -144,16 +144,16 @@ only area. Use it to compare plans, not to predict extinctions.
 ## A complete report
 
 `report` runs the usual evaluations at once (summary, representation, targets, importance, optionally the
-extinction risk and a comparison with Zonation) and `ls.plot` turns them into a web page with maps, charts
+extinction risk and a comparison with Zonation) and `tf.plot` turns them into a web page with maps, charts
 and tables, to send to colleagues or stakeholders:
 
 ```python
 r = P.report(p, sol, extinction_z=0.25)
-page = ls.plot(r, show=False).save("serra_verde_report.html")
+page = tf.plot(r, show=False).save("serra_verde_report.html")
 ```
 
-`ls.plot` also draws any solution, portfolio or trade-off on its own: `ls.plot(sol)` opens an interactive
-map, `ls.plot(port)` the selection frequency, `ls.plot(cal)` the calibration curve.
+`tf.plot` also draws any solution, portfolio or trade-off on its own: `tf.plot(sol)` opens an interactive
+map, `tf.plot(port)` the selection frequency, `tf.plot(cal)` the calibration curve.
 
 ## A checklist
 
@@ -173,7 +173,7 @@ Before presenting a plan, check:
     - Replacement cost, irreplaceability and selection frequency agree on essential places and disagree
       on interchangeable ones.
     - Landscape metrics and MSPA describe a plan's shape; extinction risk its value for persistence.
-    - `report` and `ls.plot` package all of it for others.
+    - `report` and `tf.plot` package all of it for others.
 
 ## Check your understanding
 

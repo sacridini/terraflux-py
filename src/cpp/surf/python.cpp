@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of the surface metrics (landschaft._core.surf_*).
+// Python bindings of the surface metrics (terraflux._core.surf_*).
 
 #include "surf/python.hpp"
 

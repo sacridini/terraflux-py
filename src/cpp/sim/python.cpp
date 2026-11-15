@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Python bindings of ls.simulate (landschaft._core.sim_*).
+// Python bindings of ls.simulate (terraflux._core.sim_*).
 
 #include "sim/python.hpp"
 
