@@ -170,10 +170,10 @@ def mspa_tiled(
     """
     _check_params(connectivity, edge_width)
     tile_layout(1, tile_size, overlap)  # checks the tiling parameters
-    n_workers = max(1, int(n_workers))
-    if n_threads is None:
-        from ._threads import default_threads
+    from ._threads import cap_workers, default_threads
 
+    n_workers = cap_workers(n_workers)
+    if n_threads is None:
         n_threads = max(1, default_threads() // n_workers)
     kw = dict(connectivity=int(connectivity), edge_width=int(edge_width), internal=bool(internal),
               n_threads=int(n_threads))

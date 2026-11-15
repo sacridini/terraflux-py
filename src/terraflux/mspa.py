@@ -135,8 +135,8 @@ def mspa(
         as soon as it is ready (GTB naming) and a list of
         :class:`BatchResult` is returned, so memory stays bounded; see
         :func:`mspa_batch`. Without it, the results are returned as a list
-        of DataArrays. ``n_workers`` rasters run concurrently (default: all
-        cores but one), within the ``max_memory`` budget (e.g. ``"16GB"``).
+        of DataArrays. ``n_workers`` rasters run concurrently (default: the cores
+        less a quarter, never all of them), within the ``max_memory`` budget (e.g. ``"16GB"``).
 
     Returns
     -------

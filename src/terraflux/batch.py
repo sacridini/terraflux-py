@@ -29,7 +29,7 @@ import pandas as pd
 import xarray as xr
 
 from ._table import default_index
-from ._threads import default_threads
+from ._threads import cap_workers, default_threads
 from .collection import RasterCollection, RasterInfo, expand_sources
 from .io import PathLike, _load_map, write_raster
 from .mspa import mspa
@@ -129,8 +129,10 @@ def run_parallel(
     wants every item processed. Once ``stop`` is set, no item starts (its
     result is ``None``); ``report(item, result)`` sees each result as it ends.
     """
+    k = max(1, threads_per_worker)
     if n_workers is None:
-        n_workers = max(1, default_threads() // max(1, threads_per_worker))
+        n_workers = max(1, default_threads() // k)
+    n_workers = cap_workers(min(n_workers, max(1, len(items))), k)
     budget = _MemoryBudget(parse_memory(max_memory))
 
     def task(item: T):
@@ -142,7 +144,7 @@ def run_parallel(
             return work(item)
 
     results: dict[int, object] = {}
-    with ThreadPoolExecutor(max_workers=min(n_workers, max(1, len(items)))) as pool:
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
         futures = {pool.submit(task, item): i for i, item in enumerate(items)}
         for fut in as_completed(futures):
             i = futures[fut]

@@ -173,7 +173,9 @@ def map(tool, items, *, on=None, output_dir=None, threads_per_task: int | None =
     width = len(str(max(len(calls) - 1, 0)))
     if on is None:
         total = _threads.resolve(None)
-        workers = max(1, min(len(calls), n_workers or total)) if calls else 1
+        k = max(1, threads_per_task or 1)
+        asked = max(1, min(len(calls), n_workers or max(1, total // k))) if calls else 1
+        workers = _threads.cap_workers(asked, k)
         inner = threads_per_task or max(1, total // workers)
 
         def one(c):
@@ -302,6 +304,7 @@ def tiled(tool, raster, *args, halo: int | None = None, tile: int = 1024, on=Non
     from concurrent.futures import ThreadPoolExecutor
     from pathlib import Path
 
+    from . import _threads
     import numpy as np
     import xarray as xr
 
@@ -352,7 +355,7 @@ def tiled(tool, raster, *args, halo: int | None = None, tile: int = 1024, on=Non
             rs, cs = core(k)
             return _crop(fn(w, *args, **kwargs), rs, cs, tuple(w.shape[-2:]))
 
-        workers = max(1, min(len(tiles), n_workers or 1))
+        workers = _threads.cap_workers(max(1, min(len(tiles), n_workers or 1)))
         if workers == 1:
             parts = [one(k) for k in range(len(tiles))]
         else:

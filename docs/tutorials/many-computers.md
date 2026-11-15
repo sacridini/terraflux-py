@@ -75,7 +75,7 @@ with tf.helpers() as pool:
 
 Inside the `with` block the helpers stay connected from one call to the next;
 `on=tf.helpers()` in a single call works too. This computer also runs tasks,
-with all its cores but one (`local_threads=` changes that); with
+with its cores less a quarter, never all (`local_threads=` changes that); with
 `tf.helpers(local=False)` it only hands them out and gathers the outputs.
 
 Helpers pull the work: each asks for a task when it has room, so a fast and a

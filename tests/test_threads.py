@@ -270,3 +270,32 @@ def test_helper_children_get_the_threads():
 
     env = child_env(3)
     assert env["TERRAFLUX_THREADS"] == env["OMP_NUM_THREADS"] == "3"
+
+
+def test_cap_workers(monkeypatch, cores20):
+    monkeypatch.setattr(_threads, "_warned_workers", False)
+    assert _threads.cap_workers(3) == 3                            # within the 15 of 20
+    assert _threads.cap_workers(15) == 15
+    with pytest.warns(RuntimeWarning, match="never uses all the cores") as seen:
+        assert _threads.cap_workers(64) == 15
+        assert _threads.cap_workers(64, 4) == 3                    # workers x 4 threads within 15
+    assert len(seen) == 1                                          # one warning per process
+    assert _threads.cap_workers(0) == 1 and _threads.cap_workers(5, 99) == 1
+
+
+def test_parallel_map_caps_an_explicit_n_workers(monkeypatch):
+    import concurrent.futures as cf
+
+    monkeypatch.setattr(_threads, "processors", lambda: (8, 8))   # 6 of 8
+    monkeypatch.setattr(_threads, "_warned_workers", False)
+    sizes = []
+
+    class Recording(cf.ThreadPoolExecutor):
+        def __init__(self, max_workers=None, *a, **k):
+            sizes.append(max_workers)
+            super().__init__(max_workers, *a, **k)
+
+    monkeypatch.setattr(cf, "ThreadPoolExecutor", Recording)
+    with pytest.warns(RuntimeWarning, match="never uses all the cores"):
+        tf.parallel.map("nlm.random", [dict(nrow=8, ncol=8, seed=i) for i in range(40)], n_workers=64)
+    assert sizes == [6]

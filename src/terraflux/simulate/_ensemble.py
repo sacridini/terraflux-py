@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .._threads import resolve
+from .._threads import cap_workers, resolve
 from ._change import _class_value
 from ._maps import read_map
 
@@ -321,7 +321,7 @@ def scenarios(model, start=None, drivers=None, *, scenarios=None, replicates: in
     seeds = [int(seed) + r for r in range(int(replicates))]
     total = resolve(n_threads)
     runs = [(s, r) for s in range(len(models)) for r in range(len(seeds))]
-    workers = min(len(runs), total) if n_workers is None else max(1, int(n_workers))
+    workers = cap_workers(max(1, min(len(runs), total if n_workers is None else int(n_workers))))
     inner = max(1, total // workers)
     names = list(models)
 

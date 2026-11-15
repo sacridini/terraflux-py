@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .._threads import resolve, threaded
+from .._threads import cap_workers, resolve, threaded
 from ._maps import read_map
 
 __all__ = ["Calibration", "calibrate"]
@@ -476,7 +476,7 @@ def _simplex(x):
 
 def _parallel(points, evaluate, n_workers):  # evaluate(point, inner threads)
     total = resolve(None)
-    workers = min(len(points), total) if n_workers is None else max(1, int(n_workers))
+    workers = cap_workers(max(1, min(len(points), total if n_workers is None else int(n_workers))))
     inner = max(1, total // workers)
     if workers == 1:
         for p in points:

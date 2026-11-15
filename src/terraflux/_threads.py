@@ -41,12 +41,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-__all__ = ["available_cores", "default_threads", "limit", "most", "resolve", "set_default_threads"]
+__all__ = ["available_cores", "default_threads", "cap_workers", "limit", "most", "resolve", "set_default_threads"]
 
 _default: int | None = None
 _local = threading.local()
 _warned = False
 _warned_cap = False
+_warned_workers = False
 
 #: The variable that names the job of each batch scheduler.
 JOB_VARIABLES = (("Slurm", "SLURM_JOB_ID"), ("PBS", "PBS_JOBID"), ("LSF", "LSB_JOBID"))
@@ -315,6 +316,24 @@ def _clamp(n: int) -> int:
         _warned_cap = True
         warnings.warn(f"terraflux never uses all the cores: {n} threads asked, {cap} used (a quarter of the "
                       f"{available_cores()} processors is kept free)", RuntimeWarning, stacklevel=_caller_level() + 1)
+    return cap
+
+
+def cap_workers(n: int, threads_per_worker: int = 1) -> int:
+    """``n`` workers (processes or threads of a pool running compiled kernels) held so that workers x
+    ``threads_per_worker`` stays within :func:`most` of the processors: at most ``most // threads_per_worker``
+    (at least 1). At most one RuntimeWarning per process when it is lowered."""
+    global _warned_workers
+    n = max(1, int(n))
+    k = max(1, int(threads_per_worker))
+    cap = max(1, most(available_cores()) // k)
+    if n <= cap:
+        return n
+    if not _warned_workers:
+        _warned_workers = True
+        warnings.warn(f"terraflux never uses all the cores: {n} workers of {k} thread{'s' if k != 1 else ''} "
+                      f"asked, {cap} used (a quarter of the {available_cores()} processors is kept free)",
+                      RuntimeWarning, stacklevel=_caller_level() + 1)
     return cap
 
 
