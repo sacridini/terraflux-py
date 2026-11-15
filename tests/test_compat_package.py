@@ -6,7 +6,6 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -107,6 +106,7 @@ assert pickle.loads(data) is j.Shard
 
 
 def test_versions_agree():
+    tomllib = pytest.importorskip("tomllib")  # Python 3.11+; the wheels test 3.10 too
     main = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     compat = tomllib.loads((COMPAT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     assert compat["name"] == "landschaft"
