@@ -69,7 +69,6 @@ terraflux-py = "terraflux._cli:main"
 # for development only
 [project.optional-dependencies]
 test = ["pytest>=7", "threadpoolctl"]
-docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.26", "ruff", "matplotlib>=3.5"]
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
@@ -78,7 +77,7 @@ cmake.build-type = "Release"
 # only terraflux's modules: HiGHS (built in) installs its headers and library too
 install.components = ["terraflux"]
 # the sdist holds what the build needs; tests, docs and tools stay in the repository
-sdist.exclude = [".github", ".dockerignore", "Dockerfile", "IDEAS.md", "assets", "docs", "mkdocs.yml", "site",
+sdist.exclude = [".github", ".dockerignore", "Dockerfile", "IDEAS.md", "assets", "pages",
                  "tests", "tools"]
 
 # Windows: build with MSVC, whatever else is on PATH. A CMake that knows the installed Visual Studio

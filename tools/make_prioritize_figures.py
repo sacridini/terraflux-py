@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import sys
+import os
 import warnings
 from pathlib import Path
 
@@ -31,7 +32,7 @@ import terraflux as tf
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "docs" / "assets" / "figures"
+OUT = Path(os.environ.get("TERRAFLUX_FIGURES") or ROOT / "build" / "figures")  # the website: Terraflux's website/static/img/python
 NUMBERS = ROOT / "build" / "prioritize_figures.json"
 P = tf.prioritize
 

@@ -5,13 +5,15 @@ Usage::
 
     python tools/make_doc_figures.py [name ...]
 
-Writes PNGs to ``docs/assets/figures`` (all figures, or the ones named). Every
+Writes PNGs to ``build/figures`` (or the folder ``TERRAFLUX_FIGURES`` names: all figures, or the ones named);
+the website (Terraflux's repository, ``website/static/img/python``) has them under the same names. Every
 figure is computed with terraflux itself, so the pictures show what the
 tutorials' code returns.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -25,7 +27,7 @@ from matplotlib.patches import Patch  # noqa: E402
 
 import terraflux as tf  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[1] / "docs" / "assets" / "figures"
+OUT = Path(os.environ.get("TERRAFLUX_FIGURES") or Path(__file__).resolve().parents[1] / "build" / "figures")
 FIGURES = {}
 
 plt.rcParams.update({

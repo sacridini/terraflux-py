@@ -6,6 +6,13 @@ in a new major version.
 
 ## [Unreleased]
 
+### Changed
+- The documentation is on Terraflux's website, https://sacridini.github.io/terraflux/python/ (built from Terraflux's
+  repository): the MkDocs site (`docs/`, `mkdocs.yml`, the `docs` extra, `tools/check_docs.py`,
+  `tools/make_api_index.py`) is gone, and the old pages (sacridini.github.io/landschaft/ and
+  sacridini.github.io/terraflux-py/) redirect to their pages there (`pages/`). The figure tools write to
+  `build/figures` (or `TERRAFLUX_FIGURES`).
+
 ## [1.59.0] - 2026-11-15
 
 ### Changed

@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# The website (MkDocs, see mkdocs.yml) on GitHub Pages: published by release.yml
-# with each release, so that it documents the version on PyPI. Actions > Docs >
-# Run workflow publishes it again from main (e.g. after a fix to the docs).
+# The documentation is on Terraflux's website (https://sacridini.github.io/terraflux/python/), built from
+# Terraflux's repository (sacridini/terraflux, website/). This repository's GitHub Pages site
+# (https://sacridini.github.io/terraflux-py/) holds only redirects: each page of the old MkDocs site, at its old
+# path, sends to its page on Terraflux's website (pages/, the same pages as sacridini.github.io/landschaft/,
+# made from Terraflux's website/LANDSCHAFT_PAGES.md). Actions > Docs > Run workflow publishes them again.
 name: Docs
 
 on:
-  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -18,16 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      # the API pages are read from the sources (mkdocstrings); docs/griffe_roles.py imports
-      # the package to resolve the cross-references, so it is built too
-      - run: pip install . "mkdocs>=1.6,<2" "mkdocs-material>=9.5,<10" "mkdocstrings[python]>=0.26,<2" ruff
-      - run: mkdocs build --strict
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: pages
 
   deploy:
     name: Deploy
