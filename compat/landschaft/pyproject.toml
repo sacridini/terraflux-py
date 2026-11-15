@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "landschaft"
+version = "1.58.1"
+description = "landschaft is now terraflux: this package only installs terraflux and re-exports it."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Eduardo Lacerda" }]
+classifiers = [
+    "Development Status :: 7 - Inactive",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = ["terraflux==1.58.1"]
+
+[project.urls]
+Homepage = "https://sacridini.github.io/terraflux/"
+Source = "https://github.com/sacridini/terraflux-py"
+
+# the old command keeps working
+[project.scripts]
+landschaft = "terraflux._cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/landschaft"]

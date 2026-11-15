@@ -13,7 +13,10 @@
 #
 # PyPI takes the files by trusted publishing, no token is stored: pypi.org has this
 # repository, this workflow (release.yml) and the environment "pypi" as a trusted
-# publisher of the project.
+# publisher of the project. The compatibility package landschaft (compat/landschaft, which
+# installs terraflux and re-exports it) goes out with each release, so BOTH PyPI projects
+# (terraflux and landschaft) need a trusted publisher for this repository, this workflow and
+# the environment "pypi".
 name: Release
 
 on:
@@ -50,6 +53,13 @@ jobs:
         run: |
           version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          python3 - "$version" <<'PY'
+          import sys, tomllib
+          c = tomllib.load(open("compat/landschaft/pyproject.toml", "rb"))["project"]
+          v = sys.argv[1]
+          if c["version"] != v or c["dependencies"] != [f"terraflux=={v}"]:
+              sys.exit(f"::error::compat/landschaft/pyproject.toml has version {c['version']} and {c['dependencies']}, not {v} and terraflux=={v} (python tools/bump_version.py {v})")
+          PY
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
             echo "v$version is released already"
             release=false
@@ -100,9 +110,23 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
+  compat:
+    name: Compatibility package landschaft
+    needs: version
+    if: needs.version.outputs.release == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx run build compat/landschaft --outdir compat-dist
+      - run: pipx run twine check --strict compat-dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: compat
+          path: compat-dist/*
+
   pypi:
     name: Publish to PyPI
-    needs: [version, wheels, sdist]
+    needs: [version, wheels, sdist, compat]
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment:
