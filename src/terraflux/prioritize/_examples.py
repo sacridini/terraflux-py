@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Example data of tf.prioritize: Serra Verde, an imaginary coastal region (tools/make_prioritize_examples.py;
-prioripy's tutorial landscape, by the same author)."""
+"""Example data of tf.prioritize: Serra Verde, an imaginary coastal region (tools/make_prioritize_examples.py)."""
 
 from __future__ import annotations
 

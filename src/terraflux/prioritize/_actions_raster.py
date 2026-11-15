@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Multi-action problems from rasters (an extension of prioriactions, after prioripy's raster input):
+"""Multi-action problems from rasters (an extension of prioriactions):
 the planning units are the cells with a monitoring cost, one raster per feature (its amount in every
 cell) and per threat (its intensity: > 0 where it occurs), the actions' costs as numbers or rasters."""
 

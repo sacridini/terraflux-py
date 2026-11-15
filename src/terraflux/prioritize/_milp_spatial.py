@@ -498,7 +498,7 @@ def _corridor_edges(u, data, resistance):
 
 
 def _apply_corridors(b: Builder, u, terminals, resistance, penalty: float, data) -> None:
-    """Corridors (an extension, after prioripy's): every network's terminal units are selected and
+    """Corridors (an extension of prioritizr): every network's terminal units are selected and
     joined through selected units. A single-commodity flow on the edges between units, both ways: the
     first terminal sends one unit of flow to each of the K others, flows <= K x at both ends, and with
     a resistance, ``penalty`` x resistance x flow added to the objective (subtracted when it is

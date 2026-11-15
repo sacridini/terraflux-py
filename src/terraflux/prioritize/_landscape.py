@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Landscape identification and comparison over any priority surface (prioripy's
-``eval_landscape_identification`` / ``eval_landscape_comparison``, after Zonation's LSI and LSC).
+"""Landscape identification and comparison over any priority surface (after Zonation's LSI
+and LSC).
 
 The top fraction of a surface follows Zonation's rule: the cells are ranked by position (the lowest value
 first; ties: the earlier cell in row order first, as a stable sort), the rank of the i-th of N cells is
@@ -173,7 +173,7 @@ def eval_landscape_identification(surface, top_fraction: float = 0.1, *, min_siz
         Areas of fewer cells are dropped.
     merge_distance
         Areas this many cells apart (dilations of the top cells) are merged into one; the area keeps
-        only its own top cells (prioripy's ``merge_distance``).
+        only its own top cells.
     connectivity
         8 (Zonation's) or 4.
     problem
@@ -285,7 +285,7 @@ class LandscapeComparison(Saveable):
 
 def eval_landscape_comparison(a, b, fractions=(0.05, 0.1, 0.2, 0.3, 0.5)) -> LandscapeComparison:
     """Landscape comparison: how much the top fractions of two priority surfaces overlap (Zonation's
-    solution comparison at several fractions, prioripy's ``eval_landscape_comparison``).
+    solution comparison at several fractions).
 
     Parameters
     ----------

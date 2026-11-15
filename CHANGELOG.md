@@ -1061,12 +1061,12 @@ Python 3.10 and 3.11. Its changes (the section below) are published with this ve
 - HiGHS's MIP kept running up to 20 s past the time limit on wide models (10⁵ columns, 10⁶ non-zeros):
   two changes to its sources (applied at build time by `src/cpp/opt/highs_patch.cmake`) make the central
   rounding's line search and the analytic centre keep the limits.
-- `Problem.add_manual_bounded_constraints` and `add_manual_locked_constraints` (prioritizr 8.0.6's, and
-  prioripy's `add_continuous_bounds`): bounds or a fixed share for given planning units, from prioritizr's
+- `Problem.add_manual_bounded_constraints` and `add_manual_locked_constraints` (prioritizr 8.0.6's):
+  bounds or a fixed share for given planning units, from prioritizr's
   table (`pu` among every unit, `lower` / `upper` or `status`) or as values (a number, a raster on the
   units' grid, a column or one value per unit). The compiled model is prioritizr's bit for bit; bounds
   outside the decisions' bounds, or shares with binary decisions, are an error.
-- `ls.prioritize.eval_landscape_identification` and `eval_landscape_comparison` (prioripy's, after
+- `ls.prioritize.eval_landscape_identification` and `eval_landscape_comparison` (after
   Zonation's landscape identification and comparison) over any priority surface: a ranking, an importance,
   a selection frequency or a solution. The separate areas of a top fraction (minimum size, merging of
   nearby areas, 8 or 4 neighbours) with their cells, mean value, cost and the features they hold, and the
@@ -1097,7 +1097,7 @@ Python 3.10 and 3.11. Its changes (the section below) are published with this ve
 ## [1.28.0] - 2026-10-07
 
 ### Added
-- Migration guide "From prioritizr, prioriactions and prioripy" in the API reference: the equivalent of
+- Migration guide "From prioritizr and prioriactions" in the API reference: the equivalent of
   every function, a script side by side in R and Python, what to expect when comparing results
   (prioritizr 9's rescaled boundary data, dropped tie-break terms and renamed objectives) and what is not
   available.
@@ -1196,10 +1196,10 @@ Python 3.10 and 3.11. Its changes (the section below) are published with this ve
   conservation targets; locked cells; the grid's boundary), and `ActionsSolution.maps()` with the
   monitored cells and every threat's actions as rasters (also written by `ls.save`).
 - `ActionsProblem.add_directional_dependencies(flow, penalty, hard=False)`: upstream-downstream
-  dependencies between planning units (after prioripy): monitoring a target unit without its source
+  dependencies between planning units: monitoring a target unit without its source
   costs `strength x penalty`, or is not allowed with `hard=True`; on the closure engine as pair terms or
   requirements (10^5 units with a river-like flow at 1% gap in 1 s soft, 5.5 s hard; Gurobi 6 s and
-  8 s). Unlike prioripy, the penalty is not counted in the budget of `maximizeBenefits`.
+  8 s). The penalty is not counted in the budget of `maximizeBenefits`.
 - Multi-action portfolios: `ActionsProblem.add_cuts_portfolio`, `add_top_portfolio`,
   `add_gap_portfolio` and `add_shuffle_portfolio` (no-good cuts on the units and the actions) give an
   `ActionsPortfolio` with every solution, a summary and how often each unit is monitored and each action

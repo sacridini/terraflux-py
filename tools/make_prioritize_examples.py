@@ -6,8 +6,8 @@ habitat condition, regions, carbon and two threats; and, for restoration plans, 
 classes now and of the natural ones in the past, the human footprint, four ecoregions and the carbon that
 restored vegetation would hold.
 
-The landscape is prioripy's tutorial data (docs/assets/tutorial_data.py of prioripy 0.11.11, by the
-same author, MIT), generated with the same seed: the same maps.
+The landscape is synthetic, made by the library's author, and generated with a fixed seed: the same maps
+every time.
 
     python tools/make_prioritize_examples.py
 """
@@ -42,7 +42,7 @@ def _blob(cy, cx, sy, sx):
 
 
 def build_landscape(seed: int = 7) -> dict:
-    """Every layer as arrays (prioripy's build_landscape, unchanged)."""
+    """Every layer as arrays."""
     rng = np.random.default_rng(seed)
     y, x = np.mgrid[0:ROWS, 0:COLS]
     shore = 0.55 * (x / COLS) + 0.45 * (y / ROWS) + 0.22 * (_smooth_noise(rng, 5) - 0.5)

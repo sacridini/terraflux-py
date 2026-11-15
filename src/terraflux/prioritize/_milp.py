@@ -823,7 +823,7 @@ class Problem:
         return self._add("constraint", "feature_contiguity", data)
 
     def add_corridor_constraints(self, terminals, resistance=None, penalty: float = 1.0, data=None) -> Problem:
-        """Corridors (an extension, after prioripy): the terminal units of every network are selected
+        """Corridors (an extension of prioritizr): the terminal units of every network are selected
         and joined by selected units (a flow from the first terminal to each of the others).
 
         Parameters
@@ -863,7 +863,7 @@ class Problem:
     def add_manual_bounded_constraints(self, data: pd.DataFrame | None = None, *, lower=None,
                                        upper=None, zone=None) -> Problem:
         """The selected share of given planning units must lie between a lower and an upper bound
-        (prioritizr's ``add_manual_bounded_constraints``; prioripy's ``add_continuous_bounds``).
+        (prioritizr's ``add_manual_bounded_constraints``).
 
         Parameters
         ----------

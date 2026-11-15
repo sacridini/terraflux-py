@@ -80,8 +80,8 @@ struct Settings {
     int segments = 1;
     double step = 0.0;  // the pieces' length (round(1 / segments, 1)); 0: 1 / segments
     double budget = 0.0;
-    // directional dependencies between units (upstream -> downstream; an extension of prioriactions,
-    // after prioripy): monitoring dep_to without dep_from costs dep_weight (max(0, w_to - w_from) in the
+    // directional dependencies between units (upstream -> downstream; an extension of prioriactions):
+    // monitoring dep_to without dep_from costs dep_weight (max(0, w_to - w_from) in the
     // objective), or is forbidden (dep_hard: w_to <= w_from)
     std::vector<i64> dep_from, dep_to;
     std::vector<double> dep_weight;

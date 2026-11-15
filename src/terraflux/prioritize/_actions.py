@@ -657,7 +657,7 @@ class ActionsProblem:
     def add_directional_dependencies(self, flow: pd.DataFrame, penalty: float = 1.0,
                                      hard: bool = False) -> ActionsProblem:
         """Dependencies between planning units, such as upstream and downstream along a river (an
-        extension of prioriactions, after prioripy): monitoring a ``target_pu`` without its
+        extension of prioriactions): monitoring a ``target_pu`` without its
         ``source_pu`` adds ``strength`` x ``penalty`` to the cost (or takes it from the benefit), or,
         with ``hard``, is not allowed.
 
