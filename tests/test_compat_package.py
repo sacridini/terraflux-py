@@ -111,6 +111,6 @@ def test_versions_agree():
     compat = tomllib.loads((COMPAT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     assert compat["name"] == "landschaft"
     assert compat["version"] == main["version"]
-    assert compat["dependencies"] == [f"terraflux=={main['version']}"]
+    assert compat["dependencies"] == [f"terraflux-py=={main['version']}"]
     assert compat["requires-python"] == main["requires-python"]
     assert compat["scripts"] == {"landschaft": "terraflux._cli:main"}

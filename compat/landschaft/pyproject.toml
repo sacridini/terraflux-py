@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: GIS",
     "Topic :: Scientific/Engineering",
 ]
-dependencies = ["terraflux==1.58.1"]
+dependencies = ["terraflux-py==1.58.1"]
 
 [project.urls]
 Homepage = "https://sacridini.github.io/terraflux/"

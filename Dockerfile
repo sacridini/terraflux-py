@@ -41,7 +41,7 @@ FROM python:${PYTHON_VERSION}-slim AS base
 RUN apt-get update  && apt-get install -y --no-install-recommends libgomp1 libexpat1  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /wheels /wheels
-RUN pip install --no-cache-dir --find-links /wheels terraflux  && rm -rf /wheels
+RUN pip install --no-cache-dir --find-links /wheels terraflux-py  && rm -rf /wheels
 
 ENV PYTHONUNBUFFERED=1     MPLBACKEND=Agg
 

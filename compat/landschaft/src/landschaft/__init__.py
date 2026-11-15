@@ -11,7 +11,7 @@ import warnings
 
 import terraflux
 
-warnings.warn("landschaft is now terraflux: pip install terraflux, import terraflux as tf",
+warnings.warn("landschaft is now terraflux: pip install terraflux-py, import terraflux as tf",
               DeprecationWarning, stacklevel=2)  # importlib's own frames are skipped: the user's import
 
 

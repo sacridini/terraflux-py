@@ -125,7 +125,7 @@ def _checkout() -> Path | None:
         text = (root / "pyproject.toml").read_text()
     except OSError:
         return None
-    return root if re.search(r'^name\s*=\s*"terraflux"', text, re.M) else None
+    return root if re.search(r'^name\s*=\s*"terraflux-py"', text, re.M) else None
 
 
 @functools.lru_cache(maxsize=None)
@@ -140,7 +140,7 @@ def version() -> str:
     try:
         from importlib.metadata import version as _version
 
-        return _version("terraflux")
+        return _version("terraflux-py")
     except Exception:  # noqa: BLE001
         return "unknown"
 

@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/terraflux/"><img alt="PyPI" src="https://img.shields.io/pypi/v/terraflux"></a>
+  <a href="https://pypi.org/project/terraflux-py/"><img alt="PyPI" src="https://img.shields.io/pypi/v/terraflux-py"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
   <img alt="C++17 / OpenMP" src="https://img.shields.io/badge/core-C%2B%2B17%20%C2%B7%20OpenMP-00599c">
   <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-2e7d32">
@@ -50,7 +50,7 @@ in the test suite, and runs from a few to several hundred times faster.
 ## Installation
 
 ```bash
-pip install terraflux
+pip install terraflux-py
 ```
 
 Binary wheels are published for CPython 3.10 to 3.14 on Windows (x86-64), macOS (Apple
@@ -62,7 +62,7 @@ Terraflux with pip:
 ```bash
 conda create -n terraflux -c conda-forge python=3.12 rasterio rioxarray geopandas
 conda activate terraflux
-pip install terraflux
+pip install terraflux-py
 ```
 
 Building from source (other platforms, development) needs a C++17 compiler; see the

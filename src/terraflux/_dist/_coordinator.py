@@ -617,9 +617,9 @@ class Coordinator:
         if version != self.version:
             self._warn_once(f"version:{name}",
                             f"! {name} has terraflux {version}; this computer has {self.version}. It will not get "
-                            f"tasks until both have the same version (pip install -U terraflux=={self.version}).")
+                            f"tasks until both have the same version (pip install -U terraflux-py=={self.version}).")
             handler.send_json(409, {"error": f"this computer has terraflux {version}; {self.name} uses "
-                                             f"{self.version}. Update with: pip install terraflux=={self.version}",
+                                             f"{self.version}. Update with: pip install terraflux-py=={self.version}",
                                     "version": self.version})
             return
         if str(info.get("code")) != _group.code_fingerprint():

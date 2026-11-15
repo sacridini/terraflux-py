@@ -8,7 +8,8 @@ in a new major version.
 
 ### Changed
 - `pip install landschaft` installs terraflux and `import landschaft` keeps working (the same modules, with a `DeprecationWarning`) until the next major version; the command `landschaft` still runs. `tools/bump_version.py X.Y.Z` sets the version in both pyprojects.
-- The package is now `terraflux` (`import terraflux as tf`, the command `terraflux-py`), after landschaft.
+- The package is now terraflux: `pip install terraflux-py` (PyPI does not allow the name `terraflux`),
+  `import terraflux as tf`, the command `terraflux-py`, after landschaft.
 - Threads: terraflux never uses all the cores. Every count (the default, `set_default_threads(n)`, an explicit
   `n_threads`, a Slurm job's or a dask worker's processors) is held to the processors the process may use minus a
   quarter of them, at least one kept free (20 give 15, 8 give 6, 4 give 3, 2 and 1 give 1), as the desktop app does;

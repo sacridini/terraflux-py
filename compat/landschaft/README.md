@@ -3,14 +3,14 @@
 The package `landschaft` was renamed to **terraflux**:
 
 ```
-pip install terraflux
+pip install terraflux-py
 ```
 
 ```python
 import terraflux as tf
 ```
 
-This package only exists so that old code keeps working: it installs `terraflux` (pinned to the same
+This package only exists so that old code keeps working: it installs `terraflux-py` (pinned to the same
 version) and `import landschaft as ls` gives the very same module (`landschaft.mspa is terraflux.mspa`),
 with a `DeprecationWarning`. The command `landschaft` still runs. It will be dropped in the next major version.
 

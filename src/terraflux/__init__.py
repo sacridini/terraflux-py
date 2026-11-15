@@ -157,7 +157,7 @@ from ._vegetation import VEGETATION_SOURCES, OriginalVegetation, original_vegeta
 from .intactness import INTACTNESS_GAMMA, intactness, intactness_gradient
 
 try:
-    __version__ = _metadata.version("terraflux")  # single source: pyproject.toml
+    __version__ = _metadata.version("terraflux-py")  # single source: pyproject.toml
 except _metadata.PackageNotFoundError:  # pragma: no cover - running from a source tree
     __version__ = "0.0.0+unknown"
 

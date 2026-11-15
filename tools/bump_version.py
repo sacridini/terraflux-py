@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """python tools/bump_version.py 1.59.0: sets the version in pyproject.toml and in the compatibility
-package compat/landschaft/pyproject.toml (its version and its terraflux== pin)."""
+package compat/landschaft/pyproject.toml (its version and its terraflux-py== pin)."""
 
 import re
 import sys
@@ -24,7 +24,7 @@ def main() -> None:
     sub(ROOT / "pyproject.toml", r'^version = "[^"]*"', f'version = "{v}"')
     compat = ROOT / "compat" / "landschaft" / "pyproject.toml"
     sub(compat, r'^version = "[^"]*"', f'version = "{v}"')
-    sub(compat, r'"terraflux==[^"]*"', f'"terraflux=={v}"')
+    sub(compat, r'"terraflux-py==[^"]*"', f'"terraflux-py=={v}"')
     print(f"version {v} set in pyproject.toml and compat/landschaft/pyproject.toml")
 
 

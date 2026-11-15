@@ -1,17 +1,17 @@
 # Installation
 
 Terraflux is a Python package with a compiled C++ core, published on
-[PyPI](https://pypi.org/project/terraflux/) as binary wheels:
+[PyPI](https://pypi.org/project/terraflux-py/) as binary wheels:
 
 ```bash
-pip install terraflux
+pip install terraflux-py
 ```
 
 Wheels exist for CPython 3.10 to 3.14 on Windows (x86-64), macOS 11+ (Apple
 silicon and Intel) and Linux (x86-64 and ARM64, glibc 2.28+); they include the
 OpenMP runtime, so every tool runs in parallel and no compiler is needed. The
 same command installs everything every tool uses (see
-[What is installed](#what-is-installed)); `pip install -U terraflux` updates it.
+[What is installed](#what-is-installed)); `pip install -U terraflux-py` updates it.
 
 ## Install with pip
 
@@ -21,7 +21,7 @@ projects (rasterio then comes as a binary wheel that bundles GDAL):
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install terraflux
+pip install terraflux-py
 ```
 
 On a cluster, install in a virtual environment on the login node, or use the
@@ -38,7 +38,7 @@ first, then Terraflux with pip, so that pip does not replace them:
 ```bash
 conda create -n terraflux -c conda-forge python=3.12 rasterio rioxarray geopandas
 conda activate terraflux
-pip install terraflux
+pip install terraflux-py
 ```
 
 ## Build from source

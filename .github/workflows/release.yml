@@ -14,8 +14,8 @@
 # PyPI takes the files by trusted publishing, no token is stored: pypi.org has this
 # repository, this workflow (release.yml) and the environment "pypi" as a trusted
 # publisher of the project. The compatibility package landschaft (compat/landschaft, which
-# installs terraflux and re-exports it) goes out with each release, so BOTH PyPI projects
-# (terraflux and landschaft) need a trusted publisher for this repository, this workflow and
+# installs terraflux-py and re-exports it) goes out with each release, so BOTH PyPI projects
+# (terraflux-py and landschaft) need a trusted publisher for this repository, this workflow and
 # the environment "pypi".
 name: Release
 
@@ -57,8 +57,8 @@ jobs:
           import sys, tomllib
           c = tomllib.load(open("compat/landschaft/pyproject.toml", "rb"))["project"]
           v = sys.argv[1]
-          if c["version"] != v or c["dependencies"] != [f"terraflux=={v}"]:
-              sys.exit(f"::error::compat/landschaft/pyproject.toml has version {c['version']} and {c['dependencies']}, not {v} and terraflux=={v} (python tools/bump_version.py {v})")
+          if c["version"] != v or c["dependencies"] != [f"terraflux-py=={v}"]:
+              sys.exit(f"::error::compat/landschaft/pyproject.toml has version {c['version']} and {c['dependencies']}, not {v} and terraflux-py=={v} (python tools/bump_version.py {v})")
           PY
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
             echo "v$version is released already"
@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/terraflux/${{ needs.version.outputs.version }}/
+      url: https://pypi.org/project/terraflux-py/${{ needs.version.outputs.version }}/
     permissions:
       id-token: write
     steps:
@@ -160,7 +160,7 @@ jobs:
         run: |
           awk -v head="## [$VERSION]" 'index($0, head) == 1 { on = 1; next } on && /^## \[/ { exit } on' \
             CHANGELOG.md > notes.md
-          printf '\nInstall: `pip install terraflux==%s`\n' "$VERSION" >> notes.md
+          printf '\nInstall: `pip install terraflux-py==%s`\n' "$VERSION" >> notes.md
       - run: gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "Terraflux $VERSION" --notes-file notes.md
 
   docs:
