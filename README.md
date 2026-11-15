@@ -1,12 +1,12 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sacridini/terraflux-py/main/assets/logos/landschaft_ridge_stacked_dark.svg">
-    <img alt="Terraflux" src="https://raw.githubusercontent.com/sacridini/terraflux-py/main/assets/logos/landschaft_ridge_stacked_light.svg" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sacridini/terraflux/main/assets/logo/terraflux-logo-dark.svg">
+    <img alt="Terraflux" src="https://raw.githubusercontent.com/sacridini/terraflux/main/assets/logo/terraflux-logo-light.svg" width="320">
   </picture>
 </p>
 
 <p align="center">
-  <b>Fast, landscape analysis for Python.</b><br>
+  <b>Terraflux's Python library: fast landscape analysis for Python.</b><br>
   Habitat patterns, fragmentation, landscape metrics and ecological connectivity,<br>
   from a single raster to maps larger than memory.
 </p>
@@ -18,14 +18,27 @@
   <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-2e7d32">
 </p>
 
-<p align="center"><i>terraflux was called landschaft until 1.58; <code>pip install landschaft</code> keeps working.</i></p>
+<p align="center">
+  <a href="https://sacridini.github.io/terraflux/python/">Documentation</a> ·
+  <a href="https://sacridini.github.io/terraflux/python/getting-started/">Getting started</a> ·
+  <a href="https://sacridini.github.io/terraflux/python/api/">API reference</a> ·
+  <a href="https://sacridini.github.io/terraflux/">Terraflux, the desktop application</a>
+</p>
+
+<p align="center"><i>Installed as <code>terraflux-py</code>, imported as <code>terraflux</code>. It was called
+<b>landschaft</b> until 1.58: <code>pip install landschaft</code> and <code>import landschaft</code> keep working.</i></p>
 
 ---
 
-Terraflux brings the established methods of landscape ecology together in one
+terraflux brings the established methods of landscape ecology together in one
 Python package, with a C++17/OpenMP core behind a numpy / xarray / dask / rasterio
 API. It reproduces the reference tools of each method, checked against their outputs
 in the test suite, and runs from a few to several hundred times faster.
+
+It is the library behind [Terraflux](https://sacridini.github.io/terraflux/), the desktop application where the same
+methods are nodes of a model drawn on a canvas: Terraflux runs this library's C++ core,
+and any model made there can be exported as a Python script of terraflux
+(**File > Python script...**), for a paper, a reviewer or a cluster.
 
 | Area | What it covers | Reproduces |
 |---|---|---|
@@ -53,11 +66,12 @@ in the test suite, and runs from a few to several hundred times faster.
 pip install terraflux-py
 ```
 
+The package is `terraflux-py` on PyPI and `terraflux` in Python (`import terraflux as tf`).
 Binary wheels are published for CPython 3.10 to 3.14 on Windows (x86-64), macOS (Apple
 silicon and Intel, 11+) and Linux (x86-64, ARM64), with the OpenMP runtime included:
 no compiler is needed, and everything every tool uses is installed with the package.
 In a conda environment, install the geospatial libraries from conda-forge first and
-Terraflux with pip:
+terraflux with pip:
 
 ```bash
 conda create -n terraflux -c conda-forge python=3.12 rasterio rioxarray geopandas
@@ -66,7 +80,7 @@ pip install terraflux-py
 ```
 
 Building from source (other platforms, development) needs a C++17 compiler; see the
-[installation guide](https://sacridini.github.io/terraflux/getting-started/installation.html).
+[installation guide](https://sacridini.github.io/terraflux/python/getting-started/installation/).
 
 ### Docker
 
@@ -98,20 +112,27 @@ tf.landscape_metrics(landcover, level="landscape", metric=["shdi", "contag", "ed
 ```
 
 Every function takes numpy arrays, georeferenced `xarray.DataArray`s or dask arrays,
-and returns the same type; parallel functions use most of the cores unless given
-`n_threads`.
+and returns the same type. Parallel functions use the cores less a quarter (15 of 20,
+6 of 8), never all of them, as the desktop application does; `n_threads` or the variable
+`TERRAFLUX_THREADS` sets fewer.
+
+### Coming from landschaft
+
+Nothing has to change at once: `pip install landschaft` installs terraflux, `import landschaft as ls`
+gives the same modules (with a `DeprecationWarning`), the `LANDSCHAFT_*` environment variables are
+still read, and the files landschaft wrote (GeoTIFF tags, bio sessions, batch records, pickles) load
+in terraflux. To move over, replace `import landschaft as ls` with `import terraflux as tf` and `ls.`
+with `tf.`; the command `landschaft` is now `terraflux-py`.
 
 ## Documentation
 
-The documentation website, **<https://sacridini.github.io/terraflux/>**, has a
-getting-started guide, tutorials by topic, the full API reference with runnable
-examples, and the benchmarks and accuracy report. It is built from `docs/` with
-MkDocs and published with each release; to build it locally:
-
-```bash
-pip install -e ".[docs]"
-mkdocs serve        # http://127.0.0.1:8000, or `mkdocs build` for a static site/
-```
+The documentation is part of Terraflux's website, **<https://sacridini.github.io/terraflux/python/>**: a
+getting-started guide, tutorials by topic (each of Terraflux's tutorials has its Python
+version), the full API reference with runnable examples, the algorithms behind the
+tools, and the [validation and benchmarks](https://sacridini.github.io/terraflux/about/validation/) report.
+The website is built from Terraflux's repository
+([sacridini/terraflux](https://github.com/sacridini/terraflux), `website/`), whose API
+pages are read from this library's docstrings.
 
 ## Validation and performance
 
@@ -133,7 +154,7 @@ floating-point solvers. Typical speed-ups on the benchmark cases:
 | Land change simulation | lulcc, OpenLand, diffeR, CLUMondo, r.futures, MOLUSCE; Dinamica EGO (measured) | identical bits (R's and NumPy's random numbers included); Dinamica to its 15 digits | 7–43× |
 
 Methods, machines, full tables and the known differences are on the
-[benchmarks and accuracy page](https://sacridini.github.io/terraflux/benchmarks.html). To run the tests:
+[validation and benchmarks page](https://sacridini.github.io/terraflux/about/validation/). To run the tests:
 
 ```bash
 pip install -e ".[test]"
@@ -142,13 +163,14 @@ pytest
 
 ## Versioning
 
-Terraflux follows [Semantic Versioning](https://semver.org/): from 1.0 on, the public API
-changes incompatibly only in a new major version. Changes are listed in the
+terraflux follows [Semantic Versioning](https://semver.org/): from 1.0 on, the public API
+changes incompatibly only in a new major version. Its version numbers continue landschaft's
+(the first release as terraflux is 1.59.0). Changes are listed in the
 [changelog](https://github.com/sacridini/terraflux-py/blob/main/CHANGELOG.md).
 
 ## License and credits
 
-GPL-3.0-or-later. Terraflux ports code from GuidosToolbox and miallib,
+GPL-3.0-or-later. terraflux ports code from GuidosToolbox and miallib,
 © European Union (Joint Research Centre), authors Pierre Soille, Peter Vogt et al.,
 both GPL-3.0-or-later; the example maps in `src/terraflux/data` come from the
 [GTB repository](https://github.com/ec-jrc/GTB). GTB's `mspa` notes that its
