@@ -12,6 +12,8 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from . import _env
+
 __all__ = ["doctor", "report"]
 
 # What terraflux downloads from, by what needs it.
@@ -23,8 +25,9 @@ SERVICES = (
     ("OpenStreetMap (plot basemaps)", "https://tile.openstreetmap.org"),
 )
 
-VARIABLES = ("LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", "SLURM_CPUS_PER_TASK", "SLURM_CPUS_ON_NODE", "NCPUS",
-             "LSB_DJOB_NUMPROC", "LANDSCHAFT_CACHE", "LANDSCHAFT_CONFIG_DIR", "XDG_CACHE_HOME")
+VARIABLES = ("TERRAFLUX_THREADS", "LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", "SLURM_CPUS_PER_TASK",
+             "SLURM_CPUS_ON_NODE", "NCPUS", "LSB_DJOB_NUMPROC", "TERRAFLUX_CACHE", "LANDSCHAFT_CACHE",
+             "TERRAFLUX_CONFIG_DIR", "LANDSCHAFT_CONFIG_DIR", "XDG_CACHE_HOME")
 
 
 def probe(url: str, timeout: float = 5.0) -> str | None:
@@ -33,7 +36,9 @@ def probe(url: str, timeout: float = 5.0) -> str | None:
     import urllib.error
     import urllib.request
 
-    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "landschaft"})
+    from ._download import user_agent
+
+    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": user_agent()})
     try:
         with urllib.request.urlopen(request, timeout=timeout):
             return None
@@ -54,7 +59,7 @@ def writable(folder: Path) -> bool:
     """Whether a file can be created in ``folder`` (created if missing)."""
     try:
         folder.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=folder, prefix=".landschaft-doctor-"):
+        with tempfile.NamedTemporaryFile(dir=folder, prefix=".terraflux-doctor-"):
             pass
         return True
     except OSError:
@@ -86,12 +91,12 @@ def _threads() -> list[str]:
 
     found = detect()
     lines = [f"Threads (the default of n_threads): {found.describe()}"]
-    given = [f"{v}={os.environ[v]}" for v in VARIABLES[:6] if os.environ.get(v)]
+    given = [f"{v}={os.environ[v]}" for v in VARIABLES[:7] if os.environ.get(v)]
     if given:
         lines.append("  " + ", ".join(given))
     if found.idle():
         lines.append(f"  ! OMP_NUM_THREADS={found.all} leaves {found.idle()} of this job's processors idle (cluster "
-                     f"modules often set it for MPI programs): set LANDSCHAFT_NUM_THREADS={found.job_processors}, "
+                     f"modules often set it for MPI programs): set TERRAFLUX_THREADS={found.job_processors}, "
                      "which terraflux reads first")
     return lines
 
@@ -130,12 +135,12 @@ def _caches() -> list[str]:
         root = None
         lines.append(f"Cache: cannot be created ({e})")
     if root is not None:
-        origin = "LANDSCHAFT_CACHE" if os.environ.get("LANDSCHAFT_CACHE") else (
+        origin = next((v for v in ("TERRAFLUX_CACHE", "LANDSCHAFT_CACHE") if os.environ.get(v)), None) or (
             "XDG_CACHE_HOME" if os.environ.get("XDG_CACHE_HOME") and sys.platform not in ("win32", "darwin")
             else "default")
         lines.append(f"Cache: {root} ({origin}), {'writable' if writable(root) else 'NOT WRITABLE'}")
-        if not writable(root) and not os.environ.get("LANDSCHAFT_CACHE"):
-            lines.append("  ! set LANDSCHAFT_CACHE to a folder that can be written (on a cluster: the scratch space)")
+        if not writable(root) and not _env.get("CACHE"):
+            lines.append("  ! set TERRAFLUX_CACHE to a folder that can be written (on a cluster: the scratch space)")
     try:
         helper = default_cache_dir()
         lines.append(f"  helper files: {helper}")

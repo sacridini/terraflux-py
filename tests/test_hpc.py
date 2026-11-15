@@ -285,7 +285,7 @@ def test_real_sigterm(tiles, tmp_path):
             sys.exit(143)
     """).replace("tf.batch_module.Stopped", "__import__('terraflux.batch', fromlist=['Stopped']).Stopped"))
     proc = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE, text=True,
-                            env={**os.environ, "LANDSCHAFT_NUM_THREADS": "1"})
+                            env={**os.environ, "TERRAFLUX_NUM_THREADS": "1"})
     assert proc.stdout.readline().strip() == "started"
     proc.send_signal(signal.SIGTERM)
     out, _ = proc.communicate(timeout=120)
@@ -309,7 +309,7 @@ def test_offline_messages(tmp_path, monkeypatch):
     def no_network(*args, **kwargs):
         raise urllib.error.URLError(socket.gaierror(-3, "Temporary failure in name resolution"))
 
-    monkeypatch.setenv("LANDSCHAFT_CACHE", str(tmp_path))
+    monkeypatch.setenv("TERRAFLUX_CACHE", str(tmp_path))
     monkeypatch.setattr(urllib.request, "urlopen", no_network)
     with pytest.raises(OSError, match="no internet access.*terraflux-py fetch sdm"):
         _download.fetch("sdm/thing.zip", ["https://a.example/thing.zip", "https://b.example/thing.zip"])
@@ -333,17 +333,17 @@ def test_offline_messages(tmp_path, monkeypatch):
 def test_one_cache_root(tmp_path, monkeypatch):
     from terraflux._dist._worker import default_cache_dir
 
-    monkeypatch.setenv("LANDSCHAFT_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("TERRAFLUX_CACHE", str(tmp_path / "cache"))
     assert default_cache_dir() == tmp_path / "cache" / "helper"
-    monkeypatch.delenv("LANDSCHAFT_CACHE")
+    monkeypatch.delenv("TERRAFLUX_CACHE")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
     if sys.platform == "win32":
-        assert default_cache_dir() == tmp_path / "local" / "landschaft" / "cache" / "helper"
+        assert default_cache_dir() == tmp_path / "local" / "terraflux" / "python" / "cache" / "helper"
         (tmp_path / "local" / "landschaft" / "helper-cache").mkdir(parents=True)   # an older terraflux's
         assert default_cache_dir() == tmp_path / "local" / "landschaft" / "helper-cache"
     elif sys.platform.startswith("linux"):
-        assert default_cache_dir() == tmp_path / "xdg" / "landschaft" / "helper"
+        assert default_cache_dir() == tmp_path / "xdg" / "terraflux" / "python" / "helper"
 
 
 def test_helpers_inside_a_job(tiles, tmp_path, monkeypatch):
@@ -355,7 +355,7 @@ def test_helpers_inside_a_job(tiles, tmp_path, monkeypatch):
 
     from terraflux._dist import _group, _worker
 
-    monkeypatch.setenv("LANDSCHAFT_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("TERRAFLUX_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("SLURM_JOB_ID", "99")
     assert tf.helpers()._options["discovery"] is False
     assert tf.helpers(discovery=True)._options["discovery"] is True
@@ -386,7 +386,7 @@ def test_helpers_inside_a_job(tiles, tmp_path, monkeypatch):
 def test_plots_are_not_shown_without_a_display(monkeypatch, capsys):
     from terraflux._plotting import _env
 
-    monkeypatch.setenv("LANDSCHAFT_PLOT_SHOW", "1")
+    monkeypatch.setenv("TERRAFLUX_PLOT_SHOW", "1")
     monkeypatch.setattr(_env, "_told", False)
     monkeypatch.setenv("SLURM_JOB_ID", "5")
     assert _env.headless() == "inside a Slurm job"
@@ -399,7 +399,7 @@ def test_plots_are_not_shown_without_a_display(monkeypatch, capsys):
     assert _env.headless() == "no display (DISPLAY is not set)"
     monkeypatch.setenv("DISPLAY", ":0")
     assert _env.headless() is None and _env.auto_show() is True
-    monkeypatch.setenv("LANDSCHAFT_PLOT_SHOW", "0")
+    monkeypatch.setenv("TERRAFLUX_PLOT_SHOW", "0")
     assert _env.auto_show() is False
 
 
@@ -414,7 +414,7 @@ def test_doctor(monkeypatch, capsys):
     _array(monkeypatch, 2, first=0, last=9)
     monkeypatch.setenv("SLURM_CPUS_PER_TASK", "1")
     monkeypatch.setenv("OMP_NUM_THREADS", "1")
-    monkeypatch.delenv("LANDSCHAFT_NUM_THREADS", raising=False)
+    monkeypatch.delenv("TERRAFLUX_NUM_THREADS", raising=False)
     text = _doctor.report(network=False)
     assert "Slurm job 772" in text and "array task 2 of 10 (0-9)" in text
     assert "Display: none, inside a Slurm job" in text

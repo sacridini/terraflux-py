@@ -553,13 +553,13 @@ def test_landscape_metrics_and_mspa_with_zones():
 def test_report_and_plot_with_zones():
     import os
 
-    os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")
+    os.environ.setdefault("TERRAFLUX_PLOT_SHOW", "0")
     p = optimize_cases.CASES["zones_minset_sum"].py()
     sol = p.solve()
     r = tf.prioritize.report(p, sol)
     assert list(r.tables["summary"]["summary"]) == ["overall", *optimize_cases.ZONES]
     assert "zone" in r.tables["targets"].columns
-    assert sol.zones.attrs["landschaft_product"] == "ZONES"
+    assert sol.zones.attrs["terraflux_product"] == "ZONES"
     pl = tf.plot(sol, show=False)
     assert pl.panels[0].kind == "map"
     with pytest.raises(ValueError, match="single zone"):

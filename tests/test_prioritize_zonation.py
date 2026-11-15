@@ -542,7 +542,7 @@ def test_row_formats_and_storage_agree(monkeypatch, bits, tmp_path):
     x[[0, 280], 0, 1] = 0.7
     got = {}
     for fmt in ("delta", "bitmap", ""):
-        monkeypatch.setenv("LANDSCHAFT_PRIO_ROWS", fmt)
+        monkeypatch.setenv("TERRAFLUX_PRIO_ROWS", fmt)
         res = tf.prioritize.zonation(x, bits=bits, rule="CAZ2", storage=tmp_path / "tmp" if not fmt else None)
         got[fmt] = (np.asarray(res.rank), res.iterations, res.feature_curves.to_numpy())
         del res

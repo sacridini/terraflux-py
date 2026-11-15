@@ -267,7 +267,7 @@ class Landscape:
         Results are identical to the in-memory ones; ``labels`` and
         ``to_raster`` give lazy rasters, computed and written block by block.
     n_threads
-        Threads of the C++ core (default: all cores but one).
+        Threads of the C++ core (default: most of the cores).
     convention
         ``"landscapemetrics"`` (default) or ``"fragstats"``: with non-square
         cells, left/right cell sides are as long as the cell height (the
@@ -1191,7 +1191,7 @@ def landscape_metrics(
         Add the columns ``name``, ``type`` and ``function_name`` (as
         ``calculate_lsm(full_name = TRUE)``).
     n_threads
-        Threads of the C++ core (default: all cores but one).
+        Threads of the C++ core (default: most of the cores).
     **options
         :class:`Landscape` options (``directions``, ``count_boundary``,
         ``edge_depth``, ``res``, ``nodata``, ``block_rows`` for files larger

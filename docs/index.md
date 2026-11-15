@@ -207,7 +207,7 @@ no other language to install.
 ### Scales
 
 Rasters larger than memory by tiles or row blocks, collections of maps in
-parallel within a memory budget, and all cores but one by default.
+parallel within a memory budget, and most of the cores by default.
 
 </div>
 

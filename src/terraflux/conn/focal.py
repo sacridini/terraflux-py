@@ -57,7 +57,7 @@ def focal_nodes(nodes, *, distance, search_buffer, metric: str = "IIC", probabil
     threshold
         Pairs farther apart than this are not connected (Makurhini's ``threshold``).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

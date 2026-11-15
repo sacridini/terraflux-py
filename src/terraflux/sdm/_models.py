@@ -196,7 +196,7 @@ def _folds_on(on, models: dict, data) -> list:
 
     specs = {name: estimator_spec(m) for name, m in models.items()}
     here = versions()
-    with tempfile.TemporaryDirectory(prefix="landschaft-sdm-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="terraflux-sdm-") as tmp:
         tmp = Path(tmp)
         X = data.X.copy()
         X.columns = [str(c) for c in X.columns]

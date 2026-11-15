@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .. import _core
-from ._tracks import ATTRS, steps as _locations, time_seconds, track_codes
+from ._tracks import ATTRS, info_of, steps as _locations, time_seconds, track_codes
 
 BURST = "burst_"
 
@@ -392,7 +392,7 @@ def time_of_day(x, *, include_crepuscule: bool = False, where: str = "end", time
     if "x1_" in getattr(x, "columns", ()):
         if where not in ("end", "start"):
             raise ValueError('where: "end" or "start"')
-        info = x.attrs.get(ATTRS, {})
+        info = info_of(x)
         crs = info.get("crs")
         e = "2" if where == "end" else "1"
         xs, ys = x[f"x{e}_"].to_numpy(np.float64), x[f"y{e}_"].to_numpy(np.float64)

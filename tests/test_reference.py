@@ -4,7 +4,7 @@
 * ``reference``: outputs stored in tests/data/reference, produced by
   tools/make_reference.py with the original executable. Runs everywhere.
 * ``live_reference``: runs the original executable now (set
-  ``LANDSCHAFT_MSPA_EXE``) on fresh random inputs and parameters.
+  ``TERRAFLUX_MSPA_EXE``) on fresh random inputs and parameters.
 """
 
 from __future__ import annotations

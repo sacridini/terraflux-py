@@ -211,7 +211,7 @@ def run_many(projects, *, tables=None, nyskip: int | None = None, c_factor: str 
     tables, nyskip, c_factor
         As :func:`run`, for every project.
     n_threads : int, optional
-        Simulations running together; default all cores but one.
+        Simulations running together; default most of the cores.
 
     Returns
     -------

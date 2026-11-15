@@ -47,7 +47,7 @@ def gaussian_field(ncol: int, nrow: int, resolution: float = 1.0, autocorr_range
     rescale : bool, default True
         Rescale the values to 0-1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -106,7 +106,7 @@ def fbm(ncol: int, nrow: int, resolution: float = 1.0, fract_dim: float = 1.0, s
     rescale : bool, default True
         Rescale the values to 0-1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

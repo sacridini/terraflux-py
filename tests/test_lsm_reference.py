@@ -99,7 +99,7 @@ def test_every_catalogue_metric_is_referenced():
 def rscript():
     exe = lsm_reference.find_lsm_rscript()
     if exe is None:
-        pytest.skip("Rscript with terra and landscapemetrics not found (set LANDSCHAFT_RSCRIPT, LANDSCHAFT_R_LIBS)")
+        pytest.skip("Rscript with terra and landscapemetrics not found (set TERRAFLUX_RSCRIPT, TERRAFLUX_R_LIBS)")
     return exe
 
 

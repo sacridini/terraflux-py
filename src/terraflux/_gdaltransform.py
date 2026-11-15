@@ -21,6 +21,8 @@ import threading
 
 import numpy as np
 
+from . import _env
+
 __all__ = ["GdalTransformer", "open_library"]
 
 _lib = None
@@ -120,7 +122,7 @@ def open_library():
         if _searched:
             return _lib
         _searched = True
-        if os.environ.get("LANDSCHAFT_REPROJECT_PYPROJ"):
+        if _env.get("REPROJECT_PYPROJ"):
             return None
         import rasterio
 

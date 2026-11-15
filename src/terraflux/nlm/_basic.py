@@ -23,7 +23,7 @@ def rescale(x, *, n_threads: int | None = None):
     x : xarray.DataArray or numpy.ndarray
         Values; NaN (or the DataArray's nodata value) is missing and stays NaN.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -67,7 +67,7 @@ def random(ncol: int, nrow: int, resolution: float = 1.0, seed: int | None = Non
     rescale : bool, default True
         Rescale the values to 0-1 (:func:`rescale`).
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -108,7 +108,7 @@ def percolation(ncol: int, nrow: int, resolution: float = 1.0, prob: float = 0.5
     seed : int, optional
         Seed of R's generator (NLMR's ``user_seed``); ``None`` draws one.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -163,7 +163,7 @@ def planar_gradient(ncol: int, nrow: int, resolution: float = 1.0, direction: fl
     rescale : bool, default True
         Rescale the values to 0-1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -207,7 +207,7 @@ def edge_gradient(ncol: int, nrow: int, resolution: float = 1.0, direction: floa
     rescale : bool, default True
         Rescale the values to 0-1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -257,7 +257,7 @@ def distance_gradient(ncol: int, nrow: int, origin, resolution: float = 1.0, res
         cell units, float32). With False, exact Euclidean distances between
         cell centres times ``resolution``.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

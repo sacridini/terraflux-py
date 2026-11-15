@@ -18,6 +18,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .. import _compat
+
 
 class Unpackable(TypeError):
     """A value that cannot travel between computers."""
@@ -221,6 +223,7 @@ class _Reader:
             return Path(v["$path"])
         if "$dataclass" in v:
             module, _, qualname = str(v["$dataclass"]).partition(":")
+            module = _compat.module_name(module)  # landschaft.* (until 1.58) is terraflux.*
             if not module.startswith("terraflux."):
                 raise ValueError(f"refusing to build {v['$dataclass']}")
             cls = importlib.import_module(module)

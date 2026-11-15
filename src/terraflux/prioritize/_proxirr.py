@@ -94,7 +94,7 @@ def eval_proxirr(p, triage: bool = False, n_threads: int | None = None) -> ProxI
         proxirr's triage: a feature whose target exceeds what is left counts for nothing (alpha 0)
         instead of making every unit holding it essential.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

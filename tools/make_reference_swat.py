@@ -33,7 +33,7 @@ build::
           "-DCMAKE_Fortran_FLAGS=-cpp"
     cmake --build build
 
-``LANDSCHAFT_SWAT`` gives the executable, ``LANDSCHAFT_SWAT_DATA`` the folder with
+``TERRAFLUX_SWAT`` gives the executable, ``TERRAFLUX_SWAT_DATA`` the folder with
 ``swatplus`` (for ``refdata/Ames_sub1``) and ``SWATPlus-datasets`` (for
 ``SWAT+_model_examples/example1``, Hubbard Brook watershed 2).
 """
@@ -53,11 +53,12 @@ import zipfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "tests" / "data" / "reference" / "swat"
-DATA = Path(os.environ.get("LANDSCHAFT_SWAT_DATA", Path.home() / "Documents" / "dev" / "swat_sources"))
-EXE = Path(os.environ.get("LANDSCHAFT_SWAT", DATA / "swatplus" / "build-flang22md" / "swatplus-62.0.1--win_amd64-Rel.exe"))
+DATA = Path(_env.get("SWAT_DATA", Path.home() / "Documents" / "dev" / "swat_sources"))
+EXE = Path(_env.get("SWAT", DATA / "swatplus" / "build-flang22md" / "swatplus-62.0.1--win_amd64-Rel.exe"))
 
 # outputs of earlier runs found in the example folders
 OUTPUT = re.compile(r"(\.txt|\.out|\.fin|\.csv|\.bin|\.log)$|^fort\.\d+$", re.I)
@@ -162,7 +163,7 @@ def ames(start: int, end: int):
 def landscape(landuse: dict | None = None, period: tuple | None = None):
     """tf.hydro.swat.from_rasters' case (tests/swat_landscape.py): our delineation and HRUs
     (QSWAT+'s tables), the project written by the SWAT+ Editor 4.0.2 itself
-    (tools/swat/editor_txtinout.py, LANDSCHAFT_SWAT_EDITOR), then the reference run.
+    (tools/swat/editor_txtinout.py, TERRAFLUX_SWAT_EDITOR), then the reference run.
     ``landuse``: another land use lookup; ``period``: (start, end) instead of the
     weather's."""
 

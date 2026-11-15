@@ -218,7 +218,7 @@ def _runs_on(on, models, names, runs, seeds, start, drivers, nodata) -> list:
 
     from .._dist import Job, Task, run_job
 
-    with tempfile.TemporaryDirectory(prefix="landschaft-scenarios-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="terraflux-scenarios-") as tmp:
         files = {s: _saved(models[name], tmp, f"scenario_{s}", start, drivers, nodata) for s, name in enumerate(names)}
         tasks = [Task(f"{names[s]} #{r}", "simulate.run", {"model": f"scenario_{s}.json", "seed": seeds[r]},
                       files[s], root=Path(tmp)) for s, r in runs]
@@ -267,7 +267,7 @@ def scenarios(model, start=None, drivers=None, *, scenarios=None, replicates: in
     n_workers
         Runs at the same time (default: as many as the threads allow).
     n_threads
-        Threads in all (default: all cores but one), shared by the workers.
+        Threads in all (default: most of the cores), shared by the workers.
     on
         ``tf.helpers()``: run the simulations on this computer and on the helpers of
         its group (see :mod:`terraflux.parallel`), with the same maps. Each scenario's

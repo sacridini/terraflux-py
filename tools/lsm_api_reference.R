@@ -10,13 +10,13 @@
 # construct_buffer centres, buffered by `size`. Values are written with 17
 # significant digits.
 #
-# Set LANDSCHAFT_R_LIBS to a library that holds the landscapemetrics version
+# Set TERRAFLUX_R_LIBS to a library that holds the landscapemetrics version
 # to compare against (it is put first on .libPaths()).
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 4) stop("usage: lsm_api_reference.R input.tif points.csv size outdir")
 
-lib <- Sys.getenv("LANDSCHAFT_R_LIBS")
+lib <- Sys.getenv("TERRAFLUX_R_LIBS", Sys.getenv("LANDSCHAFT_R_LIBS"))
 if (nzchar(lib)) .libPaths(c(strsplit(lib, .Platform$path.sep)[[1]], .libPaths()))
 
 suppressPackageStartupMessages({

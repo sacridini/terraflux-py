@@ -161,7 +161,7 @@ def test_proximity_xarray_and_write(tmp_path):
     path = tf.write_raster(r.classes, tmp_path / "prox.tif")
     assert path.exists()
     z = tf.influence_zones(da, buffer=10)
-    assert z.classes.attrs["landschaft_product"] == "INFLUENCE_ZONES"
+    assert z.classes.attrs["terraflux_product"] == "INFLUENCE_ZONES"
     tf.write_raster(z.classes, tmp_path / "influ.tif")
 
 

@@ -65,7 +65,7 @@ def mosaic_field(ncol: int, nrow: int, resolution: float = 1.0, n: int | None = 
     nlmr_compat : bool, default True
         Reproduce NLMR's quirks described above.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

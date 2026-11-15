@@ -358,7 +358,7 @@ def simple_change(
             dims=xr_tpl.dims,
             attrs={
                 **xr_tpl.attrs,
-                "landschaft_product": "SIMPLE_CHANGE",
+                "terraflux_product": "SIMPLE_CHANGE",
                 "stable_bg": res["stable_bg"],
                 "gain": res["gain"],
                 "loss": res["loss"],
@@ -401,7 +401,7 @@ def morphological_change(
         Maps of the two dates, coded 0 missing, 1 background, 2 foreground
         (DataArray, array or path).
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -431,7 +431,7 @@ def morphological_change(
             dims=xr_tpl.dims,
             attrs={
                 **xr_tpl.attrs,
-                "landschaft_product": "MORPHOLOGICAL_CHANGE",
+                "terraflux_product": "MORPHOLOGICAL_CHANGE",
                 "fg_area_t1": res["fg_area_t1"],
                 "fg_area_t2": res["fg_area_t2"],
                 "net_change": res["net_change"],
@@ -476,7 +476,7 @@ def fos_change(
         FOS maps of the two dates (``fos(...).map``: 0-100 foreground density,
         101 background, 102 missing, 105 water).
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -508,7 +508,7 @@ def fos_change(
             dims=xr_tpl.dims,
             attrs={
                 **xr_tpl.attrs,
-                "landschaft_product": "FOS_CHANGE",
+                "terraflux_product": "FOS_CHANGE",
                 "fg_gain": res["fg_gain"],
                 "fg_loss": res["fg_loss"],
                 "stable_bg": res["stable_bg"],

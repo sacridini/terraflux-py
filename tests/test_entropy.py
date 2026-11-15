@@ -97,7 +97,7 @@ def test_entropy_write_raster_integration(tmp_path, input_raster):
 
     # Convert to byte for colormapped TIFF
     byte_ent = np.round(ent_map).astype(np.uint8)
-    byte_ent.attrs["landschaft_product"] = "SPATIAL_ENTROPY"
+    byte_ent.attrs["terraflux_product"] = "SPATIAL_ENTROPY"
     tf.write_raster(byte_ent, out_file)
     assert out_file.exists()
 

@@ -20,7 +20,7 @@ grew out of. The ideas behind each function are in the course part
 | Rasters, polygons, tables | `terra` `SpatRaster`, `sf`, `data.frame` | `xarray.DataArray` ([`tf.load_raster`](data.md)), `GeoDataFrame`, `pandas.DataFrame` |
 | Features | layers or columns | bands of a stack, a list of rasters, or columns; always by name |
 | Default solver | the best one installed (Gurobi, CPLEX, CBC, HiGHS...) | HiGHS, built into Terraflux (nothing to install) |
-| Threads | `threads = 1` | `n_threads`: all cores but one by default |
+| Threads | `threads = 1` | `n_threads`: most of the cores by default |
 | Result of `solve` | the input's class with a `solution_1` layer or column | a [`Solution`](prioritization.md#terraflux.prioritize.Solution): `selection` (raster or table), `values`, `coverage`, `cost`, `objective`, `gap`, `bound`, `status`, `seconds` |
 | Evaluations | `tibble` | `pandas.DataFrame`, the same columns |
 | Plots | `plot(s)` | `tf.plot(s)` |

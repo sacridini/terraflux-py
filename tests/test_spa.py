@@ -74,7 +74,7 @@ def test_invalid_and_xarray(tmp_path):
         tf.spa(np.full((5, 5), 3, np.uint8))
     da = tf.load_raster(tf.example_data("input"))
     r = tf.spa(da, 6)
-    assert isinstance(r.map, xr.DataArray) and r.map.attrs["landschaft_product"] == "SPA6"
+    assert isinstance(r.map, xr.DataArray) and r.map.attrs["terraflux_product"] == "SPA6"
     tf.write_raster(r.map, tmp_path / "spa6.tif")
     assert "SPA6: 8-connected Foreground" in r.summary()
 

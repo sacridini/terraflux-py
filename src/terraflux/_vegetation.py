@@ -131,7 +131,7 @@ def original_vegetation(
         current natural classes of the pixel where it has some, else the
         original ones (plangea's restoration with conversion).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

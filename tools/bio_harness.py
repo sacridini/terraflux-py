@@ -11,14 +11,14 @@ target; the unpatched library agrees to ~1e-12.
 
 Environment:
 
-- ``LANDSCHAFT_BIODIVERSE``: Biodiverse clone (default
+- ``TERRAFLUX_BIODIVERSE``: Biodiverse clone (default
   ``~/Documents/dev/biodiverse``);
-- ``LANDSCHAFT_STRAWBERRY``: Strawberry Perl (default ``C:/Strawberry``);
-- ``LANDSCHAFT_BIO_PERL5``: private CPAN library with Biodiverse's dependencies
+- ``TERRAFLUX_STRAWBERRY``: Strawberry Perl (default ``C:/Strawberry``);
+- ``TERRAFLUX_BIO_PERL5``: private CPAN library with Biodiverse's dependencies
   (default ``%LOCALAPPDATA%/landschaft-bio-perl5``, filled with
   ``cpanm -L <dir> --notest ...``; see IDEAS.md).
 
-The overlay lives in ``<LANDSCHAFT_BIO_PERL5>/overlay`` and is rebuilt when the
+The overlay lives in ``<TERRAFLUX_BIO_PERL5>/overlay`` and is rebuilt when the
 Biodiverse sources change.
 """
 
@@ -32,13 +32,14 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tools" / "bio_reference.pl"
 LOCAL = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-BIODIVERSE = Path(os.environ.get("LANDSCHAFT_BIODIVERSE", Path.home() / "Documents" / "dev" / "biodiverse"))
-STRAWBERRY = Path(os.environ.get("LANDSCHAFT_STRAWBERRY", "C:/Strawberry"))
-PERL5 = Path(os.environ.get("LANDSCHAFT_BIO_PERL5", LOCAL / "landschaft-bio-perl5"))
+BIODIVERSE = Path(_env.get("BIODIVERSE", Path.home() / "Documents" / "dev" / "biodiverse"))
+STRAWBERRY = Path(_env.get("STRAWBERRY", "C:/Strawberry"))
+PERL5 = Path(_env.get("BIO_PERL5", LOCAL / "landschaft-bio-perl5"))
 OVERLAY = PERL5 / "overlay"
 # CPAN modules whose hash iteration reaches Biodiverse's results (rewritten too)
 EXTRA_MODULES = [
@@ -238,8 +239,8 @@ def perl_environment(hash_seed: int = 0) -> dict[str, str]:
     env["PATH"] = os.pathsep.join(str(b) for b in bins) + os.pathsep + env.get("PATH", "")
     # shim/ holds placeholders for optional modules (after the real library)
     env["PERL5LIB"] = os.pathsep.join([str(PERL5 / "lib" / "perl5"), str(PERL5 / "shim")])
-    gdal = os.environ.get("LANDSCHAFT_BIO_GDAL", str(Path.home() / "miniforge3" / "envs" / "geo" / "Library"))
-    env["LANDSCHAFT_BIO_GDAL"] = gdal
+    gdal = _env.get("BIO_GDAL", str(Path.home() / "miniforge3" / "envs" / "geo" / "Library"))
+    env["TERRAFLUX_BIO_GDAL"] = gdal
     env["PATH"] = str(Path(gdal) / "bin") + os.pathsep + env["PATH"]
     env["PERL_HASH_SEED"] = str(hash_seed)
     env["PERL_PERTURB_KEYS"] = "0"

@@ -200,7 +200,7 @@ def test_dataarray_and_metadata_preservation():
     assert isinstance(res.change_map, xr.DataArray)
     assert res.change_map.dims == ("y", "x")
     assert np.all(res.change_map.coords["y"] == [10.0, 20.0])
-    assert res.change_map.attrs["landschaft_product"] == "SIMPLE_CHANGE"
+    assert res.change_map.attrs["terraflux_product"] == "SIMPLE_CHANGE"
 
 
 def test_dimension_mismatch():

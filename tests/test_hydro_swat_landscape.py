@@ -69,7 +69,8 @@ def built():
     stations, pcp, tmax, tmin, monthly = case.weather()
     wx = tf.hydro.swat.climate(stations, pcp=pcp, tmax=tmax, tmin=tmin, monthly=monthly)
     project = tf.hydro.swat.from_rasters(dem, lu, so, landuse_lookup=case.LANDUSE, soil_lookup=case.SOILS,
-                                         soil_table=case.soil_table(), climate=wx, **case.OPTIONS)
+                                         soil_table=case.soil_table(), climate=wx, **case.OPTIONS,
+                                         name="landschaft")   # (the name the stored editor reference was made with)
     return project, wx
 
 
@@ -165,7 +166,7 @@ def crops():
     wx = tf.hydro.swat.climate(stations, pcp=pcp, tmax=tmax, tmin=tmin, monthly=monthly)
     return tf.hydro.swat.from_rasters(dem, lu, so, landuse_lookup=CROPS, soil_lookup=case.SOILS,
                                       soil_table=case.soil_table(), climate=wx, start="2000-01-01",
-                                      end="2000-12-31", **case.OPTIONS)
+                                      end="2000-12-31", name="landschaft", **case.OPTIONS)
 
 
 def test_crop_rotations_and_urban_are_the_swatplus_editors(crops):
@@ -201,7 +202,7 @@ def test_qswat_project_database_round_trip(built, tmp_path):
         for name, df in project.watershed.tables.items():
             df.to_sql(name, conn, index=False)
     tables = tf.hydro.swat.load_qswat_project(db)
-    again = tf.hydro.swat.from_tables(tables, wx)
+    again = tf.hydro.swat.from_tables(tables, wx, name="landschaft")
     for name, b in project.files.items():
         assert _tokens(again.files[name]) == _tokens(b), name
 

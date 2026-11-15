@@ -566,7 +566,7 @@ def eval_replacement_importance(p, solution, rescale: bool = True, n_threads: in
     """The replacement cost of every selected unit (Cabeza & Moilanen 2006): how much the objective
     worsens when the unit is left out and the problem solved again with the other selected units kept
     (infinite when nothing can replace it), rescaled to 0.01-1. One solve per selected unit, in parallel
-    (``n_threads``, default all cores but one).
+    (``n_threads``, default most of the cores).
     ``on=tf.helpers()`` solves them on the helpers of this computer's group too (:mod:`terraflux.parallel`).
 
     Examples

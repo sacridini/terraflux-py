@@ -129,7 +129,7 @@ def settlement_probabilities(nodes, resistance, *, dispersal_distance: float | N
     id
         Column with the node ids (default 1..n).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

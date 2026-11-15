@@ -12,9 +12,9 @@ kinds, shapes and the text results in ``<group>.json`` (with the package
 versions). ``--case`` regenerates only the named cases of the group (the
 others are kept).
 
-Needs Rscript (``LANDSCHAFT_RSCRIPT`` as in ``tests/lsm_reference.py``) and a
+Needs Rscript (``TERRAFLUX_RSCRIPT`` as in ``tests/lsm_reference.py``) and a
 library with CoordinateCleaner, spThin, usdm, blockCV, ENMeval, ecospat,
-predicts, dismo, maxnet, glmnet, biomod2 and mop (``LANDSCHAFT_SDM_R_LIBS``,
+predicts, dismo, maxnet, glmnet, biomod2 and mop (``TERRAFLUX_SDM_R_LIBS``,
 default ``%LOCALAPPDATA%/R/landschaft-sdm-lib``, put before the user library,
 which provides terra, sf and jsonlite). The test-suite reads the stored
 files, so it runs anywhere without R.
@@ -32,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -48,7 +49,7 @@ USER_LIBS = sorted(DEFAULT_LIBS.parent.glob("win-library/*"))
 
 def r_environment() -> dict[str, str]:
     env = lsm_reference.r_environment()
-    libs = [env.get("LANDSCHAFT_SDM_R_LIBS", str(DEFAULT_LIBS)), *(str(p) for p in USER_LIBS[-1:])]
+    libs = [_env.get("SDM_R_LIBS", str(DEFAULT_LIBS)), *(str(p) for p in USER_LIBS[-1:])]
     env["R_LIBS"] = os.pathsep.join([*libs, *filter(None, [env.get("R_LIBS")])])
     return env
 
@@ -94,7 +95,7 @@ def run_group(group: str, only: list[str] | None = None) -> None:
         return
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     names = sorted({n for c in cases.values() for n in c.inputs})
     with tempfile.TemporaryDirectory(prefix="sdm_ref_") as tmp:
         tmp = Path(tmp)

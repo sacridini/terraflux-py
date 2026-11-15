@@ -238,7 +238,7 @@ class WeightsOfEvidence:
         nodata
             Value marking missing cells in the land use maps.
         n_threads
-            Threads (default: all cores but one).
+            Threads (default: most of the cores).
 
         Returns
         -------
@@ -453,7 +453,7 @@ class WeightsOfEvidence:
         nodata
             Value marking missing cells in the landscape.
         n_threads
-            Threads (default: all cores but one).
+            Threads (default: most of the cores).
 
         Returns
         -------

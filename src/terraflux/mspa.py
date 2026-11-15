@@ -126,7 +126,7 @@ def mspa(
         core-openings (100) and border-openings (220) (GTB "Intext").
     n_threads
         Threads used inside one map; ``1`` runs sequentially. ``None`` uses
-        all cores but one, except for dask-backed input where it defaults to 1
+        most of the cores, except for dask-backed input where it defaults to 1
         because dask already runs the slices in parallel.
     validate
         Check the input like GuidosToolbox before processing.
@@ -188,7 +188,7 @@ def mspa(
         raise TypeError("output_dir, n_workers and max_memory apply to raster collections only")
     lazy = hasattr(getattr(data, "data", None), "dask") or hasattr(data, "dask")
     if n_threads is None:
-        n_threads = 1 if lazy else 0  # 0: all cores but one
+        n_threads = 1 if lazy else 0  # 0: most of the cores
     kw = dict(connectivity=int(connectivity), edge_width=int(edge_width), internal=bool(internal),
               n_threads=int(n_threads))
 
@@ -213,7 +213,7 @@ def mspa(
         result.name = "mspa"
         result.attrs = {
             "long_name": "MSPA classes",
-            "landschaft_product": "MSPA",
+            "terraflux_product": "MSPA",
             "mspa_connectivity": kw["connectivity"],
             "mspa_edge_width": kw["edge_width"],
             "mspa_transition": int(bool(transition)),

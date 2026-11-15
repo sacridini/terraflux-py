@@ -80,7 +80,7 @@ class MaxNet(_Classifier, _Base):
         Suitability at or above which :meth:`predict` gives 1 (e.g. one of
         :func:`tf.sdm.threshold`'s).
     n_threads : int, optional
-        Threads (None or 0: all cores but one). The result does not depend
+        Threads (None or 0: most of the cores). The result does not depend
         on it.
 
     Attributes

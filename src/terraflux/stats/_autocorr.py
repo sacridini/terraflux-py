@@ -80,7 +80,7 @@ def moran(map, *, contiguity: str = "queen", permutations: int = 999, seed: int 
     nodata
         Value marking missing cells.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -158,7 +158,7 @@ def lisa(map, *, contiguity: str = "queen", permutations: int = 99, alpha: float
     nodata
         Value marking missing cells.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -224,7 +224,7 @@ def getis_ord(map, *, contiguity: str = "queen", nodata=None, n_threads: int | N
     nodata
         Value marking missing cells.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

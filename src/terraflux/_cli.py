@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
                                        "(see `terraflux-py helpers invite`)")
     wk.add_argument("--join", default=None, metavar="CODE", help="Join a group with the code shown by "
                     "`terraflux-py helpers invite` on one of its computers (the first time only)")
-    wk.add_argument("--cores", type=int, default=None, help="Cores to lend (default: all but one)")
+    wk.add_argument("--cores", type=int, default=None, help="Cores to lend (default: most, a quarter kept free)")
     wk.add_argument("--connect", default=None, metavar="HOST[:PORT]", help="The coordinator's address, when the "
                     "broadcasts of the local network do not reach it")
     wk.add_argument("--map", action="append", default=None, metavar="SRC=DST", help="A shared folder mounted "
@@ -86,7 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     sl.add_argument("--setup", action="append", default=[], metavar="LINE", help="A line run before terraflux, "
                     "e.g. --setup 'module load gdal' (repeatable)")
     sl.add_argument("--script", default=None, help="Where to write the script (default: "
-                    "<output_dir>/.landschaft-batch/<tool>.sbatch)")
+                    "<output_dir>/.terraflux-batch/<tool>.sbatch)")
     sl.add_argument("--submit", action="store_true", help="Submit it with sbatch")
 
     dr = sub.add_parser("doctor", help="What terraflux finds on this computer: threads and where their number "

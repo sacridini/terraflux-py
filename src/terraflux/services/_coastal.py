@@ -739,7 +739,7 @@ def coastal_vulnerability(aoi, landmass, wwiii, bathymetry, shelf_contour, dem, 
         Sea-level rise points and their field; each shore point takes the mean of
         its two nearest (within 500 km) weighted by distance.
     n_threads
-        Threads (default: all cores but one); the results do not depend on it.
+        Threads (default: most of the cores); the results do not depend on it.
 
     Returns
     -------

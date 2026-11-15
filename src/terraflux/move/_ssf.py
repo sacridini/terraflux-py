@@ -12,7 +12,7 @@ import pandas as pd
 
 from .. import _core
 from ._steps import BURST
-from ._tracks import ATTRS
+from ._tracks import ATTRS, info_of
 
 _DEFAULTS = {"exp": {"rate": 1.0}, "gamma": {"shape": 1.0, "scale": 1.0}, "hnorm": {"sd": 1.0},
              "lnorm": {"meanlog": 0.0, "sdlog": 1.0}, "unif": {"min": -math.pi, "max": math.pi},
@@ -227,7 +227,7 @@ def random_steps(steps, n_control: int = 10, *, sl_distr: Distribution | None = 
     1  1.096 -1.138  False         3
     2  0.933  1.012  False         3
     """
-    info = steps.attrs.get(ATTRS, {})
+    info = info_of(steps)
     k = info.get("track")
     if k is None or k not in steps.columns or "x1_" not in steps.columns:
         raise TypeError("steps: the steps of tf.move.steps")
@@ -363,7 +363,7 @@ def extract_covariates(x, covariates, *, where: str = "end"):
 
     layers = _layers(covariates)
     if "x1_" in getattr(x, "columns", ()):
-        crs = x.attrs.get(ATTRS, {}).get("crs")
+        crs = info_of(x).get("crs")
         if where not in ("end", "start", "both"):
             raise ValueError('where: "end", "start" or "both"')
         spots = [("2", "_end" if where == "both" else "")] if where in ("end", "both") else []

@@ -525,6 +525,15 @@ def _band_names(raw: xr.DataArray, n: int) -> list | None:
     return names
 
 
+def _legacy_attrs(attrs: dict) -> dict:
+    """The tags a file of landschaft (until 1.58) carries, ``landschaft_*``, as terraflux's ``terraflux_*``
+    (so the code only checks ``terraflux_product``); a ``terraflux_*`` one already there wins."""
+    for key in [k for k in attrs if isinstance(k, str) and k.startswith("landschaft_")]:
+        attrs.setdefault("terraflux_" + key[len("landschaft_"):], attrs[key])
+        del attrs[key]
+    return attrs
+
+
 def _load_single(source: PathLike, *, band, masked, chunks: Any, validate: str | None = None,
                  clip=None) -> xr.DataArray:
     raw = rioxarray.open_rasterio(source, chunks=chunks, masked=False)
@@ -558,6 +567,7 @@ def _load_single(source: PathLike, *, band, masked, chunks: Any, validate: str |
     finally:
         if chunks is None:
             raw.close()  # release the file: on Windows an open handle locks it
+    _legacy_attrs(da.attrs)
     da = _mask_nodata(da, masked)
     da.name = Path(str(source)).stem
     da.attrs["source"] = str(source)
@@ -648,7 +658,7 @@ def reclassify(
         Table: output type (default: the smallest that holds the new values, and
         the kept ones).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -882,7 +892,7 @@ def _reclassify_table(data, table, others, dtype, n_threads):
         return out
     result = data.copy(data=out)
     result.attrs = {k: v for k, v in data.attrs.items()
-                    if k not in ("_FillValue", "scale_factor", "add_offset", "landschaft_product")}
+                    if k not in ("_FillValue", "scale_factor", "add_offset", "terraflux_product")}
     result.encoding = {}
     return _with_georef(result, nodata=np.nan if out_float else out_nodata if needs_nodata else None)
 
@@ -1225,7 +1235,7 @@ def _resolve_colormap(colormap, data) -> dict | None:
         return None
     if colormap == "auto":
         attrs = getattr(data, "attrs", {})
-        product = attrs.get("landschaft_product")
+        product = attrs.get("terraflux_product")
         if product == "MSPA":
             return mspa_colormap(bool(attrs.get("mspa_transition", 1)))
         if product == "GTN_COMPONENTS":
@@ -1303,7 +1313,7 @@ def _rgba(colour) -> tuple[int, int, int, int]:
 
 def _product_description(attrs: dict) -> str | None:
     """The TIFF description of a terraflux product (GuidosToolbox's wording)."""
-    product = attrs.get("landschaft_product")
+    product = attrs.get("terraflux_product")
     if product == "MSPA":
         return (
             "GTB_MSPA (terraflux), MSPA parameters (FGconn_EdgeWidth_Transition_Intext): "
@@ -1545,7 +1555,7 @@ def write_raster(
         if "x" in data.dims and "y" in data.dims and data.sizes["x"] > 1 and data.sizes["y"] > 1:
             data_transform = _transform(data)
         data_nodata = data.rio.nodata
-        tags = {k: str(v) for k, v in data.attrs.items() if k.startswith(("mspa_", "landschaft_"))}
+        tags = {k: str(v) for k, v in data.attrs.items() if k.startswith(("mspa_", "terraflux_"))}
         if description is None:
             description = _product_description(data.attrs)
         if band_names is None and values.ndim == 3:

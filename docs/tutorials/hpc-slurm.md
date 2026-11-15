@@ -30,8 +30,8 @@ nodes see too:
 <!-- no-run -->
 ```bash
 module load python/3.12            # the name of the module differs between clusters
-python -m venv ~/venvs/landschaft
-source ~/venvs/landschaft/bin/activate
+python -m venv ~/venvs/terraflux
+source ~/venvs/terraflux/bin/activate
 pip install terraflux
 ```
 
@@ -64,7 +64,7 @@ needs:
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
 
-source ~/venvs/landschaft/bin/activate
+source ~/venvs/terraflux/bin/activate
 python analysis.py
 ```
 
@@ -83,15 +83,15 @@ What decides the number, from the first that applies:
 |---|---|
 | `n_threads=` | this call |
 | `tf.set_default_threads(n)` | this process |
-| `LANDSCHAFT_NUM_THREADS` | this process and the processes it starts |
+| `TERRAFLUX_THREADS` | this process and the processes it starts |
 | a dask.distributed worker | its threads |
 | `OMP_NUM_THREADS` | as for any OpenMP program |
 | the job | its processors |
-| the computer | its processors, all but one |
+| the computer | its processors, most, a quarter kept free |
 
 Clusters often load modules that export `OMP_NUM_THREADS=1` (for MPI
 programs), which would leave the job on one thread: Terraflux then warns once
-and says how to change it (`export LANDSCHAFT_NUM_THREADS=$SLURM_CPUS_PER_TASK`).
+and says how to change it (`export TERRAFLUX_THREADS=$SLURM_CPUS_PER_TASK`).
 
 ## Many rasters: a job array
 
@@ -108,16 +108,16 @@ terraflux-py slurm fad tiles/ fad_out/ --cpus 16 --time 1:00:00
 It counts the rasters, chooses the number of tasks (each task runs as many
 rasters at once as it has processors), suggests the memory from the largest
 raster and the tool, and prints the script it wrote to
-`fad_out/.landschaft-batch/fad.sbatch`:
+`fad_out/.terraflux-batch/fad.sbatch`:
 
 <!-- no-run -->
 ```bash
-#SBATCH --job-name=landschaft-fad
+#SBATCH --job-name=terraflux-fad
 #SBATCH --array=0-24
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=6G
 #SBATCH --time=1:00:00
-#SBATCH --output=.../fad_out/.landschaft-batch/logs/slurm-%A_%a.out
+#SBATCH --output=.../fad_out/.terraflux-batch/logs/slurm-%A_%a.out
 #SBATCH --signal=B:TERM@120
 #SBATCH --requeue
 
@@ -177,7 +177,7 @@ $ terraflux-py status fad_out/
 fad in fad_out: 400 inputs, 391 done, 2 failed, 7 not done
   failed: tile_0137.tif (run 4567_12): MemoryError: ...
   not started: tile_0390.tif, tile_0391.tif, ...
-To process the 9 left: sbatch --array=12,15-17 fad_out/.landschaft-batch/fad.sbatch
+To process the 9 left: sbatch --array=12,15-17 fad_out/.terraflux-batch/fad.sbatch
 ```
 
 The last line submits only the tasks that have rasters left. The exit code is
@@ -213,9 +213,9 @@ terraflux-py fetch          # all; or: terraflux-py fetch sdm, terraflux-py fetc
 ```
 
 On a node without access, a download says so and names the `terraflux-py fetch`
-that gets it, instead of a network error. The cache is `~/.cache/landschaft`;
+that gets it, instead of a network error. The cache is `~/.cache/terraflux/python`;
 when the home quota is small, point it at the scratch space with
-`export LANDSCHAFT_CACHE=/scratch/$USER/landschaft-cache` (in the job script
+`export TERRAFLUX_CACHE=/scratch/$USER/terraflux-cache` (in the job script
 too). Occurrence records from GBIF (`tf.sdm.download_gbif`) also need the
 internet: download them on the login node and save them as a table.
 
@@ -235,7 +235,7 @@ other nodes become helpers of the first:
 #!/bin/bash
 #SBATCH --nodes=4 --ntasks-per-node=1 --cpus-per-task=32 --time=04:00:00
 
-source ~/venvs/landschaft/bin/activate
+source ~/venvs/terraflux/bin/activate
 srun --nodes=3 --ntasks=3 --cpus-per-task=32 --exclude="$SLURMD_NODENAME" terraflux-py worker --connect "$SLURMD_NODENAME" &
 python scenarios.py        # with tf.helpers() as pool: ... on=pool
 ```
@@ -259,7 +259,7 @@ terraflux 1.51.0 (Python 3.12.4, Linux x86_64, glibc 2.34)
   compiled core: _core.cpython-312-x86_64-linux-gnu.so, OpenMP yes, AVX2+FMA yes
 Threads (the default of n_threads): 8 threads (8 of 128 processors available to this process; Slurm job 4567)
 Job: Slurm job 4567 on node042
-Cache: /home/me/.cache/landschaft (default), writable
+Cache: /home/me/.cache/terraflux/python (default), writable
 Network:
   GBIF (sdm.download_gbif)               NO: the name does not resolve (no DNS)  (api.gbif.org)
   ...
@@ -277,10 +277,10 @@ tf.doctor(network=False)
 
 | What you see | Why, and what to do |
 |---|---|
-| a warning about `OMP_NUM_THREADS=1` | a module exported it: `export LANDSCHAFT_NUM_THREADS=$SLURM_CPUS_PER_TASK` |
+| a warning about `OMP_NUM_THREADS=1` | a module exported it: `export TERRAFLUX_THREADS=$SLURM_CPUS_PER_TASK` |
 | the job is slower than the desktop | it got fewer processors: ask with `--cpus-per-task`, check with `terraflux-py doctor` |
-| `Disk quota exceeded` in the cache | `export LANDSCHAFT_CACHE=/scratch/$USER/landschaft-cache` |
+| `Disk quota exceeded` in the cache | `export TERRAFLUX_CACHE=/scratch/$USER/terraflux-cache` |
 | `could not reach ... no internet access` | `terraflux-py fetch` on the login node |
 | `GLIBC_2.28 not found` when importing | the system is older than the wheels: use the Apptainer image |
 | a task killed with `OUT_OF_MEMORY` | more `--mem`, fewer `--cpus` per task, or `--max-memory` lower |
-| tasks of a resubmitted array take other rasters | the split changed: `terraflux-py slurm` warns; delete `.landschaft-batch/split.json` only to start over |
+| tasks of a resubmitted array take other rasters | the split changed: `terraflux-py slurm` warns; delete `.terraflux-batch/split.json` only to start over |

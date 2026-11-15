@@ -104,7 +104,7 @@ def test_landscape_mosaic_xarray_metadata():
     )
     res = tf.landscape_mosaic(da, window_size=3)
     assert isinstance(res, xr.DataArray)
-    assert res.attrs["landschaft_product"] == "LANDSCAPE_MOSAIC"
+    assert res.attrs["terraflux_product"] == "LANDSCAPE_MOSAIC"
     assert res.attrs["output_classes"] == 19
     assert res.attrs["window_size"] == 3
     assert res.attrs["colormap"] == "lm"

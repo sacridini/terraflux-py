@@ -69,7 +69,7 @@ def solve_all(problems: list, on) -> list:
     for q in problems:
         if q.portfolio is not None:
             raise ValueError("on= solves single problems, not portfolios")
-    with tempfile.TemporaryDirectory(prefix="landschaft-prioritize-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="terraflux-prioritize-") as tmp:
         tmp = Path(tmp)
         compiled, tasks = [], []
         for i, q in enumerate(problems):
@@ -105,7 +105,7 @@ def replacement_objectives(m: OptimizationProblem, lb, ub, sel, solver: str, opt
         return np.zeros(0)
     if chunk is None:
         chunk = max(1, math.ceil(len(sel) / 64))
-    with tempfile.TemporaryDirectory(prefix="landschaft-replacement-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="terraflux-replacement-") as tmp:
         tmp = Path(tmp)
         files = _model_files(m, tmp, "model")
         np.save(tmp / "lb.npy", np.asarray(lb, dtype=np.float64))

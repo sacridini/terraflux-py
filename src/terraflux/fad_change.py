@@ -165,7 +165,7 @@ def fad_multiscale_change(
     window_sizes
         FAD-MS observation scales (GTB: 7, 13, 27, 81, 243).
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------

@@ -105,7 +105,7 @@ class HabitatGraph:
             indices are those of the existing nodes and every index gets its
             ``d...add`` gain in % of the existing graph).
         n_threads
-            Threads (default: all cores but one).
+            Threads (default: most of the cores).
 
         See Also
         --------

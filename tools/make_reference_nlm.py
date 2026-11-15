@@ -12,10 +12,10 @@ the latter from ``tools/nlm_stdcxx_probe.cpp`` compiled with the Rtools g++
 ``tests/data/reference/nlm/rng.npz``. ``models`` stores NLMR's landscapes for
 the cases in ``tests/nlm_cases.py`` in ``tests/data/reference/nlm/models.npz``.
 
-Needs Rscript (``LANDSCHAFT_RSCRIPT``) and an R library with NLMR
-(``LANDSCHAFT_NLM_R_LIBS``, default ``%LOCALAPPDATA%/R/landschaft-nlm-lib``:
+Needs Rscript (``TERRAFLUX_RSCRIPT``) and an R library with NLMR
+(``TERRAFLUX_NLM_R_LIBS``, default ``%LOCALAPPDATA%/R/landschaft-nlm-lib``:
 ``R CMD INSTALL --library=<lib> NLMR`` from a clone of ropensci/NLMR), and for
-``rng`` the Rtools g++ (``LANDSCHAFT_RTOOLS``, default ``C:/rtools44``). The
+``rng`` the Rtools g++ (``TERRAFLUX_RTOOLS``, default ``C:/rtools44``). The
 test-suite reads the stored files, so it runs anywhere without R.
 """
 
@@ -29,6 +29,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -43,7 +44,7 @@ DEFAULT_NLM_LIBS = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" /
 
 def r_environment() -> dict[str, str]:
     env = dict(os.environ)
-    lib = env.get("LANDSCHAFT_NLM_R_LIBS", str(DEFAULT_NLM_LIBS))
+    lib = _env.get("NLM_R_LIBS", str(DEFAULT_NLM_LIBS))
     env["R_LIBS"] = lib + os.pathsep + env.get("R_LIBS", "")
     return env
 
@@ -51,7 +52,7 @@ def r_environment() -> dict[str, str]:
 def run_r(code: str) -> None:
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     with tempfile.TemporaryDirectory(prefix="nlm_ref_") as tmp:
         script = Path(tmp) / "run.R"
         script.write_text(code, encoding="utf-8")
@@ -106,7 +107,7 @@ def make_rng() -> dict[str, np.ndarray]:
         for key in keys:
             out[key] = np.fromfile(tmp / f"{key}.bin", dtype="<f8")
 
-        rtools = Path(os.environ.get("LANDSCHAFT_RTOOLS", "C:/rtools44"))
+        rtools = Path(_env.get("RTOOLS", "C:/rtools44"))
         gxx = rtools / "x86_64-w64-mingw32.static.posix" / "bin" / "g++.exe"
         exe = tmp / "probe.exe"
         env = dict(os.environ)

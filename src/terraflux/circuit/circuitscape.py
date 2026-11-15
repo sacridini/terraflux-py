@@ -457,7 +457,7 @@ def circuitscape_advanced(habitat, source, ground, *, habitat_is_resistance: boo
         ``{value: new value}`` applied to ``habitat`` first (Circuitscape's
         reclass table).
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -604,7 +604,7 @@ def circuitscape_pairwise(habitat, points, *, habitat_is_resistance: bool = True
     reclass
         ``{value: new value}`` applied to ``habitat`` first.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -905,7 +905,7 @@ def circuitscape_one_to_all(habitat, points, *, all_to_one: bool = False, habita
     reclass
         ``{value: new value}`` applied to ``habitat`` first.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -1057,7 +1057,7 @@ def circuitscape_ini(path, *, write_outputs: bool = True, n_threads: int = 0):
     write_outputs
         Write the output files, as Circuitscape does.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------

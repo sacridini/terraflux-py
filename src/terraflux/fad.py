@@ -135,7 +135,7 @@ def fad(
     window_size : int, default 7
         Moving window size (must be an odd integer >= 3).
     threads : int, default 0
-        Threads of the compiled code (also as ``n_threads``); 0: all cores but one.
+        Threads of the compiled code (also as ``n_threads``); 0: most of the cores.
 
     Returns
     -------
@@ -182,7 +182,7 @@ def fad(
     )
 
     attrs = {
-        "landschaft_product": "FAD",
+        "terraflux_product": "FAD",
         "window_size": window_size,
         "average_fad": avg_fad,
         "colormap": "fad",
@@ -192,7 +192,7 @@ def fad(
         density=_wrap_as_dataarray(c_density, data, f"fad_{window_size}", attrs),
         raw_density=_wrap_as_dataarray(c_raw, data, f"fad_raw_{window_size}"),
         classes=_wrap_as_dataarray(c_classes, data, f"fad_classes_{window_size}",
-                                   {"landschaft_product": "FAD_CLASSES"}),
+                                   {"terraflux_product": "FAD_CLASSES"}),
         window_size=window_size,
         stats=stats_df,
     )
@@ -221,7 +221,7 @@ def fad_multiscale(
     window_sizes : sequence of int, default (7, 13, 27, 81, 243)
         List of odd window sizes.
     threads : int, default 0
-        Threads of the compiled code (also as ``n_threads``); 0: all cores but one.
+        Threads of the compiled code (also as ``n_threads``); 0: most of the cores.
 
     Returns
     -------
@@ -251,14 +251,14 @@ def fad_multiscale(
     raw_single_scales: dict[int, xr.DataArray | np.ndarray] = {}
 
     for w, sm, rm in zip(ws_list, raw_res["single_scale_maps"], raw_res["raw_densities"]):
-        attrs = {"landschaft_product": "FAD", "window_size": w, "colormap": "fad"}
+        attrs = {"terraflux_product": "FAD", "window_size": w, "colormap": "fad"}
         single_scales[w] = _wrap_as_dataarray(sm, data, f"fad_{w}", attrs)
         raw_single_scales[w] = _wrap_as_dataarray(rm, data, f"fad_raw_{w}")
 
     ms_map = raw_res["multiscale_map"]
-    ms_attrs = {"landschaft_product": "FAD_MULTISCALE", "colormap": "fad"}
+    ms_attrs = {"terraflux_product": "FAD_MULTISCALE", "colormap": "fad"}
     wrapped_ms = _wrap_as_dataarray(ms_map, data, "fad_multiscale", ms_attrs)
-    classes = _wrap_as_dataarray(raw_res["classes"], data, "fad_classes", {"landschaft_product": "FAD_CLASSES"})
+    classes = _wrap_as_dataarray(raw_res["classes"], data, "fad_classes", {"terraflux_product": "FAD_CLASSES"})
 
     # GTB's AVCON: average FAD scaled to the reporting unit (non-missing area)
     avcon_factor = int((arr == 2).sum()) / int((arr != 0).sum())

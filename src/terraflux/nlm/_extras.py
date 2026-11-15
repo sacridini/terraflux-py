@@ -34,7 +34,7 @@ def merge(primary, secondary, scaling: float = 1.0, rescale: bool = True, *, n_t
     rescale : bool, default True
         Rescale the result to 0-1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -89,7 +89,7 @@ def binarize(x, breaks: float | Sequence[float], *, n_threads: int | None = None
     breaks : float or sequence of float
         Habitat shares, between 0 and 1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

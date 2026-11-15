@@ -196,7 +196,7 @@ def zonal_stats(raster, zones, stats=("count", "mean", "min", "max", "std"), *, 
         Polygons: every cell they touch (default: the cells whose centre is
         inside, as :func:`rasterize`).
     n_threads
-        Threads (default: all cores but one); the result does not depend on it.
+        Threads (default: most of the cores); the result does not depend on it.
 
     Returns
     -------
@@ -312,7 +312,7 @@ def extract(raster, points, *, method: str = "nearest", buffer: float | None = N
     all_touched
         With ``buffer``: every cell the circle touches.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -408,7 +408,7 @@ def zonal_map(raster, zones, stat: str = "mean", *, n_threads: int | None = None
     stat
         One statistic of :func:`zonal_stats` (default ``"mean"``).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

@@ -422,7 +422,7 @@ def spatial_analysis(
         the net VPD (Biodiverse's ``prng_seed``; the same seed gives
         Biodiverse's values). Random when not given.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
     recycle : bool
         Reuse neighbour lists as Biodiverse does (see :func:`neighbours`).
 

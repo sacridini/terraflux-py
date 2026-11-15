@@ -437,7 +437,7 @@ def _evaluate_on(on, points, names, cache, model_for, record, seeds, targets, st
             todo[key] = values
     if not todo:
         return
-    with tempfile.TemporaryDirectory(prefix="landschaft-calibrate-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="terraflux-calibrate-") as tmp:
         tmp = Path(tmp)
         for name, x in (("start", start), ("observed", observed)):
             np.save(tmp / f"{name}.npy", read_map(x, nodata).as_float(), allow_pickle=False)

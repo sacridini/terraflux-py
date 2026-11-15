@@ -207,7 +207,7 @@ def circuitscape_network_advanced(graph, sources, grounds, *, graph_is_resistanc
         Nodes that are both: ``"keepall"``, ``"rmvsrc"``, ``"rmvgnd"`` or
         ``"rmvall"``.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -294,7 +294,7 @@ def circuitscape_network_pairwise(graph, points, *, graph_is_resistance: bool = 
         Keep every pair's node voltages / node and branch currents in
         ``result.maps``.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------

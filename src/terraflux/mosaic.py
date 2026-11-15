@@ -137,7 +137,7 @@ def landscape_mosaic(
         - 19: Standard GuidosToolbox 19-class landscape mosaic.
         - 103: Detailed 103-class barycentric triangle cells.
     threads : int, default 0
-        Threads of the compiled code (also as ``n_threads``); 0: all cores but one.
+        Threads of the compiled code (also as ``n_threads``); 0: most of the cores.
 
     Returns
     -------
@@ -166,7 +166,7 @@ def landscape_mosaic(
     res = _core.compute_landscape_mosaic(arr, window_size, output_classes, threads)
 
     attrs = {
-        "landschaft_product": "LANDSCAPE_MOSAIC",
+        "terraflux_product": "LANDSCAPE_MOSAIC",
         "output_classes": output_classes,
         "window_size": window_size,
         "colormap": "lm" if output_classes == 19 else None,
@@ -196,7 +196,7 @@ def landscape_mosaic_stats(
     is_lm103 : bool, default False
         Set to True if ``data`` is already a 103-class LM raster.
     threads : int, default 0
-        Threads of the compiled code (also as ``n_threads``); 0: all cores but one.
+        Threads of the compiled code (also as ``n_threads``); 0: most of the cores.
 
     Returns
     -------

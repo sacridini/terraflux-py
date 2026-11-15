@@ -57,7 +57,7 @@ def mpd(ncol: int, nrow: int, resolution: float = 1.0, roughness: float = 0.5, r
         ``nrow x ncol`` (a warning says so). With False the grid is ``2**k + 1``
         cells wide and cropped to ``nrow x ncol``.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -138,7 +138,7 @@ def neigh(ncol: int, nrow: int, p_neigh: float, p_empty: float, resolution: floa
     rescale : bool, default True
         Rescale the values to 0-1; else the categories as int32.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -210,7 +210,7 @@ def random_rectangular_cluster(ncol: int, nrow: int, minl: int, maxl: int, resol
     rescale : bool, default True
         Rescale the values to 0-1.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

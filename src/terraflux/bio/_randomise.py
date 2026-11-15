@@ -670,7 +670,7 @@ def randomise(
     name : str, optional
         Name of the randomisation (default: the function).
     n_threads : int, optional
-        Threads for the analyses (default: all cores but one).
+        Threads for the analyses (default: most of the cores).
     **args
         Arguments of the randomisation function.
 

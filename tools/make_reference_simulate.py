@@ -14,7 +14,7 @@ others are kept).
 
 Engines: R (lulcc, OpenLand, diffeR through ``tools/simulate_reference.R``;
 Rscript as in ``tests/lsm_reference.py``, the packages in
-``LANDSCHAFT_SIM_R_LIBS``, default ``%LOCALAPPDATA%/R/landschaft-sim-lib``,
+``TERRAFLUX_SIM_R_LIBS``, default ``%LOCALAPPDATA%/R/landschaft-sim-lib``,
 before the user library), CLUMondo, GRASS / r.futures in WSL, Dinamica EGO
 and MOLUSCE (``tools/simulate_engines.py``). The test-suite reads the stored
 files, so it runs anywhere without these tools.
@@ -31,6 +31,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -49,7 +50,7 @@ USER_LIBS = sorted(DEFAULT_LIBS.parent.glob("win-library/*"))
 
 def r_environment() -> dict[str, str]:
     env = lsm_reference.r_environment()
-    libs = [env.get("LANDSCHAFT_SIM_R_LIBS", str(DEFAULT_LIBS)), *(str(p) for p in USER_LIBS[-1:])]
+    libs = [_env.get("SIM_R_LIBS", str(DEFAULT_LIBS)), *(str(p) for p in USER_LIBS[-1:])]
     env["R_LIBS"] = os.pathsep.join([*libs, *filter(None, [env.get("R_LIBS")])])
     return env
 
@@ -57,7 +58,7 @@ def r_environment() -> dict[str, str]:
 def run_r(cases: dict) -> tuple[dict, dict, dict]:
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     names = sorted({n for c in cases.values() for n in c.inputs})
     with tempfile.TemporaryDirectory(prefix="sim_ref_") as tmp:
         tmp = Path(tmp)

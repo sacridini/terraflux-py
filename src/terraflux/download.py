@@ -5,7 +5,7 @@ raster a URL names; and the environment of Hydrography90m's sub-catchments from 
 
 The rasters are read by GDAL straight from the servers, only the part the grid covers (their files are
 cloud-optimised, zipped or virtual), and warped onto the grid of a map (``like``) or onto a grid of longitudes and
-latitudes (``extent`` and ``cellsize``): a file per layer kept in the cache (``LANDSCHAFT_CACHE``), downloaded once.
+latitudes (``extent`` and ``cellsize``): a file per layer kept in the cache (``TERRAFLUX_CACHE``), downloaded once.
 Classes are resampled by the most common cell, values bilinearly. The values are the servers' (CHELSA's scaled
 integers: × 0.1, and - 273.15 for temperatures; SoilGrids' in its mapped units).
 
@@ -611,11 +611,11 @@ def _open_json(req: urllib.request.Request) -> dict:
 
 def _post(url: str, body: dict) -> dict:
     return _open_json(urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
-                                             headers={"Content-Type": "application/json", "User-Agent": "landschaft"}))
+                                             headers={"Content-Type": "application/json", "User-Agent": _download.user_agent()}))
 
 
 def _get(url: str) -> dict:
-    return _open_json(urllib.request.Request(url, headers={"User-Agent": "landschaft"}))
+    return _open_json(urllib.request.Request(url, headers={"User-Agent": _download.user_agent()}))
 
 
 def _rfc3339(datetime: str) -> str:

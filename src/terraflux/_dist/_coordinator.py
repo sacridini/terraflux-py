@@ -201,7 +201,7 @@ class Coordinator:
         self._started = time.monotonic()
         self._threads: list[threading.Thread] = []
         self._server = self._responder = None
-        self._tmp = tempfile.TemporaryDirectory(prefix="landschaft-dist-")
+        self._tmp = tempfile.TemporaryDirectory(prefix="terraflux-dist-")
         self._started_up = False
         self.local_machine: Machine | None = None
         self._slots: Slots | None = None
@@ -231,8 +231,8 @@ class Coordinator:
                     self._print.line(f"Discovery is off (UDP port {_group.UDP_PORT}: {e}); helpers can still "
                                      f"connect with: terraflux-py worker --connect {self._address()}:{self.port}")
         if self.local_machine is not None:
-            self._spawn(self._local_loop, "landschaft-dist-local")
-        self._spawn(self._monitor, "landschaft-dist-monitor")
+            self._spawn(self._local_loop, "terraflux-dist-local")
+        self._spawn(self._monitor, "terraflux-dist-monitor")
         return self
 
     def _spawn(self, target, name) -> None:
@@ -537,7 +537,7 @@ class Coordinator:
                 continue
             with cond:
                 used[0] += threads
-            threading.Thread(target=run_one, args=(attempt, threads), name="landschaft-dist-task",
+            threading.Thread(target=run_one, args=(attempt, threads), name="terraflux-dist-task",
                              daemon=True).start()
 
     def _run_local(self, attempt: _Attempt, threads: int) -> None:
@@ -573,6 +573,7 @@ class Coordinator:
         if method == "POST" and route == "/auth":
             self._auth(handler)
             return
+        # (the X-Landschaft-* header names are kept on purpose: paired helpers speak them)
         machine = self._by_token.get(handler.headers.get("X-Landschaft-Session") or "")
         if machine is None or machine.gone:
             handler.send_json(401, {"error": "not authenticated"})

@@ -11,13 +11,13 @@
 # neighbourhood, ordered, base. The output has one row per metric and cell
 # (cells numbered from 1, row by row) with 17 significant digits.
 #
-# Set LANDSCHAFT_R_LIBS to a library that holds the landscapemetrics version
+# Set TERRAFLUX_R_LIBS to a library that holds the landscapemetrics version
 # to compare against (it is put first on .libPaths()).
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 3) stop("usage: lsm_window_reference.R input.tif window.csv output.csv [key=value ...]")
 
-lib <- Sys.getenv("LANDSCHAFT_R_LIBS")
+lib <- Sys.getenv("TERRAFLUX_R_LIBS", Sys.getenv("LANDSCHAFT_R_LIBS"))
 if (nzchar(lib)) .libPaths(c(strsplit(lib, .Platform$path.sep)[[1]], .libPaths()))
 
 suppressPackageStartupMessages({

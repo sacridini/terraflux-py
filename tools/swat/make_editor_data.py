@@ -12,7 +12,7 @@ takes from the SWAT+ Editor 4.0.2 and its datasets database (public domain).
 
 Usage::
 
-    LANDSCHAFT_SWAT_EDITOR=<swatplus-editor> python tools/swat/make_editor_data.py
+    TERRAFLUX_SWAT_EDITOR=<swatplus-editor> python tools/swat/make_editor_data.py
 """
 
 from __future__ import annotations

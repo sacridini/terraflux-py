@@ -97,7 +97,7 @@ def marxan(pu: pd.DataFrame, spec: pd.DataFrame, puvspr: pd.DataFrame, bound: pd
     seed
         RANDSEED: the same seed gives the same runs on any number of threads.
     n_threads
-        Runs in parallel (default: all cores but one).
+        Runs in parallel (default: most of the cores).
 
     Returns
     -------

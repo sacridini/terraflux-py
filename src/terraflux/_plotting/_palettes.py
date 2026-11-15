@@ -104,8 +104,8 @@ ZONE_COLOURS = ("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02"
 
 def product_style(attrs: dict) -> tuple[dict | None, dict | None]:
     """The colour table {value: (r, g, b, a)} and the class names {value: name} of a
-    terraflux product (from its ``landschaft_product`` attribute), or (None, None)."""
-    product = attrs.get("landschaft_product")
+    terraflux product (from its ``terraflux_product`` attribute), or (None, None)."""
+    product = attrs.get("terraflux_product")
     if not product:
         return None, None
     if product == "ZONES":  # the zones of a prioritization (tf.prioritize, zone numbers 1.., 0 none)

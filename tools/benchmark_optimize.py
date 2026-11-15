@@ -177,7 +177,7 @@ def build_model(work: Path, family: str, side: int, prioritizr_solve: dict | Non
     (out / "job.json").write_text(json.dumps(job), encoding="utf-8")
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     subprocess.run([str(rscript), str(R_SCRIPT), str(out / "job.json"), str(out)], check=True)
     if prioritizr_solve is not None:
         return out

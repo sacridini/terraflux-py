@@ -15,7 +15,7 @@ it::
 
     pip install peewee
     # the editor's sources: github.com/swat-model/swatplus-editor, 4.0.2 (commit d8551ab)
-    LANDSCHAFT_SWAT_EDITOR=<swatplus-editor> python tools/make_reference_swat.py landscape
+    TERRAFLUX_SWAT_EDITOR=<swatplus-editor> python tools/make_reference_swat.py landscape
 """
 
 from __future__ import annotations
@@ -26,10 +26,11 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from terraflux import _env
 
 # github.com/swat-model/swatplus-editor at d8551ab (4.0.2), next to the SWAT+ sources
-EDITOR = Path(os.environ.get("LANDSCHAFT_SWAT_EDITOR", Path(os.environ.get(
-    "LANDSCHAFT_SWAT_DATA", Path.home() / "Documents" / "dev" / "swat_sources")) / "swatplus-editor"))
+EDITOR = Path(_env.get("SWAT_EDITOR", Path(_env.get(
+    "SWAT_DATA", Path.home() / "Documents" / "dev" / "swat_sources")) / "swatplus-editor"))
 
 _DRIVER = r'''
 import json, os, sys

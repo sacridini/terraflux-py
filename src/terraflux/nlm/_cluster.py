@@ -42,7 +42,7 @@ def random_cluster(ncol: int, nrow: int, p: float, ai: Sequence[float] = (0.5, 0
     rescale : bool, default True
         Rescale the types to 0-1; else the types 1, 2, ... as int32.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -99,7 +99,7 @@ def curds(curds: Sequence[float], recursion_steps: Sequence[int], wheyes: Sequen
     seed : int, optional
         Seed of R's generator (NLMR's ``user_seed``); ``None`` draws one.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

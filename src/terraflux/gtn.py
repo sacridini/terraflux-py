@@ -346,13 +346,13 @@ def gtn_components(
     stats_df = pd.DataFrame(stats_data)
 
     comp_attrs = {
-        "landschaft_product": "GTN_COMPONENTS_DATA",
+        "terraflux_product": "GTN_COMPONENTS_DATA",
         "num_components": nr_comp,
         "eca": eca_val,
         "doc": doc,
     }
     colored_attrs = {
-        "landschaft_product": "GTN_COMPONENTS",
+        "terraflux_product": "GTN_COMPONENTS",
         "colormap": "gtn_components",
         "num_components": nr_comp,
         "eca": eca_val,
@@ -742,15 +742,15 @@ def gtn_importance(
         colored[(importance_map <= ntop1) & core] = _GTB_NODE_HOT_1
 
     imp_attrs = {
-        "landschaft_product": "GTN_IMPORTANCE_MAP",
+        "terraflux_product": "GTN_IMPORTANCE_MAP",
         "max_link_dpc": max_link,
         "max_node_dpc": max_node,
     }
     id_attrs = {
-        "landschaft_product": "GTN_NODE_LINK_IDS",
+        "terraflux_product": "GTN_NODE_LINK_IDS",
     }
     colored_attrs = {
-        "landschaft_product": "GTN_IMPORTANCE",
+        "terraflux_product": "GTN_IMPORTANCE",
         "colormap": "gtn_importance",
         "max_link_dpc": max_link,
         "max_node_dpc": max_node,

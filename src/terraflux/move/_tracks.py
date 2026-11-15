@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 ATTRS = "terraflux.move"
+OLD_ATTRS = "landschaft.move"   # the key of tables saved by landschaft (until 1.58)
 _TIME_NAMES = ("timestamp", "time", "datetime", "date_time", "t")
 _TRACK_NAMES = ("individual-tag-local-identifier", "individual-local-identifier", "individual_local_identifier",
                 "track", "track_id", "id", "individual", "animal")
@@ -18,12 +19,17 @@ _DURATION = {"s": 1.0, "min": 60.0, "h": 3600.0, "d": 86400.0}
 _SPEED = {"m/s": (1.0, 1.0), "km/h": (1000.0, 3600.0), "m/h": (1.0, 3600.0), "km/d": (1000.0, 86400.0)}
 
 
+def info_of(df) -> dict:
+    """The columns and options a table of tracks carries (``attrs``), from landschaft's key too."""
+    return df.attrs.get(ATTRS) or df.attrs.get(OLD_ATTRS) or {}
+
+
 def _find(df, given, names, what):
     if given is not None:
         if given not in df.columns:
             raise KeyError(f"{what} column {given!r} not found")
         return given
-    stored = df.attrs.get(ATTRS, {}).get(what)
+    stored = info_of(df).get(what)
     if stored is not None and stored in df.columns:
         return stored
     for name in names:

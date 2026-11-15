@@ -5,8 +5,8 @@ Usage::
 
     python tools/make_reference_omniscape.py [advanced] [omniscape] [ini]
 
-Julia runs from ``LANDSCHAFT_JULIA`` (default: ``julia``) with the project in
-``LANDSCHAFT_JULIA_PROJECT`` (an environment with Circuitscape, Omniscape and
+Julia runs from ``TERRAFLUX_JULIA`` (default: ``julia``) with the project in
+``TERRAFLUX_JULIA_PROJECT`` (an environment with Circuitscape, Omniscape and
 NPZ; keep it in its own depot with ``JULIA_DEPOT_PATH``). The Julia side is
 ``tools/omniscape_reference.jl``.
 
@@ -19,7 +19,7 @@ in ``tests/data/reference/circuit/advanced_inputs.npz`` and Circuitscape's
 
 ``omniscape`` runs ``run_omniscape`` (INI files, ``cholmod`` and ``cg+amg``) on
 Omniscape's own test rasters with its test configurations 1-3 (the source
-Omniscape clone is ``LANDSCHAFT_OMNISCAPE_SRC``, default ``../Omniscape.jl``)
+Omniscape clone is ``TERRAFLUX_OMNISCAPE_SRC``, default ``../Omniscape.jl``)
 and on synthetic maps (NoData blobs and lines, source files with NoData, block
 sizes 1-7, buffers, 4 neighbours, conductance input, windows wider than the
 map), and stores the inputs, the options and the output rasters in
@@ -35,12 +35,12 @@ stores the output rasters in ``omniscape_ini.npz``.
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "tests" / "data" / "reference" / "circuit"
@@ -48,9 +48,9 @@ SCRIPT = ROOT / "tools" / "omniscape_reference.jl"
 
 
 def julia(*args: str) -> None:
-    exe = os.environ.get("LANDSCHAFT_JULIA", "julia")
+    exe = _env.get("JULIA", "julia")
     cmd = [exe]
-    project = os.environ.get("LANDSCHAFT_JULIA_PROJECT")
+    project = _env.get("JULIA_PROJECT")
     if project:
         cmd.append(f"--project={project}")
     subprocess.run([*cmd, str(SCRIPT), *args], check=True)
@@ -137,7 +137,7 @@ def make_advanced() -> None:
     julia("advanced", str(inputs), str(OUT / "advanced.npz"))
 
 
-OMNISCAPE_TEST = Path(os.environ.get("LANDSCHAFT_OMNISCAPE_SRC", ROOT.parent / "Omniscape.jl")) / "test" / "input"
+OMNISCAPE_TEST = Path(_env.get("OMNISCAPE_SRC", ROOT.parent / "Omniscape.jl")) / "test" / "input"
 OUTPUTS = ("cum_currmap", "flow_potential", "normalized_cum_currmap")
 SOLVERS = {"cholmod": "cholmod", "cgamg": "cg+amg"}
 

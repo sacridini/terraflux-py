@@ -6,7 +6,7 @@ run several rasters at once ``n_workers``); ``None`` or 0 means the default,
 from the first of these that applies:
 
 1. the count given to :func:`set_default_threads`;
-2. ``LANDSCHAFT_NUM_THREADS``;
+2. ``TERRAFLUX_THREADS`` (``LANDSCHAFT_NUM_THREADS``, its name until 1.58, is still read);
 3. the threads of the dask.distributed worker running the call (its nanny sets
    ``OMP_NUM_THREADS=1`` for the BLAS libraries, which would leave the worker
    idle);
@@ -15,9 +15,13 @@ from the first of these that applies:
    on more (a cluster that does not confine its jobs): ``SLURM_CPUS_PER_TASK``,
    else ``SLURM_CPUS_ON_NODE``; ``NCPUS``; ``LSB_DJOB_NUMPROC``;
 6. the processors the process may run on (its affinity and, on Linux, the CPU
-   quota of its cgroup): all but one on a desktop, so that the machine stays
-   responsive, and all of them inside a job or when the process is confined to
-   fewer than the machine has.
+   quota of its cgroup).
+
+Terraflux never uses all the cores: every count (the default, the one given
+to :func:`set_default_threads`, an explicit ``n_threads``, a scheduler's or a
+dask worker's) is held to [1, :func:`most`], a quarter of the processors
+(at least one) kept free: 20 processors give 15, 8 give 6, 4 give 3, 2 and 1
+give 1. It is the rule of the desktop app.
 
 The compiled functions go through a guard that sets the OpenMP thread count
 of the calling thread before each call (the count requested with
@@ -37,11 +41,12 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-__all__ = ["available_cores", "default_threads", "limit", "resolve", "set_default_threads"]
+__all__ = ["available_cores", "default_threads", "limit", "most", "resolve", "set_default_threads"]
 
 _default: int | None = None
 _local = threading.local()
 _warned = False
+_warned_cap = False
 
 #: The variable that names the job of each batch scheduler.
 JOB_VARIABLES = (("Slurm", "SLURM_JOB_ID"), ("PBS", "PBS_JOBID"), ("LSF", "LSB_JOBID"))
@@ -50,18 +55,24 @@ JOB_CPU_VARIABLES = {"Slurm": ("SLURM_CPUS_PER_TASK", "SLURM_CPUS_ON_NODE"), "PB
                      "LSF": ("LSB_DJOB_NUMPROC",)}
 
 
+def most(cores: int) -> int:
+    """The most threads to use on ``cores`` processors: a quarter (at least one) kept free, at least 1."""
+    cores = max(1, int(cores))
+    return max(1, cores - max(cores // 4, 1))
+
+
 class Threads(NamedTuple):
     """What decides the default thread count."""
 
     threads: int                # the default
-    all: int                    # without the processor kept free
+    all: int                    # the count before the cap (what the source gave, else the processors)
     source: str | None          # what gave the count (a variable, "set_default_threads", "dask worker"), or None
     available: int              # processors this process may run on (affinity and cgroup quota)
     machine: int                # processors of the machine
     scheduler: str | None       # Slurm, PBS, LSF, or None outside a job
     job: str | None
     job_processors: int         # the job's processors here (``available`` outside a job)
-    reserved: bool              # one processor kept free (a desktop)
+    reserved: bool              # the count was lowered to the most (a quarter of the processors kept free)
 
     def describe(self) -> str:
         """``"16 threads (16 of 128 processors available to this process; Slurm job 123456)"``."""
@@ -74,8 +85,8 @@ class Threads(NamedTuple):
             where.append(f"{self.machine} processors")
         if self.job is not None:
             where.append(f"{self.scheduler} job {self.job}")
-        elif self.reserved:
-            where.append("one kept free")
+        if self.reserved:
+            where.append("a quarter kept free")
         return f"{self.threads} thread{'s' if self.threads != 1 else ''} ({'; '.join(where)})"
 
     def idle(self) -> int:
@@ -123,7 +134,9 @@ def decide(env: Callable[[str], str | None], available: int, machine: int, *, fi
     source = None
     if fixed is not None:
         count, source = int(fixed), "set_default_threads"
-    elif _count(env("LANDSCHAFT_NUM_THREADS")) is not None:
+    elif _count(env("TERRAFLUX_THREADS")) is not None:
+        count, source = _count(env("TERRAFLUX_THREADS")), "TERRAFLUX_THREADS"
+    elif _count(env("LANDSCHAFT_NUM_THREADS")) is not None:  # the name until 1.58
         count, source = _count(env("LANDSCHAFT_NUM_THREADS")), "LANDSCHAFT_NUM_THREADS"
     elif worker:
         count, source = int(worker), "dask worker"
@@ -133,8 +146,10 @@ def decide(env: Callable[[str], str | None], available: int, machine: int, *, fi
         count, source = job_processors, job_variable
     else:
         count = available
-    reserved = source is None and job is None and available >= machine
-    threads = max(1, count - 1) if reserved else count
+    # a count a scheduler or a worker gives holds to most() of itself; every count, to most() of the processors
+    base = count if source == "dask worker" or (source is not None and source == job_variable) else available
+    threads = max(1, min(count, most(base), most(available)))
+    reserved = threads < count
     return Threads(threads, count, source, available, machine, scheduler, job, job_processors, reserved)
 
 
@@ -247,7 +262,7 @@ def _worker_threads() -> int | None:
         return None
 
 
-_NAMES = ("LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", *(v for _, v in JOB_VARIABLES),
+_NAMES = ("TERRAFLUX_THREADS", "LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", *(v for _, v in JOB_VARIABLES),
           *(v for vs in JOB_CPU_VARIABLES.values() for v in vs))
 _ENCODED: tuple | None = None
 _memo: tuple = (None, None)
@@ -268,14 +283,39 @@ def _environment() -> tuple:
 def detect() -> Threads:
     """The default thread count now, and where it comes from."""
     global _memo
-    key = (_environment(), _default, _worker_threads())
+    available, machine = processors()
+    key = (_environment(), _default, _worker_threads(), available, machine)
     seen, found = _memo
     if seen == key:
         return found
-    available, machine = processors()
     found = decide(os.environ.get, available, machine, fixed=_default, worker=key[2])
     _memo = (key, found)
     return found
+
+
+def _caller_level() -> int:
+    """The stack level of the code that called the caller of this, outside terraflux (and the import
+    machinery, which warnings skips)."""
+    package, level, frame = str(Path(__file__).resolve().parent), 1, sys._getframe(2)
+    while frame is not None and (frame.f_code.co_filename.startswith("<frozen")
+                                 or str(Path(frame.f_code.co_filename).resolve()).startswith(package)):
+        if not frame.f_code.co_filename.startswith("<frozen"):
+            level += 1
+        frame = frame.f_back
+    return level
+
+
+def _clamp(n: int) -> int:
+    """``n`` held to [1, most of the processors]; at most one RuntimeWarning per process when it is lowered."""
+    global _warned_cap
+    cap = most(available_cores())
+    if n <= cap:
+        return n
+    if not _warned_cap:
+        _warned_cap = True
+        warnings.warn(f"terraflux never uses all the cores: {n} threads asked, {cap} used (a quarter of the "
+                      f"{available_cores()} processors is kept free)", RuntimeWarning, stacklevel=_caller_level() + 1)
+    return cap
 
 
 def _warn_idle(found: Threads) -> None:
@@ -285,16 +325,10 @@ def _warn_idle(found: Threads) -> None:
     if _warned or not found.idle():
         return
     _warned = True
-    # point at the caller's code, outside terraflux (and the import machinery, which warnings skips)
-    package, level, frame = str(Path(__file__).resolve().parent), 1, sys._getframe(1)
-    while frame is not None and (frame.f_code.co_filename.startswith("<frozen")
-                                 or str(Path(frame.f_code.co_filename).resolve()).startswith(package)):
-        if not frame.f_code.co_filename.startswith("<frozen"):
-            level += 1
-        frame = frame.f_back
+    level = _caller_level()
     warnings.warn(f"terraflux uses {found.all} thread{'s' if found.all != 1 else ''} because OMP_NUM_THREADS="
                   f"{found.all}, while this {found.scheduler} job may use {found.job_processors} processors. To "
-                  f"use them, set LANDSCHAFT_NUM_THREADS={found.job_processors} (read before OMP_NUM_THREADS), "
+                  f"use them, set TERRAFLUX_THREADS={found.job_processors} (read before OMP_NUM_THREADS), "
                   "call tf.set_default_threads() or pass n_threads.", RuntimeWarning, stacklevel=level + 1)
 
 
@@ -302,11 +336,11 @@ def default_threads() -> int:
     """The number of threads a parallel function uses when not given one.
 
     The count given to :func:`set_default_threads`, else
-    ``LANDSCHAFT_NUM_THREADS``, else ``OMP_NUM_THREADS``, else the processors
-    this process may use: all but one on a desktop, so that the computer stays
-    responsive, and all of them inside a batch job (Slurm, PBS, LSF), whose
-    processors it counts. ``terraflux-py doctor`` says where the number came
-    from.
+    ``TERRAFLUX_THREADS`` (``LANDSCHAFT_NUM_THREADS``), else ``OMP_NUM_THREADS``,
+    else the processors this process may use (those of the batch job, in
+    Slurm, PBS, LSF), always held to :func:`most`: a quarter of the processors
+    (at least one) stays free, so that the computer stays responsive.
+    ``terraflux-py doctor`` says where the number came from.
 
     Returns
     -------
@@ -319,8 +353,6 @@ def default_threads() -> int:
     >>> n >= 1
     True
     """
-    if _default is not None:
-        return _default
     found = detect()
     if found.source == "OMP_NUM_THREADS":
         _warn_idle(found)
@@ -354,18 +386,20 @@ def set_default_threads(n: int | None = None) -> int:
         n = int(n)
         if n < 1:
             raise ValueError(f"the default thread count must be >= 1, got {n}")
+        n = _clamp(n)
     _default = n
     return default_threads()
 
 
 def resolve(n_threads: int | None) -> int:
-    """A thread argument as a count: ``None`` or 0 give :func:`default_threads`."""
+    """A thread argument as a count: ``None`` or 0 give :func:`default_threads`; any other is held to
+    :func:`most` of the processors."""
     if n_threads is None or n_threads == 0:
         return default_threads()
     n = int(n_threads)
     if n < 0:
         raise ValueError(f"n_threads must be >= 0, got {n_threads}")
-    return n
+    return _clamp(n)
 
 
 def current() -> int:
@@ -410,7 +444,7 @@ _SKIP = {"set_num_threads", "num_procs", "max_threads", "cpu_supports_avx2_fma"}
 
 def install(module, set_num_threads) -> None:
     """Guard the functions of a compiled module (once)."""
-    if getattr(module, "_landschaft_threads", False):
+    if getattr(module, "_terraflux_threads", False):
         return
 
     def guard(f):
@@ -425,4 +459,4 @@ def install(module, set_num_threads) -> None:
         if name.startswith("_") or name in _SKIP or isinstance(obj, type) or not callable(obj):
             continue
         setattr(module, name, guard(obj))
-    module._landschaft_threads = True
+    module._terraflux_threads = True

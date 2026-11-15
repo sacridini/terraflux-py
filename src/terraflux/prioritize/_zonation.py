@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .. import _core, _threads
+from .. import _core, _env, _threads
 from . import _inputs, _tables
 
 RULES = ("CAZ1", "CAZ2", "CAZMAX", "CAZP", "CAZPW", "ABF", "RAND", "LOAD")
@@ -595,7 +595,7 @@ def zonation(
         do not fit in memory, for maps larger than the RAM (out-of-core). The
         files are deleted when no longer needed. ``None``: in memory.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -881,7 +881,7 @@ def _run(src, name, param, a) -> ZonationResult:
         int(a["max_iterations"]), float(a["ranking_error"]), bool(a["stop_on_plateau"]),
         float(a["smoothing_factor"]), float(a["curves_interval"]), int(seed),
         # the storage of the rows (the smaller by default; forced in the tests of both)
-        {"delta": 1, "bitmap": 2}.get(os.environ.get("LANDSCHAFT_PRIO_ROWS", ""), 0), storage)
+        {"delta": 1, "bitmap": 2}.get(_env.get("PRIO_ROWS", ""), 0), storage)
 
     # rank map on the grid
     flat = np.full(H * W, np.nan, dtype=np.float32)

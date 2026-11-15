@@ -4,7 +4,7 @@
 * ``reference``: digests stored in tests/data/reference/idl_reference.json,
   produced by tools/make_reference_idl.py running GTB's code in GDL.
 * ``live_reference``: runs GTB's code in GDL now on fresh random inputs
-  (GDL from ``LANDSCHAFT_GDL_EXE``, PATH or its default install).
+  (GDL from ``TERRAFLUX_GDL_EXE``, PATH or its default install).
 """
 
 from __future__ import annotations
@@ -168,7 +168,7 @@ def test_xarray_and_geotiff(tmp_path):
         assert isinstance(out, xr.DataArray)
         assert out.rio.crs == da.rio.crs and out.rio.transform() == da.rio.transform()
     assert r.classes.dtype == np.uint8 and r.ids.dtype == np.int32 and r.area.dtype == np.int32
-    assert r.classes.attrs["landschaft_product"] == "ACCOUNTING"
+    assert r.classes.attrs["terraflux_product"] == "ACCOUNTING"
 
     path = tf.write_raster(r.classes, tmp_path / "acc.tif")
     with rasterio.open(path) as src:
@@ -281,7 +281,7 @@ def test_auto_thresholds_match_stored_gtb_proposal(reference_inputs, case):
 def gdl():
     exe = find_gdl()
     if exe is None:
-        pytest.skip("GDL not found: set LANDSCHAFT_GDL_EXE to run GTB's IDL code live")
+        pytest.skip("GDL not found: set TERRAFLUX_GDL_EXE to run GTB's IDL code live")
     return exe
 
 

@@ -12,7 +12,7 @@ one thread and on ``--threads`` (the fastest of ``reps`` runs; the z5 runs
 once each, as they are long). Checks that terraflux's rank map is the same, bit
 for bit, as z5's on one thread (z5 on several threads may differ: it adds up
 the layers per thread). Prints a Markdown table. The z5 binaries are looked for
-in ``LANDSCHAFT_Z5_DIR`` (as ``tools/make_reference_prioritize.py``). ``--cpus``
+in ``TERRAFLUX_Z5_DIR`` (as ``tools/make_reference_prioritize.py``). ``--cpus``
 pins both programs to those processors (on hybrid CPUs, the performance cores).
 """
 

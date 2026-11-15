@@ -1065,7 +1065,7 @@ def reproject(data, crs=None, *, like=None, res=None, resampling: str = "auto", 
         edges follow the curvature of the target CRS. Default: the vertices as
         they are.
     n_threads
-        Rasters in memory or from a file: threads (default: all cores but one);
+        Rasters in memory or from a file: threads (default: most of the cores);
         the result does not depend on it. A lazy raster stays lazy (its tasks
         run when computed, with dask's threads).
 

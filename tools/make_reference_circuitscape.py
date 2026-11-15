@@ -5,9 +5,9 @@ Usage::
 
     python tools/make_reference_circuitscape.py [network]
 
-Julia is found as in ``tools/make_reference_omniscape.py`` (``LANDSCHAFT_JULIA``,
-``LANDSCHAFT_JULIA_PROJECT``; the environment needs Circuitscape, ArchGDAL and
-NPZ). ``LANDSCHAFT_CIRCUITSCAPE_TEST`` is Circuitscape's ``test`` directory
+Julia is found as in ``tools/make_reference_omniscape.py`` (``TERRAFLUX_JULIA``,
+``TERRAFLUX_JULIA_PROJECT``; the environment needs Circuitscape, ArchGDAL and
+NPZ). ``TERRAFLUX_CIRCUITSCAPE_TEST`` is Circuitscape's ``test`` directory
 (default: the installed package's, found through Julia).
 
 Circuitscape's raster test inputs (``test/input/raster``: pairwise, advanced,
@@ -35,6 +35,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "tests" / "data" / "reference" / "circuit"
@@ -43,15 +44,15 @@ SCENARIOS = ("advanced", "pairwise", "one_to_all", "all_to_one")
 
 
 def julia_cmd() -> list[str]:
-    cmd = [os.environ.get("LANDSCHAFT_JULIA", "julia")]
-    project = os.environ.get("LANDSCHAFT_JULIA_PROJECT")
+    cmd = [_env.get("JULIA", "julia")]
+    project = _env.get("JULIA_PROJECT")
     if project:
         cmd.append(f"--project={project}")
     return cmd
 
 
 def circuitscape_test_dir() -> Path:
-    env = os.environ.get("LANDSCHAFT_CIRCUITSCAPE_TEST")
+    env = _env.get("CIRCUITSCAPE_TEST")
     if env:
         return Path(env)
     out = subprocess.run([*julia_cmd(), "-e", "using Circuitscape; print(pkgdir(Circuitscape))"], check=True,

@@ -127,7 +127,7 @@ def test_sdm_features():
 
 
 def test_report_and_plots(tmp_path):
-    os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")
+    os.environ.setdefault("TERRAFLUX_PLOT_SHOW", "0")
     p = _raster()
     r = P.report(p, zonation=True, extinction_z=0.25)
     assert set(r.tables) == {"summary", "representation", "targets", "extinction risk"}
@@ -145,7 +145,7 @@ def test_report_and_plots(tmp_path):
 
 
 def test_actions_plots():
-    os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")
+    os.environ.setdefault("TERRAFLUX_PLOT_SHOW", "0")
     cost = oc.pu_cost()
     thr = oc.grid(np.stack([oc.smooth_field(301) > 0.5, oc.smooth_field(302) > 0.6]).astype(float),
                   names=["fire", "cattle"])

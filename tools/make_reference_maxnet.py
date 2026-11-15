@@ -39,7 +39,7 @@ DTYPES = {"f8": "<f8", "i4": "<i4", "i2": "<i2"}
 def main() -> None:
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     with tempfile.TemporaryDirectory(prefix="maxnet_ref_") as tmp:
         tmp = Path(tmp)
         subprocess.run([str(rscript), str(R_SCRIPT), str(tmp)], check=True, env=r_environment())

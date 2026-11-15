@@ -222,7 +222,7 @@ def accounting(
     pixel_resolution
         Pixel size in metres, used for the hectare/acre factors of the report.
     n_threads
-        OpenMP threads (0: all cores but one).
+        OpenMP threads (0: most of the cores).
 
     Returns
     -------
@@ -270,7 +270,7 @@ def accounting(
     largest = tuple(tuple(int(i) for i in ids) for ids in out["largest"])
 
     attrs = {
-        "landschaft_product": "ACCOUNTING",
+        "terraflux_product": "ACCOUNTING",
         "connectivity": connectivity,
         "thresholds": ",".join(map(str, used)),
         "n_objects": int(object_area.size),
@@ -283,7 +283,7 @@ def accounting(
         da.name = name
         da.attrs = dict(data.attrs) | attrs
         if product:
-            da.attrs["landschaft_product"] = product
+            da.attrs["terraflux_product"] = product
         return da
 
     return AccountingResult(

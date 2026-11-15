@@ -27,7 +27,7 @@ class Invitation:
         self.closed = threading.Event()
         self._wrong = 0
         self._lock = threading.Lock()
-        self._tmp = tempfile.TemporaryDirectory(prefix="landschaft-invite-")
+        self._tmp = tempfile.TemporaryDirectory(prefix="terraflux-invite-")
         salt = secrets.token_bytes(16)
         cert, key, fingerprint = _group.certificate(Path(self._tmp.name))
         self._handshakes = _net.Handshakes(_group.code_key(self.code, salt), fingerprint, salt)

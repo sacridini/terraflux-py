@@ -153,7 +153,7 @@ def euclidean_distance(
         Pixel size (e.g. in metres) for the statistics in map units; read from a
         georeferenced DataArray when omitted.
     threads, n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -205,14 +205,14 @@ def euclidean_distance(
     stats_df = pd.DataFrame(stats_rows)
 
     dist_attrs = {
-        "landschaft_product": "EUCLIDEAN_DISTANCE_FLOAT",
+        "terraflux_product": "EUCLIDEAN_DISTANCE_FLOAT",
         "mean_fg_dist": st["mean_fg_distance"],
         "max_fg_dist": st["max_fg_distance"],
         "mean_bg_dist": st["mean_bg_distance"],
         "max_bg_dist": st["max_bg_distance"],
     }
     byte_attrs = {
-        "landschaft_product": "EUCLIDEAN_DISTANCE",
+        "terraflux_product": "EUCLIDEAN_DISTANCE",
         "colormap": "dist",
         "mean_fg_dist": st["mean_fg_distance"],
         "max_fg_dist": st["max_fg_distance"],

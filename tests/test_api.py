@@ -25,7 +25,7 @@ def test_mspa_on_dataarray_keeps_coords_and_records_parameters():
     assert isinstance(out, xr.DataArray) and out.dims == ("y", "x")
     np.testing.assert_array_equal(out["x"], da["x"])
     np.testing.assert_array_equal(out.values, tf.mspa(data, edge_width=3))
-    assert out.attrs["landschaft_product"] == "MSPA" and out.attrs["mspa_edge_width"] == 3
+    assert out.attrs["terraflux_product"] == "MSPA" and out.attrs["mspa_edge_width"] == 3
     assert out.rio.crs.to_string() == "EPSG:3035"
 
 

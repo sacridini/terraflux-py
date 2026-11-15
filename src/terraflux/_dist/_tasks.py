@@ -17,7 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
-PARTIAL = ".landschaft-partial"
+PARTIAL = ".terraflux-partial"
 _PROBE = 1 << 20
 _FULL_HASH = 256 << 20    # files up to this size are named by the hash of all their bytes
 

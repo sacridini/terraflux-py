@@ -35,7 +35,7 @@ class Helpers:
         Run tasks on this computer too. ``local=False``: this computer only hands out
         tasks and collects their outputs.
     local_threads
-        Cores of this computer for the tasks (default: all but one).
+        Cores of this computer for the tasks (default: most, a quarter kept free).
     port
         TCP port helpers connect to (the discovery broadcasts use UDP 47810); 0 picks a
         free one.
@@ -127,7 +127,7 @@ def helpers(*, local: bool = True, local_threads: int | None = None, port: int =
     local
         Run tasks on this computer too (``False``: only coordinate).
     local_threads
-        Cores of this computer for the tasks (default: all but one).
+        Cores of this computer for the tasks (default: most, a quarter kept free).
     port
         TCP port helpers connect to.
     discovery
@@ -163,7 +163,7 @@ def run_worker(*, cores: int | None = None, connect: str | None = None, join: st
     Parameters
     ----------
     cores
-        Cores to lend (default: all but one).
+        Cores to lend (default: most, a quarter kept free).
     connect
         The coordinator's address (``"192.168.1.10"`` or ``"host:port"``), when the
         broadcasts of the local network do not reach it.

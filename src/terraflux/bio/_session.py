@@ -16,7 +16,8 @@ import zipfile
 import numpy as np
 import pandas as pd
 
-FORMAT = "landschaft-bio"
+FORMAT = "terraflux-bio"
+FORMATS = (FORMAT, "landschaft-bio")   # what is read: the name until 1.58 too
 VERSION = 1
 
 
@@ -68,7 +69,7 @@ def _read_basedata(zf: zipfile.ZipFile, prefix: str):
     from ._basedata import BaseData
 
     header = json.loads(zf.read(prefix + "basedata.json"))
-    if header.get("format") != FORMAT:
+    if header.get("format") not in FORMATS:
         raise ValueError("not a terraflux basedata")
     groups = _read_parquet(zf, prefix + "groups.parquet")
     labels = _read_parquet(zf, prefix + "labels.parquet")["name"].tolist()
@@ -191,7 +192,7 @@ def load_session(path: str | os.PathLike) -> dict:
     out = {}
     with zipfile.ZipFile(path) as zf:
         header = json.loads(zf.read("session.json"))
-        if header.get("format") != FORMAT:
+        if header.get("format") not in FORMATS:
             raise ValueError("not a terraflux session")
         for name, info in header["objects"].items():
             prefix = f"{name}/"

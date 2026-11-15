@@ -198,7 +198,7 @@ def gtb_tools():
     gdl, spatcon = find_gdl(), find_spatcon()
     if gdl is None or spatcon is None:
         pytest.skip("GDL and GTB's spatcon are needed to run GTB's code live "
-                    "(LANDSCHAFT_GDL_EXE, LANDSCHAFT_SPATCON_EXE)")
+                    "(TERRAFLUX_GDL_EXE, TERRAFLUX_SPATCON_EXE)")
     return gdl, spatcon
 
 

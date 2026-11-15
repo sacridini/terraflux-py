@@ -55,7 +55,7 @@ def firewall_commands(tcp_port: int = _group.TCP_PORT, udp_port: int = _group.UD
     """The netsh commands of the Windows rules: inbound, from the local subnet only."""
     rules = []
     for proto, port in (("TCP", tcp_port), ("UDP", udp_port)):
-        name = f"landschaft-dist-{proto}-{port}"
+        name = f"landschaft-dist-{proto}-{port}"  # old name kept on purpose (existing firewall rules)
         rules.append(["netsh", "advfirewall", "firewall", "delete", "rule", f"name={name}"])
         rules.append(["netsh", "advfirewall", "firewall", "add", "rule", f"name={name}", "dir=in", "action=allow",
                       f"protocol={proto}", f"localport={port}", "remoteip=localsubnet", "profile=any"])

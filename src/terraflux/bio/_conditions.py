@@ -1035,7 +1035,7 @@ def neighbours(
     definition_query : condition, optional
         Only groups passing it are processed (all groups can be neighbours).
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
     recycle : bool
         Reuse neighbour lists as Biodiverse does for non-overlapping, text
         match and "always the same" conditions (its default; it changes the

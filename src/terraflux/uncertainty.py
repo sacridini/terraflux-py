@@ -304,7 +304,7 @@ def _draws_on(on, f, draws: np.ndarray, chunk: int | None) -> np.ndarray:
     _registry.check_strings(f.kwargs, "kwargs")
     if chunk is None:
         chunk = max(1, math.ceil(len(draws) / 100))
-    with tempfile.TemporaryDirectory(prefix="landschaft-mc-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="terraflux-mc-") as tmp:
         tmp = Path(tmp)
         stored = _pack.write((list(f.args), f.kwargs), tmp / "args")
         shared = [InputFile.of(p, f"args/{p.name}") for p in _pack.files(stored)]

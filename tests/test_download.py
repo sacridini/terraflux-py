@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """tf.download without the network (Terraflux's tests of data.download and data.environment90m): the sources'
 paths, rasters warped onto a grid, tiles mosaicked, the cache, a STAC catalogue and Environment90m's tables served by
-fakes from local files. The downloads themselves with LANDSCHAFT_ONLINE_TESTS=1 (they read the servers)."""
+fakes from local files. The downloads themselves with TERRAFLUX_ONLINE_TESTS=1 (they read the servers)."""
 
 from __future__ import annotations
 
-import os
 import zipfile
 
 import numpy as np
@@ -16,15 +15,16 @@ from affine import Affine
 
 import terraflux as tf
 from terraflux import download as D
+from terraflux import _env
 
-ONLINE = pytest.mark.skipif(os.environ.get("LANDSCHAFT_ONLINE_TESTS") != "1",
-                            reason="downloads from the servers (LANDSCHAFT_ONLINE_TESTS=1)")
+ONLINE = pytest.mark.skipif(_env.get("ONLINE_TESTS") != "1",
+                            reason="downloads from the servers (TERRAFLUX_ONLINE_TESTS=1)")
 
 
 @pytest.fixture(autouse=True)
 def cache(tmp_path, monkeypatch):
-    monkeypatch.setenv("LANDSCHAFT_CACHE", str(tmp_path / "cache"))
-    monkeypatch.setenv("LANDSCHAFT_NUM_THREADS", "2")
+    monkeypatch.setenv("TERRAFLUX_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("TERRAFLUX_NUM_THREADS", "2")
     return tmp_path / "cache"
 
 

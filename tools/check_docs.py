@@ -184,7 +184,7 @@ def run_api(filter_text: str = "") -> list[str]:
 
 
 def main() -> None:
-    os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")  # the examples' tf.plot must not open windows
+    os.environ.setdefault("TERRAFLUX_PLOT_SHOW", "0")  # the examples' tf.plot must not open windows
     if sys.argv[1:2] == ["--api"]:
         errors = run_api(sys.argv[2] if len(sys.argv) > 2 else "")
         for e in errors:

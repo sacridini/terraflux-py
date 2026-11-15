@@ -81,7 +81,7 @@ def test_grayspatcon_dataarray():
     res = gray_spatial_convolution(da, metric="mean", window_size=5)
     assert isinstance(res, xr.DataArray)
     assert res.dims == ("y", "x")
-    assert res.attrs["landschaft_product"] == "GRAY_SPATIAL_CONVOLUTION"
+    assert res.attrs["terraflux_product"] == "GRAY_SPATIAL_CONVOLUTION"
     assert res.attrs["spatial_metric"] == "mean"
     assert res.attrs["window_size"] == 5
 

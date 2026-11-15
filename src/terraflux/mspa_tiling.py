@@ -150,7 +150,7 @@ def mspa_tiled(
     n_workers
         Tiles processed concurrently; each needs about 32 bytes per tile pixel.
     n_threads
-        Threads per tile (default: all cores but one, shared among the workers).
+        Threads per tile (default: most of the cores, shared among the workers).
     overwrite
         Replace an existing ``output``.
 
@@ -179,7 +179,7 @@ def mspa_tiled(
               n_threads=int(n_threads))
     attrs = {
         "long_name": "MSPA classes",
-        "landschaft_product": "MSPA",
+        "terraflux_product": "MSPA",
         "mspa_connectivity": kw["connectivity"],
         "mspa_edge_width": kw["edge_width"],
         "mspa_transition": int(bool(transition)),
@@ -259,7 +259,7 @@ def _mspa_tiled_file(src_path: Path, output, kw: dict, attrs: dict, tile_size: i
             dst.update_tags(
                 TIFFTAG_IMAGEDESCRIPTION="GTB_MSPA (terraflux), MSPA Tiling, MSPA parameters "
                 f"(FGconn_EdgeWidth_Transition_Intext): {suffix}",
-                **{k: str(v) for k, v in attrs.items() if k.startswith(("mspa_", "landschaft_"))},
+                **{k: str(v) for k, v in attrs.items() if k.startswith(("mspa_", "terraflux_"))},
             )
     os.replace(tmp_path, out_path)
     return out_path

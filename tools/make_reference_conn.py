@@ -6,7 +6,7 @@ Usage::
     python tools/make_reference_conn.py [makurhini] [conefor] [spatial] [links] [deca] [protconn] [grids]
         [centrality] [betweenness] [focal] [commute] [samc]
 
-``makurhini`` needs Rscript with Makurhini installed (``LANDSCHAFT_RSCRIPT`` as
+``makurhini`` needs Rscript with Makurhini installed (``TERRAFLUX_RSCRIPT`` as
 in ``tests/lsm_reference.py``; the default R library is used). It exports
 Makurhini's example ``habitat_nodes`` (centroid distances), builds three
 synthetic scenes, stores them in ``tests/data/reference/conn/scenes.npz`` and
@@ -64,9 +64,9 @@ probabilities too (``makurhini_samc.csv.gz``).
 
 ``conefor`` builds ``tools/conefor/conefor_harness.cpp`` with the Conefor
 Sensinode 2.2 sources (the last five nodes of each scene are Conefor's nodes
-to add) (``LANDSCHAFT_CONEFOR_SRC``, default
+to add) (``TERRAFLUX_CONEFOR_SRC``, default
 ``../Conefor Sensinode 2.2/src`` next to the repository) with g++ (Rtools:
-``LANDSCHAFT_GXX_PATH``, default ``C:/rtools44``) and stores its indices and
+``TERRAFLUX_GXX_PATH``, default ``C:/rtools44``) and stores its indices and
 node importances for the synthetic scenes in ``conefor.csv.gz``. The
 test-suite compares terraflux against these files, so it runs without R or
 Conefor.
@@ -82,6 +82,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -90,8 +91,8 @@ import lsm_reference  # noqa: E402
 
 OUT = ROOT / "tests" / "data" / "reference" / "conn"
 R_SCRIPT = ROOT / "tools" / "conn_makurhini_reference.R"
-CONEFOR_SRC = Path(os.environ.get("LANDSCHAFT_CONEFOR_SRC", ROOT.parent / "Conefor Sensinode 2.2" / "src"))
-RTOOLS = Path(os.environ.get("LANDSCHAFT_GXX_PATH", "C:/rtools44"))
+CONEFOR_SRC = Path(_env.get("CONEFOR_SRC", ROOT.parent / "Conefor Sensinode 2.2" / "src"))
+RTOOLS = Path(_env.get("GXX_PATH", "C:/rtools44"))
 
 
 def _synthetic() -> dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]:

@@ -3,16 +3,15 @@
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 
-from .. import _core, _threads
+from .. import _core, _env, _threads
 
 
 @lru_cache(maxsize=None)
 def core():
-    """terraflux._circuit_avx2 where it runs (unless LANDSCHAFT_CIRCUIT_AVX2=0), else terraflux._core."""
-    if os.environ.get("LANDSCHAFT_CIRCUIT_AVX2", "1") != "0" and _core.cpu_supports_avx2_fma():
+    """terraflux._circuit_avx2 where it runs (unless TERRAFLUX_CIRCUIT_AVX2=0), else terraflux._core."""
+    if _env.get("CIRCUIT_AVX2", "1") != "0" and _core.cpu_supports_avx2_fma():
         try:
             from .. import _circuit_avx2
         except ImportError:

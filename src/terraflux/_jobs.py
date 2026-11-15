@@ -5,11 +5,11 @@ array processes, the record of what each run did, the time limit, and the Slurm 
 The inputs, in their order, go to the parts in turn: input ``i`` to part ``i mod n``. A static
 split needs no lock in the file system (NFS and Lustre differ on ``O_EXCL``). In a Slurm job
 array the part is the task's, from ``SLURM_ARRAY_TASK_ID``; the split (how many parts, the first
-task id, the step) is kept in the output folder the first time (``.landschaft-batch/split.json``),
+task id, the step) is kept in the output folder the first time (``.terraflux-batch/split.json``),
 so that the tasks submitted again later, ``--array=3,17`` for those that failed, take the same
 inputs as before. ``"i/n"`` gives the part by hand, for other schedulers.
 
-The record of an output folder (``.landschaft-batch/``):
+The record of an output folder (``.terraflux-batch/``):
 
 - ``inputs.json``: the tool, its parameters, every input in the order of the split and the file
   that marks it done;
@@ -38,7 +38,8 @@ from typing import NamedTuple, Sequence
 
 from ._threads import JOB_VARIABLES
 
-STATE = ".landschaft-batch"
+STATE = ".terraflux-batch"
+OLD_STATE = ".landschaft-batch"     # the record of an output folder written up to 1.58
 SPLIT = "split.json"
 MANIFEST = "inputs.json"
 RUNS = "runs"
@@ -126,9 +127,22 @@ def parse_shard(shard) -> Shard:
     return Shard(index, count, "shard=")
 
 
+def state_dir(output_dir) -> Path:
+    """The record folder of an output folder: ``.terraflux-batch``; where only landschaft's ``.landschaft-batch``
+    exists, it is renamed to it, else (it cannot be renamed) used where it is."""
+    new, old = Path(output_dir) / STATE, Path(output_dir) / OLD_STATE
+    if new.exists() or not old.exists():
+        return new
+    try:
+        old.rename(new)
+        return new
+    except OSError:
+        return old
+
+
 def read_split(output_dir) -> dict | None:
     try:
-        split = json.loads((Path(output_dir) / STATE / SPLIT).read_text())
+        split = json.loads((state_dir(output_dir) / SPLIT).read_text())
         return split if all(isinstance(split.get(k), int) for k in ("count", "first", "step")) else None
     except (OSError, ValueError, AttributeError):
         return None
@@ -136,7 +150,7 @@ def read_split(output_dir) -> dict | None:
 
 def write_split(output_dir, count: int, first: int = 0, step: int = 1, **more) -> None:
     """Keep the split of the output folder (tasks starting together write the same)."""
-    write_json(Path(output_dir) / STATE / SPLIT, {"count": count, "first": first, "step": step, **more})
+    write_json(state_dir(output_dir) / SPLIT, {"count": count, "first": first, "step": step, **more})
 
 
 def resolve_shard(output_dir, shard) -> Shard | None:
@@ -198,15 +212,15 @@ def write_json(path: Path, data: dict) -> None:
 
 def write_manifest(output_dir, tool: str, params: dict, inputs: Sequence[Path], markers: Sequence[str]) -> None:
     """Every input of the batch, in the order the split follows, with the file that marks it done."""
-    write_json(Path(output_dir) / STATE / MANIFEST, {"tool": tool, "params": params,
-                                                     "inputs": [str(p) for p in inputs], "markers": list(markers)})
+    write_json(state_dir(output_dir) / MANIFEST, {"tool": tool, "params": params,
+                                                  "inputs": [str(p) for p in inputs], "markers": list(markers)})
 
 
 class Journal:
     """The record of one run, rewritten as inputs finish (best effort: it never stops the batch)."""
 
     def __init__(self, output_dir, tool: str, shard: Shard | None, inputs: Sequence[Path], skipped: Sequence[Path]):
-        self.path = Path(output_dir) / STATE / RUNS / f"{run_name()}.json"
+        self.path = state_dir(output_dir) / RUNS / f"{run_name()}.json"
         self._lock = threading.Lock()
         self.new = 0
         self.record = {"run": run_name(), "host": socket.gethostname(), "pid": os.getpid(), "started": _now(),
@@ -332,7 +346,7 @@ def batch_status(output_dir) -> BatchStatus:
     """What the runs of :func:`terraflux.batch` / :func:`terraflux.mspa_batch` did in an output folder:
     the inputs done, failed (with their error) and not done, and the job array tasks to submit again.
 
-    The record is kept in ``<output_dir>/.landschaft-batch/`` by the batches that run in a batch job
+    The record is kept in ``<output_dir>/.terraflux-batch/`` by the batches that run in a batch job
     (Slurm, PBS, LSF) or with ``shard=`` or ``requeue=``. Also ``terraflux-py status <output_dir>`` on
     the command line.
 
@@ -361,14 +375,14 @@ def batch_status(output_dir) -> BatchStatus:
     """
     output_dir = Path(output_dir)
     try:
-        manifest = json.loads((output_dir / STATE / MANIFEST).read_text())
+        manifest = json.loads((state_dir(output_dir) / MANIFEST).read_text())
     except (OSError, ValueError):
         raise FileNotFoundError(f"{output_dir} has no record of a batch ({STATE}/{MANIFEST}): it is written by "
                                 "batches run in a batch job or with shard= or requeue=") from None
     names = [Path(p).name for p in manifest.get("inputs", [])]
     status = BatchStatus(output_dir, manifest.get("tool", "?"), names, split=read_split(output_dir))
     records = []
-    for path in sorted((output_dir / STATE / RUNS).glob("*.json")):
+    for path in sorted((state_dir(output_dir) / RUNS).glob("*.json")):
         try:
             records.append(json.loads(path.read_text()))
         except (OSError, ValueError):
@@ -466,7 +480,7 @@ class Stopping:
         self.event.set()
         self._out(f"terraflux: {self.signal_name}: no input starts after this; the ones at work may end")
         if self._requeue:
-            threading.Thread(target=self._watch, name="landschaft-requeue", daemon=True).start()
+            threading.Thread(target=self._watch, name="terraflux-requeue", daemon=True).start()
 
     def _watch(self) -> None:
         time.sleep(GRACE_SECONDS)
@@ -562,8 +576,9 @@ def write_script(tool: str, inputs: str, output_dir, params: dict, *, cpus: int,
     if tasks < 1:
         raise ValueError("--tasks must be at least 1")
     output_dir = Path(output_dir).resolve()
-    path = Path(script).resolve() if script else output_dir / STATE / f"{name}.sbatch"
-    logs = output_dir / STATE / "logs"
+    state = state_dir(output_dir)
+    path = Path(script).resolve() if script else state / f"{name}.sbatch"
+    logs = state / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     old = read_split(output_dir)
     if old is not None and (old["count"], old["first"], old["step"]) != (tasks, 0, 1):

@@ -6,7 +6,7 @@ Usage::
     python tools/make_reference_lsm.py [lsm] [sample] [window] [rmath] [utils] [api]
 
 Needs Rscript with landscapemetrics and terra (see ``tests/lsm_reference.py``
-for ``LANDSCHAFT_RSCRIPT`` / ``LANDSCHAFT_R_LIBS``). ``lsm`` (default: all
+for ``TERRAFLUX_RSCRIPT`` / ``TERRAFLUX_R_LIBS``). ``lsm`` (default: all
 three parts) writes the input rasters to ``tests/data/lsm/*.tif``, every value
 of ``calculate_lsm`` for each option set to
 ``tests/data/reference/lsm/<case>__<options>.csv.gz`` and a ``manifest.json``;
@@ -432,7 +432,7 @@ def main() -> None:
         sys.exit(f"unknown part(s): {sorted(unknown)}")
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     if "lsm" in parts:
         make_lsm(rscript)
     if "sample" in parts:

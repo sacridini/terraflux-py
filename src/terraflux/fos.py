@@ -172,7 +172,7 @@ def fos(
         pixel_resolution
             Pixel size [m], for the observation scale in hectares.
         n_threads
-            Threads (0: all cores but one).
+            Threads (0: most of the cores).
 
         Returns
         -------
@@ -291,7 +291,7 @@ def fos(
         out = template.copy(data=im)
         out.name = f"fos_{method.lower()}_{window_size}"
         out.attrs = dict(template.attrs) | {
-            "landschaft_product": "FOS", "fos_method": method, "fos_classes": classes, "window_size": window_size,
+            "terraflux_product": "FOS", "fos_method": method, "fos_classes": classes, "window_size": window_size,
             "avcon": avcon,
         }
     else:

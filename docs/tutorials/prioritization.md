@@ -251,7 +251,7 @@ res = tf.prioritize.run_project("settings.z5", "-wh", mode="CAZ2", output="outpu
   [API reference](../api/prioritization.md#large-maps)).
 - **16 bits**: `bits=16` quantizes as `z5_16bit` does, for features with a
   long tail of small values.
-- **Threads**: `n_threads` (default: all cores but one); the result does not
+- **Threads**: `n_threads` (default: most of the cores); the result does not
   depend on it.
 
 The [API reference](../api/prioritization.md) documents every option.

@@ -207,10 +207,10 @@ def isochrone_map(resistance, marker) -> IsochroneResult:
     out[missing] = 102
     positive = t[t > 0]
     mincost = _idl_round_scalar(float(positive.min())) if positive.size else 0
-    attrs = {"landschaft_product": "ISOCHRONE_A", "min_cost": mincost, "max_cost": maxcost}
+    attrs = {"terraflux_product": "ISOCHRONE_A", "min_cost": mincost, "max_cost": maxcost}
     return IsochroneResult(
         map=_wrap(out, template, "isochrone_a", attrs),
-        cost=_wrap(cost, template, "isochrone_a_cost", attrs | {"landschaft_product": "ISOCHRONE_A_COST"}),
+        cost=_wrap(cost, template, "isochrone_a_cost", attrs | {"terraflux_product": "ISOCHRONE_A_COST"}),
         lcp=None,
         min_cost=mincost,
         max_cost=maxcost,
@@ -232,7 +232,7 @@ def isochrone_map_ab(resistance, marker) -> IsochroneResult:
     marker
         ``uint8`` map: 1 object A, 2 object B, 3 missing, 0 background.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -292,11 +292,11 @@ def isochrone_map_ab(resistance, marker) -> IsochroneResult:
     out[(mark == 1) | (mark == 2)] = 101
     out[missing] = 102
     out[unreachable] = 104
-    attrs = {"landschaft_product": "ISOCHRONE_AB", "min_cost": mincost, "max_cost": maxcost}
+    attrs = {"terraflux_product": "ISOCHRONE_AB", "min_cost": mincost, "max_cost": maxcost}
     return IsochroneResult(
         map=_wrap(out, template, "isochrone_ab", attrs),
-        cost=_wrap(cost, template, "isochrone_ab_cost", attrs | {"landschaft_product": "ISOCHRONE_AB_COST"}),
-        lcp=_wrap(lcp, template, "isochrone_ab_lcp", attrs | {"landschaft_product": "ISOCHRONE_AB_LCP"}),
+        cost=_wrap(cost, template, "isochrone_ab_cost", attrs | {"terraflux_product": "ISOCHRONE_AB_COST"}),
+        lcp=_wrap(lcp, template, "isochrone_ab_lcp", attrs | {"terraflux_product": "ISOCHRONE_AB_LCP"}),
         min_cost=mincost,
         max_cost=maxcost,
     )
@@ -317,7 +317,7 @@ def distance_to_resistance(data):
     data
         Map coded 0 missing, 1 background, 2 foreground.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -342,4 +342,4 @@ def distance_to_resistance(data):
     out = np.maximum(np.floor(v + 0.5), 0).astype(np.uint8)
     out[arr == 2] = 2
     out[arr == 0] = 0
-    return _wrap(out, template, "resistance", {"landschaft_product": "RESISTANCE", "setup": "distance"})
+    return _wrap(out, template, "resistance", {"terraflux_product": "RESISTANCE", "setup": "distance"})

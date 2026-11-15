@@ -11,6 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 
+from .._download import user_agent
+
 __all__ = ["download_gbif"]
 
 API = "https://api.gbif.org/v1"
@@ -47,7 +49,7 @@ _FIELDS = {
 def _get(path: str, params: dict, timeout: float = 60.0) -> dict:
     query = urllib.parse.urlencode([(k, v) for k, vs in params.items() if vs is not None
                                     for v in (vs if isinstance(vs, (list, tuple)) else [vs])])
-    request = urllib.request.Request(f"{API}/{path}?{query}", headers={"User-Agent": "landschaft"})
+    request = urllib.request.Request(f"{API}/{path}?{query}", headers={"User-Agent": user_agent()})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))

@@ -69,7 +69,7 @@ def viewshed(dem, observers, *, observer_height: float = 2.0, target_height: flo
     nodata
         Value marking missing cells.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

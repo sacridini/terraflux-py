@@ -2,7 +2,7 @@
 """Run the original GuidosToolbox ``mspa`` executable on numpy arrays.
 
 The executable ships with GTB (``MSPAstandalone/mspa_win64.exe``,
-``mspa_lin64``, ``mspa_mac``). Point ``LANDSCHAFT_MSPA_EXE`` to it.
+``mspa_lin64``, ``mspa_mac``). Point ``TERRAFLUX_MSPA_EXE`` to it.
 """
 
 from __future__ import annotations
@@ -16,10 +16,11 @@ from pathlib import Path
 import numpy as np
 import rasterio
 from rasterio.errors import NotGeoreferencedWarning
+from terraflux import _env
 
 
 def find_executable() -> Path | None:
-    exe = os.environ.get("LANDSCHAFT_MSPA_EXE")
+    exe = _env.get("MSPA_EXE")
     return Path(exe) if exe and Path(exe).is_file() else None
 
 
@@ -65,10 +66,10 @@ DEFAULT_GDL = Path(r"C:\Program Files\gnudatalanguage\bin\gdl.exe")
 
 
 def find_gdl() -> Path | None:
-    """GDL/IDL interpreter from ``LANDSCHAFT_GDL_EXE``, PATH or the default install."""
+    """GDL/IDL interpreter from ``TERRAFLUX_GDL_EXE``, PATH or the default install."""
     import shutil
 
-    exe = os.environ.get("LANDSCHAFT_GDL_EXE")
+    exe = _env.get("GDL_EXE")
     if exe:
         return Path(exe) if Path(exe).is_file() else None
     found = shutil.which("gdl")
@@ -152,8 +153,8 @@ DEFAULT_SPATCON = Path(r"C:\Users\eduar\Documents\dev\GTB\external_sources\spatc
 
 
 def find_spatcon() -> Path | None:
-    """GTB's spatcon executable from ``LANDSCHAFT_SPATCON_EXE`` or the default GTB checkout."""
-    exe = os.environ.get("LANDSCHAFT_SPATCON_EXE")
+    """GTB's spatcon executable from ``TERRAFLUX_SPATCON_EXE`` or the default GTB checkout."""
+    exe = _env.get("SPATCON_EXE")
     path = Path(exe) if exe else DEFAULT_SPATCON
     return path if path.is_file() else None
 
@@ -275,8 +276,8 @@ DEFAULT_GGEO = Path(r"C:\GuidosToolbox\guidos_progs\spatcon\ggeo64.exe")
 
 
 def find_ggeo() -> Path | None:
-    """GTB's ggeo executable from ``LANDSCHAFT_GGEO_EXE`` or a GTB desktop installation."""
-    exe = os.environ.get("LANDSCHAFT_GGEO_EXE")
+    """GTB's ggeo executable from ``TERRAFLUX_GGEO_EXE`` or a GTB desktop installation."""
+    exe = _env.get("GGEO_EXE")
     path = Path(exe) if exe else DEFAULT_GGEO
     return path if path.is_file() else None
 
@@ -314,8 +315,8 @@ DEFAULT_GRAYSPATCON = Path(r"C:\Users\eduar\Documents\dev\GTB\external_sources\g
 
 
 def find_grayspatcon() -> Path | None:
-    """GTB's grayspatcon executable from ``LANDSCHAFT_GRAYSPATCON_EXE`` or the default GTB checkout."""
-    exe = os.environ.get("LANDSCHAFT_GRAYSPATCON_EXE")
+    """GTB's grayspatcon executable from ``TERRAFLUX_GRAYSPATCON_EXE`` or the default GTB checkout."""
+    exe = _env.get("GRAYSPATCON_EXE")
     path = Path(exe) if exe else DEFAULT_GRAYSPATCON
     return path if path.is_file() else None
 
@@ -348,7 +349,7 @@ GTB_PROGS = Path(r"C:\Users\eduar\Documents\dev\GTB\guidos_progs")
 
 
 def find_gtb_mspa() -> Path | None:
-    """GTB's ``mspa`` executable: ``LANDSCHAFT_MSPA_EXE`` or the GTB desktop install."""
+    """GTB's ``mspa`` executable: ``TERRAFLUX_MSPA_EXE`` or the GTB desktop install."""
     exe = find_executable()
     if exe is not None:
         return exe
@@ -357,13 +358,13 @@ def find_gtb_mspa() -> Path | None:
 
 
 def find_gtb_fwtools() -> Path | None:
-    """GTB's gdal tools folder (with ``setfw.bat``) from ``LANDSCHAFT_GTB_FWTOOLS`` or the default install."""
-    d = Path(os.environ.get("LANDSCHAFT_GTB_FWTOOLS", DEFAULT_GTB_FWTOOLS))
+    """GTB's gdal tools folder (with ``setfw.bat``) from ``TERRAFLUX_GTB_FWTOOLS`` or the default install."""
+    d = Path(_env.get("GTB_FWTOOLS", DEFAULT_GTB_FWTOOLS))
     return d if (d / "setfw.bat").is_file() else None
 
 
 def _gtb_colortables() -> Path | None:
-    for d in (Path(os.environ.get("LANDSCHAFT_GTB_PROGS", GTB_PROGS)), DEFAULT_GTB_FWTOOLS.parent):
+    for d in (Path(_env.get("GTB_PROGS", GTB_PROGS)), DEFAULT_GTB_FWTOOLS.parent):
         if (d / "mspacolorston.sav").is_file():
             return d
     return None
@@ -379,10 +380,10 @@ def run_gtb_mspa_tile(exe: os.PathLike, mspa: os.PathLike, fwtools: os.PathLike,
 
     ct = _gtb_colortables()
     if ct is None:
-        raise FileNotFoundError("mspacolorston.sav not found (set LANDSCHAFT_GTB_PROGS to GTB's guidos_progs)")
+        raise FileNotFoundError("mspacolorston.sav not found (set TERRAFLUX_GTB_PROGS to GTB's guidos_progs)")
     import sys
 
-    os.environ.setdefault("LANDSCHAFT_PYTHON", sys.executable)  # for tests/gtb_idl/read_tiff.pro
+    os.environ.setdefault("TERRAFLUX_PYTHON", sys.executable)  # for tests/gtb_idl/read_tiff.pro
     ny, nx = data.shape
     with tempfile.TemporaryDirectory(prefix="gtb_tile_") as tmp:
         root = Path(tmp)

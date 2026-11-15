@@ -255,7 +255,7 @@ def idw(points, like, field: str | None = None, *, power: float = 2.0, nmax: int
     nodata
         Value marking the cells of ``like`` not to fill.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -327,7 +327,7 @@ def kriging(points, like, model, field: str | None = None, *, nmax: int | None =
     nodata
         Value marking the cells of ``like`` not to fill.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

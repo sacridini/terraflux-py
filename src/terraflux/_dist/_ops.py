@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from .. import _compat
 from ._tasks import check_name
 
 OPS: dict[str, Callable] = {}
@@ -227,6 +228,7 @@ def build_estimator(spec):
         return tuple(build_estimator(x) for x in spec["$tuple"])
     if isinstance(spec, dict) and "$estimator" in spec:
         module, _, qualname = str(spec["$estimator"]).partition(":")
+        module = _compat.module_name(module)  # landschaft.* (until 1.58) is terraflux.*
         if not (module.startswith("sklearn.") or module.startswith("terraflux.sdm")):
             raise ValueError(f"refusing to build {spec['$estimator']}: only scikit-learn and tf.sdm estimators travel")
         cls = importlib.import_module(module)

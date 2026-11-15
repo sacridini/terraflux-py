@@ -23,6 +23,8 @@ import socket
 import sys
 from pathlib import Path
 
+from .. import _env
+
 PROTOCOL = 1
 TCP_PORT = 47811
 UDP_PORT = 47810
@@ -31,12 +33,16 @@ _ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"   # Crockford's base32: no I, L, 
 
 
 def config_dir() -> Path:
-    env = os.environ.get("LANDSCHAFT_CONFIG_DIR")
+    env = _env.get("CONFIG_DIR")
     if env:
         return Path(env)
     if sys.platform == "win32":
-        return Path(os.environ.get("APPDATA") or Path.home()) / "landschaft"
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "landschaft"
+        root = Path(os.environ.get("APPDATA") or Path.home())
+    else:
+        root = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    # the folder of landschaft (until 1.58) moves to terraflux/python (the app's own folder is terraflux, "Terraflux"
+    # on Windows: the library keeps to a folder of its own in it); the pairing in it goes on working
+    return _env.migrate(root / "landschaft", root / "terraflux" / "python")
 
 
 def _group_file() -> Path:
@@ -79,6 +85,7 @@ def forget_secret() -> bool:
 
 def group_id(secret: bytes) -> str:
     """A public name of the group, for discovery: it reveals nothing of the secret."""
+    # the old name is kept on purpose (stored pairings)
     return hmac.new(secret, b"landschaft-group-id", hashlib.sha256).hexdigest()[:16]
 
 
@@ -102,6 +109,7 @@ def code_key(code: str, salt: bytes) -> bytes:
 
 
 def proof(key: bytes, role: str, *parts: str) -> str:
+    # the protocol string keeps the old name on purpose (stored pairings)
     message = "|".join(("landschaft-dist", str(PROTOCOL), role) + parts).encode()
     return hmac.new(key, message, hashlib.sha256).hexdigest()
 
@@ -165,6 +173,7 @@ def certificate(directory: Path) -> tuple[str, str, str]:
     from cryptography.x509.oid import NameOID
 
     key = ec.generate_private_key(ec.SECP256R1())
+    # the old name is kept on purpose (stored pairings)
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "landschaft")])
     now = datetime.datetime.now(datetime.timezone.utc)
     cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())

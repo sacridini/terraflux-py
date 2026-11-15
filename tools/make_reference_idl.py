@@ -318,7 +318,7 @@ def main(exe: Path, spatcon: Path, ggeo: Path | None = None) -> None:
     fos_cases = []
     grayspatcon = find_grayspatcon()
     if grayspatcon is None:
-        print("grayspatcon not found (LANDSCHAFT_GRAYSPATCON_EXE): FOS references are not generated")
+        print("grayspatcon not found (TERRAFLUX_GRAYSPATCON_EXE): FOS references are not generated")
     else:
         inputs = fos_inputs()
         for name, fosclass, window, conn, grayt in FOS_CASES:
@@ -372,11 +372,11 @@ def main(exe: Path, spatcon: Path, ggeo: Path | None = None) -> None:
 if __name__ == "__main__":
     gdl = Path(sys.argv[1]) if len(sys.argv) > 1 else find_gdl()
     if gdl is None:
-        sys.exit("GDL not found: pass its path or set LANDSCHAFT_GDL_EXE")
+        sys.exit("GDL not found: pass its path or set TERRAFLUX_GDL_EXE")
     spatcon_exe = Path(sys.argv[2]) if len(sys.argv) > 2 else find_spatcon()
     if spatcon_exe is None:
-        sys.exit("spatcon not found: pass its path or set LANDSCHAFT_SPATCON_EXE")
+        sys.exit("spatcon not found: pass its path or set TERRAFLUX_SPATCON_EXE")
     ggeo_exe = Path(sys.argv[3]) if len(sys.argv) > 3 else find_ggeo()
     if ggeo_exe is None:
-        print("ggeo not found (LANDSCHAFT_GGEO_EXE): isochrone references are not generated")
+        print("ggeo not found (TERRAFLUX_GGEO_EXE): isochrone references are not generated")
     main(gdl, spatcon_exe, ggeo_exe)

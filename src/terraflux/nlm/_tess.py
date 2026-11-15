@@ -90,7 +90,7 @@ def mosaic_tess(ncol: int, nrow: int, germs: int, resolution: float = 1.0, seed:
         ``terra::rasterize`` stores them. With False the k-th germ gets the k-th
         value, in double precision.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -150,7 +150,7 @@ def mosaic_gibbs(ncol: int, nrow: int, germs: int, R: float, patch_classes: int,
         without it a warning and the other assignment). With False each germ's
         tile takes its own class.
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

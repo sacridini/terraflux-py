@@ -16,7 +16,7 @@ from terraflux import _core
 DATA = Path(__file__).parent / "data"
 
 # tf.plot must not open windows while the tests run (nor matplotlib's: static figures)
-os.environ.setdefault("LANDSCHAFT_PLOT_SHOW", "0")
+os.environ.setdefault("TERRAFLUX_PLOT_SHOW", "0")
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 # The references of R (landscapemetrics, NLMR) and Perl (Biodiverse) come from x86-64,
@@ -125,7 +125,7 @@ def reference_dir() -> Path:
 def mspa_exe() -> Path:
     exe = find_executable()
     if exe is None:
-        pytest.skip("set LANDSCHAFT_MSPA_EXE to the original GTB mspa executable to run live comparisons")
+        pytest.skip("set TERRAFLUX_MSPA_EXE to the original GTB mspa executable to run live comparisons")
     return exe
 
 

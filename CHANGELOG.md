@@ -8,6 +8,29 @@ in a new major version.
 
 ### Changed
 - The package is now `terraflux` (`import terraflux as tf`, the command `terraflux-py`), after landschaft.
+- Threads: terraflux never uses all the cores. Every count (the default, `set_default_threads(n)`, an explicit
+  `n_threads`, a Slurm job's or a dask worker's processors) is held to the processors the process may use minus a
+  quarter of them, at least one kept free (20 give 15, 8 give 6, 4 give 3, 2 and 1 give 1), as the desktop app does;
+  a request above it is lowered, with one `RuntimeWarning` per process. It was all the cores but one (all of them in
+  a batch job). The variable is `TERRAFLUX_THREADS` (`LANDSCHAFT_NUM_THREADS` is still read); the helpers' child
+  processes get `TERRAFLUX_THREADS`.
+- The environment variables are `TERRAFLUX_*` (`TERRAFLUX_CACHE`, `TERRAFLUX_CONFIG_DIR`, `TERRAFLUX_PLOT_SHOW`,
+  `TERRAFLUX_PLOT_LIVE`, `TERRAFLUX_CIRCUIT_AVX2`, `TERRAFLUX_PRIO_ROWS`, `TERRAFLUX_REPROJECT_PYPROJ`, and the
+  tests' and tools' `TERRAFLUX_MSPA_EXE`, `TERRAFLUX_RSCRIPT`...); the `LANDSCHAFT_*` names are still read, the new
+  one winning when both are set.
+- What landschaft wrote is still read, and terraflux writes the new names: GeoTIFFs with `landschaft_*` tags load
+  with `terraflux_*` attributes (`terraflux_product`), bio sessions and basedata of format `landschaft-bio` load
+  (new ones are `terraflux-bio`), an output folder's `.landschaft-batch` record is renamed to `.terraflux-batch` on
+  resume (or read in place where it cannot be renamed), tracks tables keep their `landschaft.move` attributes,
+  tasks and estimators of helpers naming `landschaft.*` modules are built from `terraflux.*`, and
+  `terraflux._compat.load` / `loads` unpickle classes of `landschaft.*` from `terraflux.*`.
+- The cache and the configuration folder are `terraflux/python`, apart from the desktop app's own in `terraflux`
+  (`%LOCALAPPDATA%\Terraflux\python\cache`, `~/.cache/terraflux/python`, `%APPDATA%\Terraflux\python`,
+  `~/.config/terraflux/python`); the `landschaft` one of an older version is
+  moved there the first time (used where it is if it cannot be moved; nothing is deleted), so the cached downloads
+  and the helpers' pairing are kept. The User-Agent is `terraflux/<version> (https://github.com/sacridini/terraflux-py)`.
+  The pairing's wire names (`landschaft-dist`, `X-Landschaft-*`, the certificate's name, the firewall rules) are kept
+  on purpose, so helpers paired before keep working.
 
 ## [1.58.1] - 2026-10-31
 

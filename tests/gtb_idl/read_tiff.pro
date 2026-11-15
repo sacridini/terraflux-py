@@ -3,14 +3,14 @@
 ; GDL's TIFF_READ cannot read 8-bit paletted images ("Palettes only supported
 ; for 3 channel images with 16 bits per pixel"), such as the MSPA maps GTB
 ; reads back after running mspa. This replacement of READ_TIFF falls back to
-; Python/rasterio (LANDSCHAFT_PYTHON, default 'python') for those files and
+; Python/rasterio (TERRAFLUX_PYTHON, or LANDSCHAFT_PYTHON, default 'python') for those files and
 ; returns the pixel values, as IDL does.
 function read_tiff, filename, r, g, b, geotiff=geotiff, image_index=image_index, sub_rect=sub_rect
   compile_opt idl2
   catch, err
   if err ne 0 then begin
     catch, /cancel
-    py = getenv('LANDSCHAFT_PYTHON') & if py eq '' then py = 'python'
+    py = getenv('TERRAFLUX_PYTHON') & if py eq '' then py = getenv('LANDSCHAFT_PYTHON') & if py eq '' then py = 'python'
     raw = filename + '.raw'
     code = 'import sys, rasterio; d = rasterio.open(sys.argv[1]); d.read(1).tofile(sys.argv[2]); print(d.width, d.height)'
     ;; cmd.exe strips the outer quotes of the whole command line

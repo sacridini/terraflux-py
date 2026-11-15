@@ -42,7 +42,7 @@ def cell_stats(maps, stat: str = "mean", *, nodata=None, n_threads: int | None =
     nodata
         Value marking missing cells (default: the rasters' no-data value).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -123,7 +123,7 @@ def local_correlation(x, y, *, radius: int = 3, shape: str = "square", min_cells
     nodata
         Value marking missing cells.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

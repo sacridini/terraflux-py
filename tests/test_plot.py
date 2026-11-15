@@ -481,7 +481,7 @@ def test_live_bridges(monkeypatch):
     shown[1]._answer(shown[1], {"req": "a:1", "msg": {"op": "hello", "map": p._live_maps()[0]}}, [])
     assert replies == [{"req": "a:1", "map": p._live_maps()[0], "data": {"ok": True}}]
     assert _live.WindowApi().ls_live({"op": "hello", "map": p._live_maps()[0]}) == {"ok": True}
-    monkeypatch.setenv("LANDSCHAFT_PLOT_LIVE", "0")
+    monkeypatch.setenv("TERRAFLUX_PLOT_LIVE", "0")
     q = tf.plot(grid(np.random.default_rng(2).random((3000, 3000)).astype("float32")), basemap=None, max_size=256)
     assert not q._live_maps() and "LS_LIVE.add(" not in page(q)
 
@@ -554,7 +554,7 @@ def test_save_html_and_static_images(tmp_path, forest):
 def test_windows_only_outside_notebooks(monkeypatch, forest):
     opened = []
     monkeypatch.setattr(_env, "open_window", lambda html, title="", **_: opened.append(title))
-    monkeypatch.delenv("LANDSCHAFT_PLOT_SHOW", raising=False)
+    monkeypatch.delenv("TERRAFLUX_PLOT_SHOW", raising=False)
     monkeypatch.setattr(_env, "in_notebook", lambda: False)
     monkeypatch.setattr(_env, "headless", lambda: None)  # a desktop (a CI runner has no display)
     tf.plot(forest, title="here")
@@ -562,7 +562,7 @@ def test_windows_only_outside_notebooks(monkeypatch, forest):
     monkeypatch.setattr(_env, "in_notebook", lambda: True)
     tf.plot(forest)  # the Plot shows itself in a notebook
     assert opened == ["here"]
-    monkeypatch.setenv("LANDSCHAFT_PLOT_SHOW", "0")
+    monkeypatch.setenv("TERRAFLUX_PLOT_SHOW", "0")
     monkeypatch.setattr(_env, "in_notebook", lambda: False)
     tf.plot(forest)
     tf.plot(forest, show=False)

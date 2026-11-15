@@ -90,7 +90,7 @@ def gray_spatial_convolution(
     mask_missing : bool, default True
         If True, pixels that are missing (value 255) remain 255 (or NaN) in the output.
     n_threads : int, default 0
-        Number of OpenMP worker threads (0: all cores but one).
+        Number of OpenMP worker threads (0: most of the cores).
 
     Returns
     -------
@@ -138,7 +138,7 @@ def gray_spatial_convolution(
     if is_xr and xr_template is not None:
         attrs = {
             **xr_template.attrs,
-            "landschaft_product": "GRAY_SPATIAL_CONVOLUTION",
+            "terraflux_product": "GRAY_SPATIAL_CONVOLUTION",
             "spatial_metric": canonical_metric,
             "window_size": window_size,
             "mask_missing": mask_missing,

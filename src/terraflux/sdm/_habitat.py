@@ -177,7 +177,7 @@ def area_of_habitat(
         Also the habitat lost per unit of natural land converted (``loss``):
         what conservation and conversion plans need.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

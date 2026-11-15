@@ -18,19 +18,19 @@ cells): a depression that touches the edge is raised with the edge cells in it. 
 correct filling (``filled_edge``) is FillDepressions run on the DEM framed by a ring of
 very low cells, cropped back; the downstream tools all read WhiteboxTools' own
 ``filled`` DEM, so each is checked on the same input. Needs the ``whitebox`` Python package's
-binary (``LANDSCHAFT_WBT`` overrides its path). The test-suite reads the stored files.
+binary (``TERRAFLUX_WBT`` overrides its path). The test-suite reads the stored files.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "tests" / "data" / "reference" / "hydro"
@@ -38,7 +38,7 @@ NODATA = -9999.0
 
 
 def wbt_exe() -> Path:
-    env = os.environ.get("LANDSCHAFT_WBT")
+    env = _env.get("WBT")
     if env:
         return Path(env)
     import whitebox

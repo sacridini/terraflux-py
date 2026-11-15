@@ -23,8 +23,8 @@ START_TIMEOUT = 300.0
 
 def child_env(cores: int) -> dict:
     env = dict(os.environ)
-    # terraflux reads LANDSCHAFT_NUM_THREADS first; OMP_NUM_THREADS bounds the BLAS libraries of the child too
-    env["LANDSCHAFT_NUM_THREADS"] = env["OMP_NUM_THREADS"] = str(max(1, cores))
+    # terraflux reads TERRAFLUX_THREADS first; OMP_NUM_THREADS bounds the BLAS libraries of the child too
+    env["TERRAFLUX_THREADS"] = env["OMP_NUM_THREADS"] = str(max(1, cores))
     env["PYTHONUNBUFFERED"] = "1"
     if sys.platform == "darwin":
         env["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -48,7 +48,7 @@ class Slot:
                                          stdout=subprocess.PIPE, stderr=err, cwd=str(self.log.parent),
                                          env=child_env(self.cores), creationflags=flags)
         self._lines = queue.Queue()
-        threading.Thread(target=self._read, args=(self.proc, self._lines), name="landschaft-dist-child",
+        threading.Thread(target=self._read, args=(self.proc, self._lines), name="terraflux-dist-child",
                          daemon=True).start()
         reply = self._wait(None, START_TIMEOUT)
         if reply is None or not reply.get("ready"):

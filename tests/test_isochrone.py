@@ -4,7 +4,7 @@
 The isochrone references run GTB's own code (tests/gtb_idl/gtb_isochrone.pro,
 the 'cost_map' event of guidostoolbox.pro) in GDL together with GTB's ``ggeo``
 program; see tools/make_reference_idl.py. ``live_reference`` tests need GDL
-and ggeo (``LANDSCHAFT_GGEO_EXE`` or a GTB desktop installation).
+and ggeo (``TERRAFLUX_GGEO_EXE`` or a GTB desktop installation).
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ def test_isochrone_xarray(tmp_path):
     r, m = simple_case()
     da = xr.DataArray(r, dims=("y", "x"), coords={"y": np.arange(30), "x": np.arange(40)})
     res = tf.isochrone_map_ab(da, m)
-    assert isinstance(res.map, xr.DataArray) and res.map.attrs["landschaft_product"] == "ISOCHRONE_AB"
+    assert isinstance(res.map, xr.DataArray) and res.map.attrs["terraflux_product"] == "ISOCHRONE_AB"
     tf.write_raster(res.map, tmp_path / "iso.tif")
 
 
@@ -187,7 +187,7 @@ def test_isochrone_matches_stored_gtb_outputs(reference_inputs, case):
 def gtb_tools():
     gdl, ggeo = find_gdl(), find_ggeo()
     if gdl is None or ggeo is None:
-        pytest.skip("GDL and GTB's ggeo are needed to run GTB's code live (LANDSCHAFT_GDL_EXE, LANDSCHAFT_GGEO_EXE)")
+        pytest.skip("GDL and GTB's ggeo are needed to run GTB's code live (TERRAFLUX_GDL_EXE, TERRAFLUX_GGEO_EXE)")
     return gdl, ggeo
 
 

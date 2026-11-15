@@ -538,7 +538,7 @@ def plot(obj, *, column=None, cmap=None, labels=None, categorical=None, vmin=Non
     20 000 features (up to 2 million) are drawn by the graphics card (WebGL), sharp
     at every zoom, the feature under the cursor read as for rasters. While Python
     runs (a notebook's kernel, a script's window), zooming in past the overview
-    draws the part in view in full detail (``LANDSCHAFT_PLOT_LIVE=0``: off).
+    draws the part in view in full detail (``TERRAFLUX_PLOT_LIVE=0``: off).
 
     Parameters
     ----------
@@ -591,7 +591,7 @@ def plot(obj, *, column=None, cmap=None, labels=None, categorical=None, vmin=Non
         the links up to that distance); of a static figure (see ``static``).
     show
         Show the plot now (default: outside notebooks, unless the environment
-        variable ``LANDSCHAFT_PLOT_SHOW`` is ``0``); in a notebook, the returned
+        variable ``TERRAFLUX_PLOT_SHOW`` is ``0``); in a notebook, the returned
         Plot shows itself.
 
     Returns

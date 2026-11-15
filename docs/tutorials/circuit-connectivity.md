@@ -80,7 +80,7 @@ distance of the species, in cells.
 !!! tip "Speed"
     The time grows with the number of windows and their size: `block_size`
     of 3–9 cuts the windows by 9–81× with little effect on the result.
-    Terraflux solves every window exactly and uses all cores but one.
+    Terraflux solves every window exactly and uses most of the cores.
 
 ## Between focal points (pairwise)
 

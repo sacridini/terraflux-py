@@ -12,7 +12,7 @@ transition as ``<key>/i``, ``/j``, ``/x``: its matrix in triplets, 0-based, both
 triangles) and their kinds in ``<group>.json``. ``--case`` regenerates only the
 named cases of the group (the others are kept).
 
-Needs Rscript (``LANDSCHAFT_RSCRIPT`` as in ``tests/lsm_reference.py``) with
+Needs Rscript (``TERRAFLUX_RSCRIPT`` as in ``tests/lsm_reference.py``) with
 gdistance (and raster, igraph, jsonlite) in the default library. The
 test-suite reads the stored files, so it runs anywhere without R.
 """
@@ -44,7 +44,7 @@ def run_group(group: str, only: list[str] | None = None) -> None:
         return
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     names = sorted({c.raster for c in cases.values() if c.raster} | set(cost_cases.EXTRA_RASTERS.get(group, ())))
     with tempfile.TemporaryDirectory(prefix="cost_ref_") as tmp:
         tmp = Path(tmp)

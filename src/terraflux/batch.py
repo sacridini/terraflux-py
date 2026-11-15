@@ -154,7 +154,7 @@ def run_parallel(
 
 class _Record:
     """A batch's part of the inputs (``shard=``) and, in a batch job or with ``shard=`` / ``requeue=``,
-    its record in ``<output_dir>/.landschaft-batch/`` and SIGTERM as a stop (see ``terraflux._jobs``)."""
+    its record in ``<output_dir>/.terraflux-batch/`` and SIGTERM as a stop (see ``terraflux._jobs``)."""
 
     def __init__(self, out_dir: Path, tool: str, params: dict, paths: list[Path], marker: Callable[[Path], Path],
                  shard, requeue: bool, overwrite: bool):
@@ -245,7 +245,7 @@ def mspa_batch(
     connectivity, edge_width, transition, internal
         MSPA parameters, see :func:`terraflux.mspa`.
     n_workers
-        Rasters processed concurrently. Default: all cores but one, divided
+        Rasters processed concurrently. Default: most of the cores, divided
         by ``threads_per_worker``.
     threads_per_worker
         Threads inside each raster (default 1: best throughput for many
@@ -541,7 +541,7 @@ def _write_meta(meta_path: Path, name: str, src: Path, params: dict, outputs: li
     part.write_text(json.dumps({
         "tool": name, "input": str(src), "params": _json_value(params),
         "outputs": [str(p) for p in outputs], "values": values,
-        "seconds": round(seconds, 3), "landschaft": __version__,
+        "seconds": round(seconds, 3), "terraflux": __version__,
     }, indent=1))
     os.replace(part, meta_path)
 

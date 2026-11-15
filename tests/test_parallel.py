@@ -22,7 +22,7 @@ S = tf.simulate
 
 @pytest.fixture
 def group(tmp_path, monkeypatch):
-    monkeypatch.setenv("LANDSCHAFT_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("TERRAFLUX_CONFIG_DIR", str(tmp_path / "config"))
     return _group.ensure_secret()
 
 

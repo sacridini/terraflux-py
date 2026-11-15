@@ -5,23 +5,23 @@ One function per engine, each taking a case's job and a scratch folder and
 giving a dict ``key -> numpy array or list of str``:
 
 - ``clumondo``: CLUMondo (github.com/VUEG/CLUMondo, GPL-3) built 32-bit with
-  MSVC (``LANDSCHAFT_CLUMONDO``, default
+  MSVC (``TERRAFLUX_CLUMONDO``, default
   ``~/Documents/dev/CLUMondo/build/bin/Release/clumondo.exe``); the job holds
   the project files (text, or 2-D arrays written as ESRI ASCII grids);
 - ``grass``: GRASS GIS 8 with the r.futures addon in WSL
-  (``LANDSCHAFT_WSL_DISTRO`` optional); the job holds GeoTIFF inputs and a
+  (``TERRAFLUX_WSL_DISTRO`` optional); the job holds GeoTIFF inputs and a
   bash script run inside a temporary GRASS project;
 - ``wsl_python``: a Python script run with WSL's python3 (e.g. calling
   GRASS's C library through ctypes), writing ``.npy`` files;
-- ``dinamica``: Dinamica EGO 8's console (``LANDSCHAFT_DINAMICA``, default
+- ``dinamica``: Dinamica EGO 8's console (``TERRAFLUX_DINAMICA``, default
   ``~/Documents/dev/dinamica_ego/install/DinamicaConsole8.exe``), one
   processor and the predefined seed; the job holds GeoTIFF inputs and an EGO
   script;
-- ``molusce``: the MOLUSCE QGIS plugin's algorithms (``LANDSCHAFT_MOLUSCE``,
+- ``molusce``: the MOLUSCE QGIS plugin's algorithms (``TERRAFLUX_MOLUSCE``,
   default ``~/Documents/dev/qgis_molusce/src``) imported with stubs for the
   QGIS / Qt modules they name; the job is a function of the imported package;
 - ``molusce_fixed``: the same with ``tools/molusce_fixed.patch`` applied
-  (``LANDSCHAFT_MOLUSCE_FIXED``, default ``~/Documents/dev/qgis_molusce_fixed/src``:
+  (``TERRAFLUX_MOLUSCE_FIXED``, default ``~/Documents/dev/qgis_molusce_fixed/src``:
   the WoE prediction's confidence from the two largest weights).
 
 The R packages (lulcc, OpenLand, diffeR) run through
@@ -32,26 +32,26 @@ from __future__ import annotations
 
 import csv
 import importlib
-import os
 import subprocess
 import sys
 import types
 from pathlib import Path, PureWindowsPath
 
 import numpy as np
+from terraflux import _env
 
 DEV = Path.home() / "Documents" / "dev"
-CLUMONDO = Path(os.environ.get("LANDSCHAFT_CLUMONDO", DEV / "CLUMondo" / "build" / "bin" / "Release" / "clumondo.exe"))
+CLUMONDO = Path(_env.get("CLUMONDO", DEV / "CLUMondo" / "build" / "bin" / "Release" / "clumondo.exe"))
 # CLUMondo with tools/clumondo_fixed.patch applied, built the same way
-CLUMONDO_FIXED = Path(os.environ.get("LANDSCHAFT_CLUMONDO_FIXED",
+CLUMONDO_FIXED = Path(_env.get("CLUMONDO_FIXED",
                                      DEV / "CLUMondo_fixed" / "build" / "bin" / "Release" / "clumondo.exe"))
 # the official executable of May 2017 (newer than the source: demand types, iteration mode 2, patches)
-CLUMONDO_2017 = Path(os.environ.get("LANDSCHAFT_CLUMONDO_2017", DEV / "CLUMondo" / "ref" / "CLUMondo_may_2017.exe"))
-DINAMICA = Path(os.environ.get("LANDSCHAFT_DINAMICA",
+CLUMONDO_2017 = Path(_env.get("CLUMONDO_2017", DEV / "CLUMondo" / "ref" / "CLUMondo_may_2017.exe"))
+DINAMICA = Path(_env.get("DINAMICA",
                                DEV / "dinamica_ego" / "install" / "DinamicaConsole8.exe"))
-MOLUSCE = Path(os.environ.get("LANDSCHAFT_MOLUSCE", DEV / "qgis_molusce" / "src"))
+MOLUSCE = Path(_env.get("MOLUSCE", DEV / "qgis_molusce" / "src"))
 # MOLUSCE with tools/molusce_fixed.patch applied
-MOLUSCE_FIXED = Path(os.environ.get("LANDSCHAFT_MOLUSCE_FIXED", DEV / "qgis_molusce_fixed" / "src"))
+MOLUSCE_FIXED = Path(_env.get("MOLUSCE_FIXED", DEV / "qgis_molusce_fixed" / "src"))
 
 
 # ----------------------------------------------------------------------------- files
@@ -141,7 +141,7 @@ def run_clumondo(job: dict, tmp: Path, exe: Path | None = None) -> dict:
     """
     exe = exe or CLUMONDO
     if not exe.is_file():
-        raise FileNotFoundError(f"CLUMondo not found at {exe} (set LANDSCHAFT_CLUMONDO / _FIXED / _2017)")
+        raise FileNotFoundError(f"CLUMondo not found at {exe} (set TERRAFLUX_CLUMONDO / _FIXED / _2017)")
     grid = job.get("grid", {})
     for name, content in job["files"].items():
         if isinstance(content, str):
@@ -171,7 +171,7 @@ def wsl_path(path: Path) -> str:
 
 
 def _wsl(cmd: str, timeout: float) -> subprocess.CompletedProcess:
-    distro = os.environ.get("LANDSCHAFT_WSL_DISTRO")
+    distro = _env.get("WSL_DISTRO")
     args = ["wsl", *(["-d", distro] if distro else []), "-e", "bash", "-lc", cmd]
     return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
 
@@ -239,7 +239,7 @@ def run_dinamica(job: dict, tmp: Path) -> dict:
     (files the script writes: ``.csv`` tables, ``.tif`` maps).
     """
     if not DINAMICA.is_file():
-        raise FileNotFoundError(f"Dinamica EGO console not found at {DINAMICA} (set LANDSCHAFT_DINAMICA)")
+        raise FileNotFoundError(f"Dinamica EGO console not found at {DINAMICA} (set TERRAFLUX_DINAMICA)")
     names = job.get("band_names", {})
     for name, da in job.get("rasters", {}).items():
         write_dinamica_raster(tmp / f"{name}.tif", da, names.get(name, name))
@@ -341,7 +341,7 @@ def molusce_version() -> str:
 def run_molusce(job, tmp: Path, root: Path = MOLUSCE) -> dict:
     """Call ``job(import_module)`` with MOLUSCE's algorithms importable; it returns the result dict."""
     if not root.is_dir():
-        raise FileNotFoundError(f"MOLUSCE sources not found at {root} (set LANDSCHAFT_MOLUSCE / _FIXED)")
+        raise FileNotFoundError(f"MOLUSCE sources not found at {root} (set TERRAFLUX_MOLUSCE / _FIXED)")
     _qgis_stubs()
     loaded = sys.modules.get("molusce")
     if loaded is not None and Path(loaded.__file__).parent.parent != root:  # the other copy: forget it

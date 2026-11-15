@@ -210,7 +210,7 @@ def influence_zones(
     buffer
         Width [pixels] of a background buffer drawn around the objects (0 = none).
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -236,12 +236,12 @@ def influence_zones(
     if buffer < 0:
         raise ValueError(f"buffer must be >= 0, got {buffer}")
     out = _core.compute_influence(arr, int(min_area), int(core_buffer), int(buffer), False, _METRIC, n_threads)
-    attrs = {"landschaft_product": "INFLUENCE_ZONES", "min_area": int(min_area), "core_buffer": int(core_buffer),
+    attrs = {"terraflux_product": "INFLUENCE_ZONES", "min_area": int(min_area), "core_buffer": int(core_buffer),
              "buffer": int(buffer), "n_objects": int(out["n_objects"])}
     return InfluenceZonesResult(
         classes=_wrap(out["classes"], template, "influence_zones", attrs),
-        ids=_wrap(out["ids"], template, "influence_ids", attrs | {"landschaft_product": "INFLUENCE_IDS"}),
-        zones=_wrap(out["zones"], template, "influence_zone_labels", attrs | {"landschaft_product": "INFLUENCE_LABELS"}),
+        ids=_wrap(out["ids"], template, "influence_ids", attrs | {"terraflux_product": "INFLUENCE_IDS"}),
+        zones=_wrap(out["zones"], template, "influence_zone_labels", attrs | {"terraflux_product": "INFLUENCE_LABELS"}),
         object_area=np.asarray(out["object_area"][1:], dtype=np.int64),
         min_area=int(min_area),
         core_buffer=int(core_buffer),
@@ -275,7 +275,7 @@ def proximity(
     prox_max
         Watershed lines with a proximity up to this value are marked 165.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------
@@ -299,7 +299,7 @@ def proximity(
     if prox_max < 0:
         raise ValueError(f"prox_max must be >= 0, got {prox_max}")
     out = _core.compute_influence(arr, int(min_area), int(core_buffer), int(prox_max), True, _METRIC, n_threads)
-    attrs = {"landschaft_product": "PROXIMITY", "min_area": int(min_area), "core_buffer": int(core_buffer),
+    attrs = {"terraflux_product": "PROXIMITY", "min_area": int(min_area), "core_buffer": int(core_buffer),
              "prox_max": int(prox_max), "n_objects": int(out["n_objects"])}
     has_lines = "cag" in out
     cag = out["cag"] if has_lines else np.zeros(arr.shape, dtype=np.int64)
@@ -309,10 +309,10 @@ def proximity(
     )
     return ProximityResult(
         classes=_wrap(out["classes"], template, "proximity", attrs),
-        ids=_wrap(out["ids"], template, "proximity_ids", attrs | {"landschaft_product": "PROXIMITY_IDS"}),
-        zones=_wrap(out["zones"], template, "proximity_zone_labels", attrs | {"landschaft_product": "PROXIMITY_LABELS"}),
-        distance=_wrap(out["distance"], template, "proximity_distance", attrs | {"landschaft_product": "PROXIMITY_DISTANCE"}),
-        cag=_wrap(cag, template, "proximity_cag", attrs | {"landschaft_product": "PROXIMITY_CAG"}),
+        ids=_wrap(out["ids"], template, "proximity_ids", attrs | {"terraflux_product": "PROXIMITY_IDS"}),
+        zones=_wrap(out["zones"], template, "proximity_zone_labels", attrs | {"terraflux_product": "PROXIMITY_LABELS"}),
+        distance=_wrap(out["distance"], template, "proximity_distance", attrs | {"terraflux_product": "PROXIMITY_DISTANCE"}),
+        cag=_wrap(cag, template, "proximity_cag", attrs | {"terraflux_product": "PROXIMITY_CAG"}),
         object_area=np.asarray(out["object_area"][1:], dtype=np.int64),
         lines=lines,
         prox_min=int(out["prox_min"]) if has_lines else None,

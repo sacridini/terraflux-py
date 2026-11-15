@@ -77,7 +77,7 @@ where it stopped (`overwrite=True` recomputes).
 
 | Option | Default | Meaning |
 |---|---|---|
-| `n_workers` | all cores but one | rasters in flight |
+| `n_workers` | most of the cores | rasters in flight |
 | `threads_per_worker` | 1 | threads inside each raster: best throughput for many small rasters; raise it for a few large ones |
 | `max_memory` | none | e.g. `"16GB"`: a raster starts only when its estimated memory fits |
 | `raise_errors` | False | stop at the first error instead of recording it |
@@ -151,7 +151,7 @@ morph_stack.shape
 
 ## Threads and memory
 
-- Every parallel function uses all cores but one by default; see
+- Every parallel function uses most of the cores by default; see
   [configuration](../getting-started/configuration.md#threads).
 - Collections and `batch`: `n_workers × threads_per_worker` threads; a
   memory budget with `max_memory`.

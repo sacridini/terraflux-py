@@ -49,7 +49,7 @@ does the same).
 
 <!-- no-run -->
 ```bash
-terraflux-py worker              # all cores but one, until Ctrl+C
+terraflux-py worker              # most of the cores, until Ctrl+C
 terraflux-py worker --cores 6    # lend only part of the machine
 ```
 

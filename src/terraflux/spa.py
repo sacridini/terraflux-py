@@ -129,7 +129,7 @@ def spa(data, variant: int = 5, *, n_threads: int = 0) -> SPAResult:
     variant
         2, 3, 5 (default) or 6.
     n_threads
-        Threads (``None`` / 0: all cores but one).
+        Threads (``None`` / 0: most of the cores).
 
     Returns
     -------
@@ -191,5 +191,5 @@ def spa(data, variant: int = 5, *, n_threads: int = 0) -> SPAResult:
     if template is not None:
         result_map = template.copy(data=m)
         result_map.name = f"spa{variant}"
-        result_map.attrs = dict(template.attrs) | {"landschaft_product": f"SPA{variant}", "spa_variant": variant}
+        result_map.attrs = dict(template.attrs) | {"terraflux_product": f"SPA{variant}", "spa_variant": variant}
     return SPAResult(map=result_map, variant=variant, stats=stats, counts=counts, areas=areas, porosity=porosity)

@@ -148,7 +148,7 @@ class Server:
                                                  do_handshake_on_connect=False)
         self._httpd.app = app
         self.port = self._httpd.server_address[1]
-        self._thread = threading.Thread(target=self._httpd.serve_forever, name="landschaft-dist-server", daemon=True)
+        self._thread = threading.Thread(target=self._httpd.serve_forever, name="terraflux-dist-server", daemon=True)
 
     def start(self) -> "Server":
         self._thread.start()
@@ -201,7 +201,7 @@ class Session:
     def _request(self, method: str, path: str, body=None, headers=None) -> http.client.HTTPResponse:
         headers = dict(headers or {})
         if self.token:
-            headers["X-Landschaft-Session"] = self.token
+            headers["X-Landschaft-Session"] = self.token  # old header names kept on purpose (paired helpers)
         retry = body is None or isinstance(body, (bytes, str))
         for attempt in range(2):
             try:
@@ -301,6 +301,7 @@ def find(message: dict, accept: Callable[[dict], bool], *, timeout: Optional[flo
          port: int = _group.UDP_PORT, targets: Optional[List[str]] = None) -> Optional[Tuple[str, dict]]:
     """Broadcast ``message`` every ``interval`` seconds until a reply that ``accept``s
     arrives: (the replier's address, the reply). None on timeout or stop."""
+    # the "landschaft" key of the messages is kept on purpose: helpers paired before the rename speak it
     payload = json.dumps({"landschaft": _group.PROTOCOL, **message}).encode()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -348,7 +349,7 @@ class Responder:
         self._sock.bind((host, port))
         self._sock.settimeout(0.5)
         self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._run, name="landschaft-dist-discovery", daemon=True)
+        self._thread = threading.Thread(target=self._run, name="terraflux-dist-discovery", daemon=True)
 
     def start(self) -> "Responder":
         self._thread.start()

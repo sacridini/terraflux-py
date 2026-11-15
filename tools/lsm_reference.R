@@ -11,13 +11,13 @@
 # significant digits so the comparison is limited by the metric, not by
 # the text format.
 #
-# Set LANDSCHAFT_R_LIBS to a library that holds the landscapemetrics version
+# Set TERRAFLUX_R_LIBS to a library that holds the landscapemetrics version
 # to compare against (it is put first on .libPaths()).
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2) stop("usage: lsm_reference.R input.tif output.csv [key=value ...]")
 
-lib <- Sys.getenv("LANDSCHAFT_R_LIBS")
+lib <- Sys.getenv("TERRAFLUX_R_LIBS", Sys.getenv("LANDSCHAFT_R_LIBS"))
 if (nzchar(lib)) .libPaths(c(strsplit(lib, .Platform$path.sep)[[1]], .libPaths()))
 
 suppressPackageStartupMessages({

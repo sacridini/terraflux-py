@@ -9,12 +9,13 @@ from __future__ import annotations
 import base64
 import functools
 import math
-import os
 import threading
 import uuid
 from collections import OrderedDict
 
 import numpy as np
+
+from .. import _env
 
 #: Maps whose layers answer (the most recent; their data stay in memory as long as they are here).
 MAX_MAPS = 32
@@ -26,8 +27,8 @@ _LOCK = threading.Lock()
 
 
 def enabled() -> bool:
-    """Detail on demand, unless LANDSCHAFT_PLOT_LIVE=0."""
-    return os.environ.get("LANDSCHAFT_PLOT_LIVE", "1") not in ("0", "false", "no")
+    """Detail on demand, unless TERRAFLUX_PLOT_LIVE=0."""
+    return _env.get("PLOT_LIVE", "1") not in ("0", "false", "no")
 
 
 def new_map() -> str:

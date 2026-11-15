@@ -86,7 +86,7 @@ def trend(maps, *, alpha: float = 0.05, nodata=None, n_threads: int | None = Non
     nodata
         Value marking missing cells (default: the rasters' no-data value).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

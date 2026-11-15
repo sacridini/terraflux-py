@@ -73,7 +73,7 @@ def crosstab(from_map, to_map, *, nodata=None, labels: dict | None = None) -> pd
     labels
         Names of the classes (``{value: name}``) for the rows and columns.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------
@@ -416,7 +416,7 @@ def changes(maps, times=None, *, cell_area: float | None = None, nodata=None, la
     labels
         Names of the classes, ``{value: name}``, for matrices and tables.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

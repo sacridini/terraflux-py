@@ -130,7 +130,7 @@ def intactness(
         (a raster or a number) and the share of each cell restored. The
         footprint becomes HFI - reduction x restored, at least 0.
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

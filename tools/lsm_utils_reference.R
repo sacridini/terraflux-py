@@ -14,7 +14,7 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2) stop("usage: lsm_utils_reference.R input.tif outdir [key=value ...]")
 
-lib <- Sys.getenv("LANDSCHAFT_R_LIBS")
+lib <- Sys.getenv("TERRAFLUX_R_LIBS", Sys.getenv("LANDSCHAFT_R_LIBS"))
 if (nzchar(lib)) .libPaths(c(strsplit(lib, .Platform$path.sep)[[1]], .libPaths()))
 
 suppressPackageStartupMessages({

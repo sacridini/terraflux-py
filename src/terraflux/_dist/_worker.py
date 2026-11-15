@@ -31,8 +31,9 @@ SECRET_WAIT = 300.0       # in a batch job, how long a helper waits for the coor
 
 
 def default_cache_dir() -> Path:
-    """``helper`` in terraflux's cache (``LANDSCHAFT_CACHE``, else the platform's, see ``_download``), or
+    """``helper`` in terraflux's cache (``TERRAFLUX_CACHE``, else the platform's, see ``_download``), or
     the folder an older terraflux kept, where it exists."""
+    from .. import _env
     from .._download import cache_dir
 
     if sys.platform == "win32":
@@ -40,7 +41,7 @@ def default_cache_dir() -> Path:
     else:
         old = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "landschaft" / "helper"
     new = cache_dir() / "helper"
-    return old if not os.environ.get("LANDSCHAFT_CACHE") and old != new and old.is_dir() else new
+    return old if not _env.get("CACHE") and old != new and old.is_dir() else new
 
 
 def wait_for_secret(stop: threading.Event, out, seconds: float = SECRET_WAIT) -> bytes | None:
@@ -222,14 +223,14 @@ class _Job:
         self.used = 0                  # threads of the running tasks
         self.ended = threading.Event()
         self.error: str | None = None
-        self.tmp = Path(tempfile.mkdtemp(prefix="landschaft-worker-"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="terraflux-worker-"))
         self.slots = Slots(cores, self.tmp / "children")
         self.results_roots: dict = {}
         self.uses: dict = {}           # cached file -> tasks holding it (never evicted meanwhile)
 
     def run(self) -> None:
-        threads = [threading.Thread(target=self._fetcher, name="landschaft-worker-fetch", daemon=True),
-                   threading.Thread(target=self._heartbeat, name="landschaft-worker-heartbeat", daemon=True)]
+        threads = [threading.Thread(target=self._fetcher, name="terraflux-worker-fetch", daemon=True),
+                   threading.Thread(target=self._heartbeat, name="terraflux-worker-heartbeat", daemon=True)]
         for t in threads:
             t.start()
         try:
@@ -434,7 +435,7 @@ class _Job:
                 self.used += threads
                 self.cond.notify_all()
             threading.Thread(target=self._run_one, args=(task, folder, via, starved, cancel, fetch_end - fetch_start,
-                                                         threads, files), name="landschaft-worker-task",
+                                                         threads, files), name="terraflux-worker-task",
                              daemon=True).start()
             waiting_since = time.monotonic()
 

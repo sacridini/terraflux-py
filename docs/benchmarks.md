@@ -586,28 +586,28 @@ The live runs look for the originals in these environment variables:
 
 | Variable | Original |
 |---|---|
-| `LANDSCHAFT_MSPA_EXE` | GuidosToolbox's `mspa` executable (`MSPAstandalone/mspa_win64.exe`) |
-| `LANDSCHAFT_GDL_EXE` | GDL, to run GuidosToolbox's IDL code |
-| `LANDSCHAFT_SPATCON_EXE`, `LANDSCHAFT_GRAYSPATCON_EXE`, `LANDSCHAFT_GGEO_EXE` | GuidosToolbox's helper programs |
-| `LANDSCHAFT_RSCRIPT`, `LANDSCHAFT_R_LIBS` | R with landscapemetrics and Makurhini |
-| `LANDSCHAFT_JULIA`, `LANDSCHAFT_JULIA_PROJECT` | Julia with Circuitscape and Omniscape |
+| `TERRAFLUX_MSPA_EXE` | GuidosToolbox's `mspa` executable (`MSPAstandalone/mspa_win64.exe`) |
+| `TERRAFLUX_GDL_EXE` | GDL, to run GuidosToolbox's IDL code |
+| `TERRAFLUX_SPATCON_EXE`, `TERRAFLUX_GRAYSPATCON_EXE`, `TERRAFLUX_GGEO_EXE` | GuidosToolbox's helper programs |
+| `TERRAFLUX_RSCRIPT`, `TERRAFLUX_R_LIBS` | R with landscapemetrics and Makurhini |
+| `TERRAFLUX_JULIA`, `TERRAFLUX_JULIA_PROJECT` | Julia with Circuitscape and Omniscape |
 
 `tools/make_reference*.py` regenerate the stored references from the
 originals, and `python tools/benchmark.py --exe <mspa executable>` repeats
 the MSPA timings. `tools/make_reference_optimize.py` and `tools/benchmark_optimize.py` use R
-with prioritizr, prioriactions and gurobi (`LANDSCHAFT_RSCRIPT`,
-`LANDSCHAFT_R_LIBS`); Marxan's references come from its executable in WSL.
+with prioritizr, prioriactions and gurobi (`TERRAFLUX_RSCRIPT`,
+`TERRAFLUX_R_LIBS`); Marxan's references come from its executable in WSL.
 `tools/make_reference_prioritize.py` and
 `tools/benchmark_prioritize.py` look for Zonation 5's `z5.exe` and
-`z5_16bit.exe` in `LANDSCHAFT_Z5_DIR`.
+`z5_16bit.exe` in `TERRAFLUX_Z5_DIR`.
 `tools/make_reference_sdm.py` and `tools/benchmark_sdm.py` use R with the
-packages listed above in `LANDSCHAFT_SDM_R_LIBS` (default
+packages listed above in `TERRAFLUX_SDM_R_LIBS` (default
 `%LOCALAPPDATA%/R/landschaft-sdm-lib`).
 `tools/make_reference_simulate.py` and `tools/benchmark_simulate.py` use R
-with lulcc, OpenLand and diffeR (`LANDSCHAFT_SIM_R_LIBS`, default
-`%LOCALAPPDATA%/R/landschaft-sim-lib`), CLUMondo (`LANDSCHAFT_CLUMONDO`,
-`LANDSCHAFT_CLUMONDO_FIXED`), GRASS 8 with the `r.futures` addons in WSL,
-Dinamica EGO's console (`LANDSCHAFT_DINAMICA`) and MOLUSCE's sources
-(`LANDSCHAFT_MOLUSCE`, `LANDSCHAFT_MOLUSCE_FIXED`);
+with lulcc, OpenLand and diffeR (`TERRAFLUX_SIM_R_LIBS`, default
+`%LOCALAPPDATA%/R/landschaft-sim-lib`), CLUMondo (`TERRAFLUX_CLUMONDO`,
+`TERRAFLUX_CLUMONDO_FIXED`), GRASS 8 with the `r.futures` addons in WSL,
+Dinamica EGO's console (`TERRAFLUX_DINAMICA`) and MOLUSCE's sources
+(`TERRAFLUX_MOLUSCE`, `TERRAFLUX_MOLUSCE_FIXED`);
 `tools/benchmark_dinamica.py` times the Dinamica EGO functors added in 1.46
 on 4 cores.

@@ -107,7 +107,7 @@ def parcellation(
     return_labels
         Also return a map of the parcels.
     n_threads
-        Threads (``None`` / 0: all cores but one).
+        Threads (``None`` / 0: most of the cores).
 
     Returns
     -------

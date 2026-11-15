@@ -36,7 +36,7 @@ It provides a native **C++17 / OpenMP** core exposed through zero-copy **pybind1
   * Forest Area Density (FAD) uses **2D Integral Images** (Summed-Area Tables) for $O(1)$ computation per pixel regardless of window size ($7 \times 7$ up to $243 \times 243$).
   * GraySpatCon uses **101-bin sliding histograms** that update columns in $O(1)$ rather than re-scanning the window.
 * **Full Geospatial Metadata Preservation**: All high-level functions accept and return `xarray.DataArray` objects, seamlessly preserving CRS, affine geotransforms, spatial coordinates, and nodata masks.
-* **Threads: all cores but one by default.** Every function that runs in parallel takes `n_threads` (and the ones that run several rasters at once, `n_workers`); `None` or 0 means all the cores the process may use but one, so the machine stays responsive. `tf.default_threads()` gives that count, `tf.set_default_threads(n)` changes it for the whole process (`None`: back to all cores but one). The compiled code follows the same rule even where a function has no thread argument of its own (every call into it sets the OpenMP thread count of the calling thread), in any Python thread. Results never depend on the number of threads.
+* **Threads: most of the cores by default.** Every function that runs in parallel takes `n_threads` (and the ones that run several rasters at once, `n_workers`); `None` or 0 means all the cores the process may use but one, so the machine stays responsive. `tf.default_threads()` gives that count, `tf.set_default_threads(n)` changes it for the whole process (`None`: back to most of the cores). The compiled code follows the same rule even where a function has no thread argument of its own (every call into it sets the OpenMP thread count of the calling thread), in any Python thread. Results never depend on the number of threads.
 
 ```python
 tf.default_threads()               # e.g. 19 on a 20-core machine
@@ -160,7 +160,7 @@ result = tf.mspa(
     edge_width=1,     # Effective edge width in pixels (1 to 255)
     transition=True,  # Transition parameter for color styling
     internal=True,    # Identifies internal perforations and core openings
-    n_threads=None,   # OpenMP threads (None / 0: all cores but one)
+    n_threads=None,   # OpenMP threads (None / 0: most of the cores)
 )
 ```
 
@@ -764,7 +764,7 @@ full names (`"shannon_diversity_index"`, `"effective_mesh_size"`, …); the colu
 the names as asked. The `metric=` filter accepts family aliases (`"shape_index"`).
 
 **Threads.** `n_threads` (in `Landscape`, `landscape_metrics`, `sample_metrics`,
-`window_metrics`, ...) limits the C++ core (default: all cores but one); the results do
+`window_metrics`, ...) limits the C++ core (default: most of the cores); the results do
 not depend on it.
 
 **FRAGSTATS-only metrics** (extras; landscapemetrics has none of them):
@@ -1134,8 +1134,8 @@ maps (its `landscape`, crops of `augusta_nlcd` and `podlasie_ccilc`, synthetic m
 with NA cells, negative and large class values, non-square cells, salt-and-pepper
 patterns, few distant patches with a non-integer cell size, a checkerboard, single
 rows and columns, a single class) with 5 option sets, and stores every value in `tests/data/reference/lsm`. `tests/test_lsm_reference.py`
-compares all of them; with `Rscript` available (`LANDSCHAFT_RSCRIPT`,
-`LANDSCHAFT_R_LIBS` for a specific landscapemetrics library) it also runs
+compares all of them; with `Rscript` available (`TERRAFLUX_RSCRIPT`,
+`TERRAFLUX_R_LIBS` for a specific landscapemetrics library) it also runs
 landscapemetrics live on random maps with other option combinations.
 `make_reference_lsm.py sample window` also stores `sample_lsm` (square, circle and
 polygon plots, with and without `all_classes`, a CRS and boundary options) and
@@ -1675,7 +1675,7 @@ How it is fast:
 * the flow potential has conductance 1 everywhere: its factorisation is done once per
   shape and thread, and the flow potentials of up to 8 targets are solved together;
 * on x86-64 the circuit code is also built for AVX2 and FMA (`terraflux._circuit_avx2`,
-  loaded only when the CPU has them; `LANDSCHAFT_CIRCUIT_AVX2=0` keeps the baseline
+  loaded only when the CPU has them; `TERRAFLUX_CIRCUIT_AVX2=0` keeps the baseline
   build): the dense kernels are 1.2-1.5x faster. Both builds give the same results to
   1e-11 and are each deterministic (buffers aligned to 64 bytes);
 * windows are solved in parallel and added to the maps row by row in a fixed order, so

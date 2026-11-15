@@ -165,7 +165,7 @@ Trees convert to and from Bio.Phylo, DendroPy and ete (`tree.to_dendropy()`,
 - **Phylogenetic community structure**: `nri_nti_expected_values`,
   `phylo_mpd_mntd1` and the net relatedness and nearest taxon indices
   (Webb et al. 2002).
-- **Threads**: every analysis takes `n_threads` (default: all cores but one).
+- **Threads**: every analysis takes `n_threads` (default: most of the cores).
 
 The [API reference](../api/biodiversity.md) documents every class and
 function.

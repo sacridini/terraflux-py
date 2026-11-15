@@ -31,7 +31,7 @@ def distance(tracks, units: str | None = None, *, time: str | None = None, track
         (:func:`set_columns`) or with the usual names (``timestamp``,
         ``individual-local-identifier``, ``track``...).
     n_threads
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

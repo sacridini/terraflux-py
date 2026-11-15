@@ -273,7 +273,7 @@ def h3_units(cost: xr.DataArray, resolution: int, n_threads: int | None = None):
     resolution
         The H3 resolution (0-15; 7 is about 5 km², 8 about 0.7 km²).
     n_threads
-        Threads for the sums (default: all cores but one).
+        Threads for the sums (default: most of the cores).
 
     Returns
     -------
@@ -1111,7 +1111,7 @@ class Problem:
         seed
             The same seed gives the same solution on any number of threads.
         n_threads
-            Runs in parallel (default: all cores but one).
+            Runs in parallel (default: most of the cores).
         """
         if num_reps < 1:
             raise ValueError("num_reps must be at least 1")

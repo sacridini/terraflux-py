@@ -11,8 +11,8 @@ functions on them through ``tools/plangea_reference.R`` and stores the results i
 the md5 of every plangea R file in ``reference.json``.
 
 plangea (International Institute for Sustainability, GPL >= 3) is not on CRAN: its R files are
-sourced from ``--plangea`` (default ``LANDSCHAFT_PLANGEA`` or
-``C:/Users/eduar/Documents/dev/plangea-pkg-dev``). Needs Rscript (``LANDSCHAFT_RSCRIPT`` as in
+sourced from ``--plangea`` (default ``TERRAFLUX_PLANGEA`` or
+``C:/Users/eduar/Documents/dev/plangea-pkg-dev``). Needs Rscript (``TERRAFLUX_RSCRIPT`` as in
 ``tests/lsm_reference.py``) with raster, foreach, purrr, dplyr and jsonlite. The test-suite reads the
 stored files, so it runs anywhere without R.
 """
@@ -21,13 +21,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -37,7 +37,7 @@ import plangea_cases as pc
 
 OUT = ROOT / "tests" / "data" / "reference" / "plangea"
 R_SCRIPT = ROOT / "tools" / "plangea_reference.R"
-DEFAULT_PLANGEA = Path(os.environ.get("LANDSCHAFT_PLANGEA", "C:/Users/eduar/Documents/dev/plangea-pkg-dev"))
+DEFAULT_PLANGEA = Path(_env.get("PLANGEA", "C:/Users/eduar/Documents/dev/plangea-pkg-dev"))
 
 
 def write_tif(path: Path, values: np.ndarray, res: float = pc.RES) -> str:
@@ -101,7 +101,7 @@ def main() -> None:
     args = parser.parse_args()
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     with tempfile.TemporaryDirectory(prefix="plangea_ref_") as tmp:
         tmp = Path(tmp)
         cases = []

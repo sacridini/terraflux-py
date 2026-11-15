@@ -82,7 +82,7 @@ def classify(x, n: int | None = None, weighting: Sequence[float] | None = None,
     mask_val : float, optional
         Value of ``real_land`` to ignore (and to remove from ``x``).
     n_threads : int, optional
-        Threads (default: all cores but one).
+        Threads (default: most of the cores).
 
     Returns
     -------

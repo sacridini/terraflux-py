@@ -9,7 +9,7 @@ names; and the environment of Hydrography90m's sub-catchments (the climate,
 land cover and soil Environment90m sums up for each) as a table or a map. GDAL
 reads only the part of each file the grid covers, warps it onto the grid of
 `like` (or of an `extent` in longitudes and latitudes and a `cellsize`), and
-the result is kept in the cache (`LANDSCHAFT_CACHE`): a second call reads the
+the result is kept in the cache (`TERRAFLUX_CACHE`): a second call reads the
 file it wrote. Classes are resampled by their most common cell, values
 bilinearly. The `tf.download` module.
 

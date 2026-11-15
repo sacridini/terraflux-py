@@ -86,7 +86,7 @@ def spatial_entropy(
     data : xarray.DataArray or numpy.ndarray
         2D raster coded 0=missing, 1=background, 2=foreground.
     threads : int, default 0
-        Threads of the compiled code (also as ``n_threads``); 0: all cores but one.
+        Threads of the compiled code (also as ``n_threads``); 0: most of the cores.
 
     Returns
     -------
@@ -126,7 +126,7 @@ def spatial_entropy_map(
     window_size : int, default 50
         Size of moving convolution window.
     threads : int, default 0
-        Threads of the compiled code (also as ``n_threads``); 0: all cores but one.
+        Threads of the compiled code (also as ``n_threads``); 0: most of the cores.
 
     Returns
     -------
@@ -147,7 +147,7 @@ def spatial_entropy_map(
 
     raw_map = _core.compute_spatial_entropy_map(arr, window_size, threads)
     attrs = {
-        "landschaft_product": "SPATIAL_ENTROPY",
+        "terraflux_product": "SPATIAL_ENTROPY",
         "window_size": window_size,
         "colormap": "entropy",
     }

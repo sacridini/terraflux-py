@@ -7,7 +7,7 @@ Usage::
 
 Runs the cases of ``tests/prioritize_cases.py`` (all groups by default) with the
 official Zonation 5 binaries (``z5.exe``, ``z5_16bit.exe``; directory in
-``LANDSCHAFT_Z5_DIR``, default ``~/Documents/dev/zonation5/install``) on one
+``TERRAFLUX_Z5_DIR``, default ``~/Documents/dev/zonation5/install``) on one
 thread, and stores, per group, the results in
 ``tests/data/reference/prioritize/<group>.npz`` (``<case>/<key>`` arrays: the
 rank map, the feature info as numbers and, lzma-compressed, the text of the
@@ -27,7 +27,6 @@ from __future__ import annotations
 import argparse
 import json
 import lzma
-import os
 import shlex
 import subprocess
 import sys
@@ -35,6 +34,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 import prioritize_cases  # noqa: E402
 
 OUT = ROOT / "tests" / "data" / "reference" / "prioritize"
-Z5_DIR = Path(os.environ.get("LANDSCHAFT_Z5_DIR", Path.home() / "Documents" / "dev" / "zonation5" / "install"))
+Z5_DIR = Path(_env.get("Z5_DIR", Path.home() / "Documents" / "dev" / "zonation5" / "install"))
 TABLES = {  # output file -> key
     "feature_curves.csv": "feature_curves",
     "summary_curves.csv": "summary_curves",
@@ -242,7 +242,7 @@ def run_group(group: str, only: list[str] | None, threads: int) -> None:
     if not cases:
         return
     if not (Z5_DIR / "z5.exe").exists():
-        sys.exit(f"z5.exe not found in {Z5_DIR}: set LANDSCHAFT_Z5_DIR")
+        sys.exit(f"z5.exe not found in {Z5_DIR}: set TERRAFLUX_Z5_DIR")
     arrays: dict[str, np.ndarray] = {}
     meta: dict[str, object] = {}
     for name, case in cases.items():

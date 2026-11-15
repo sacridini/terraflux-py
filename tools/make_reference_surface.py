@@ -12,8 +12,8 @@ with its errors corrected, for the functions where it errs) and stores, per grou
 their kinds and shapes in ``<group>.json`` (with the package versions).
 ``--case`` regenerates only the named cases of the group (the others are kept).
 
-Needs Rscript (``LANDSCHAFT_RSCRIPT`` as in ``tests/lsm_reference.py``) and a
-library with geodiv 1.1.1 and spatialEco 2.0-5 (``LANDSCHAFT_SURF_R_LIBS``,
+Needs Rscript (``TERRAFLUX_RSCRIPT`` as in ``tests/lsm_reference.py``) and a
+library with geodiv 1.1.1 and spatialEco 2.0-5 (``TERRAFLUX_SURF_R_LIBS``,
 default ``%LOCALAPPDATA%/R/landschaft-surf-lib``, put before the default
 libraries, which provide terra, sf and jsonlite). The test-suite reads the
 stored files, so it runs anywhere without R.
@@ -30,6 +30,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -47,7 +48,7 @@ USER_LIBS = sorted(DEFAULT_LIBS.parent.glob("win-library/*"))
 
 def r_environment() -> dict[str, str]:
     env = lsm_reference.r_environment()
-    libs = [env.get("LANDSCHAFT_SURF_R_LIBS", str(DEFAULT_LIBS)), *(str(p) for p in USER_LIBS[-1:])]
+    libs = [_env.get("SURF_R_LIBS", str(DEFAULT_LIBS)), *(str(p) for p in USER_LIBS[-1:])]
     env["R_LIBS"] = os.pathsep.join([*libs, *filter(None, [env.get("R_LIBS")])])
     return env
 
@@ -58,7 +59,7 @@ def run_group(group: str, only: list[str] | None = None) -> None:
         return
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     names = sorted({c.raster for c in cases.values() if c.raster} | set(surface_cases.EXTRA_RASTERS.get(group, ())))
     with tempfile.TemporaryDirectory(prefix="surface_ref_") as tmp:
         tmp = Path(tmp)

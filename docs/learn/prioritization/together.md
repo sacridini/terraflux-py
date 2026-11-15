@@ -163,7 +163,7 @@ poles.
 
 !!! tip "Speed checklist"
     - Ask for the gap you need: 1 % for exploring, smaller for the final plan.
-    - Solve with `n_threads` (all cores but one by default).
+    - Solve with `n_threads` (most of the cores by default).
     - Calibrate penalties on coarse blocks first.
     - Start from a ranking (`start="zonation"`) on hard problems.
     - For very large maps, prefer penalties to contiguity and corridor constraints.

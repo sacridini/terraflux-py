@@ -90,7 +90,7 @@ def advanced(conductance, source, ground, *, four_neighbors: bool = False, n_thr
     four_neighbors
         Connect the four orthogonal neighbours only.
     n_threads
-        Threads (0 or ``None``: all cores but one).
+        Threads (0 or ``None``: most of the cores).
 
     Returns
     -------

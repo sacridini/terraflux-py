@@ -174,7 +174,7 @@ def _records(df: pd.DataFrame) -> list[dict]:
 
 
 def from_tables(watershed, climate: SwatClimate, *, start=None, end=None, codes: dict | None = None,
-                name: str = "landschaft") -> SwatProject:
+                name: str = "terraflux") -> SwatProject:
     """A SWAT+ project from QSWAT+'s tables and the weather, as the SWAT+ Editor makes it.
 
     Parameters

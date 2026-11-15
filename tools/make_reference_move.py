@@ -13,8 +13,8 @@ inputs in ``tests/data/reference/move/inputs.npz`` and the results in
 ``<case>/<key>``).
 ``--case`` regenerates only the named cases (the others are kept).
 
-Needs Rscript (``LANDSCHAFT_RSCRIPT`` as in ``tests/lsm_reference.py``) and the
-library ``%LOCALAPPDATA%/R/landschaft-move-lib`` (``LANDSCHAFT_MOVE_R_LIBS``) with
+Needs Rscript (``TERRAFLUX_RSCRIPT`` as in ``tests/lsm_reference.py``) and the
+library ``%LOCALAPPDATA%/R/landschaft-move-lib`` (``TERRAFLUX_MOVE_R_LIBS``) with
 move2 0.5.0, sf, s2, lwgeom, units, amt 0.3.1, fitdistrplus 1.2-6, circular
 0.5-2, geosphere 1.6-8, suncalc 0.5.1 and terra. Runs R with ``TZ=UTC`` (suncalc
 takes the noon of the machine's time zone). The test-suite reads the stored files,
@@ -32,6 +32,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -46,7 +47,7 @@ DEFAULT_LIBS = Path(os.environ.get("LOCALAPPDATA", "")) / "R" / "landschaft-move
 
 def r_env() -> dict[str, str]:
     env = lsm_reference.r_environment()
-    libs = [env.get("LANDSCHAFT_MOVE_R_LIBS", str(DEFAULT_LIBS))]
+    libs = [_env.get("MOVE_R_LIBS", str(DEFAULT_LIBS))]
     user = sorted(DEFAULT_LIBS.parent.glob("win-library/*"))
     libs += [str(p) for p in user[-1:]]
     env["R_LIBS"] = os.pathsep.join([*libs, *filter(None, [env.get("R_LIBS")])])
@@ -63,7 +64,7 @@ def main() -> None:
     cases = {k: c for k, c in move_cases.CASES.items() if not args.case or k in args.case}
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     sets = move_cases.track_sets()
     inputs: dict[str, np.ndarray] = {}
     with tempfile.TemporaryDirectory(prefix="move_ref_") as tmp:

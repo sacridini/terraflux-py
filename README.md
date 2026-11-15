@@ -98,7 +98,7 @@ tf.landscape_metrics(landcover, level="landscape", metric=["shdi", "contag", "ed
 ```
 
 Every function takes numpy arrays, georeferenced `xarray.DataArray`s or dask arrays,
-and returns the same type; parallel functions use all cores but one unless given
+and returns the same type; parallel functions use most of the cores unless given
 `n_threads`.
 
 ## Documentation

@@ -14,7 +14,7 @@ import tempfile
 import time
 import warnings
 
-os.environ["LANDSCHAFT_PLOT_SHOW"] = "0"
+os.environ["TERRAFLUX_PLOT_SHOW"] = "0"
 warnings.filterwarnings("ignore")
 import geopandas as gpd
 import numpy as np

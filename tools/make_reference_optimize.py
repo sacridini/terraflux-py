@@ -12,9 +12,9 @@ arrays) and their kinds, shapes and the text results in ``<group>.json``
 (with the package versions). ``--case`` regenerates only the named cases of
 the group (the others are kept).
 
-Needs Rscript (``LANDSCHAFT_RSCRIPT`` as in ``tests/lsm_reference.py``) with
+Needs Rscript (``TERRAFLUX_RSCRIPT`` as in ``tests/lsm_reference.py``) with
 prioritizr, prioriactions, the gurobi R package (a Gurobi licence),
-exactextractr and sf; ``LANDSCHAFT_OPT_R_LIBS`` is put before the default
+exactextractr and sf; ``TERRAFLUX_OPT_R_LIBS`` is put before the default
 libraries. The test-suite reads the stored files, so it runs anywhere
 without R or Gurobi.
 """
@@ -30,6 +30,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -45,15 +46,15 @@ R_SCRIPT = ROOT / "tools" / "optimize_reference.R"
 
 def r_environment() -> dict[str, str]:
     env = dict(os.environ)
-    if env.get("LANDSCHAFT_OPT_R_LIBS"):
-        env["R_LIBS"] = os.pathsep.join(filter(None, [env["LANDSCHAFT_OPT_R_LIBS"], env.get("R_LIBS")]))
+    if _env.get("OPT_R_LIBS"):
+        env["R_LIBS"] = os.pathsep.join(filter(None, [env["TERRAFLUX_OPT_R_LIBS"], env.get("R_LIBS")]))
     return env
 
 
 def run_r(cases: dict) -> tuple[dict, dict, dict]:
     rscript = lsm_reference.find_rscript()
     if rscript is None:
-        sys.exit("Rscript not found: set LANDSCHAFT_RSCRIPT")
+        sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     names = sorted({n for c in cases.values() for n in c.inputs})
     with tempfile.TemporaryDirectory(prefix="opt_ref_") as tmp:
         tmp = Path(tmp)

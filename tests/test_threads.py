@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Threads of the parallel code: all cores but one by default (all of them in a batch job),
+"""Threads of the parallel code: never all the cores (a quarter kept free),
 configurable per call, for the process and by variables."""
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import terraflux as tf
 from terraflux import _core, _threads
 
 
-_VARIABLES = ["LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", "SLURM_JOB_ID", "SLURM_CPUS_PER_TASK",
+_VARIABLES = ["TERRAFLUX_THREADS", "LANDSCHAFT_NUM_THREADS", "OMP_NUM_THREADS", "SLURM_JOB_ID", "SLURM_CPUS_PER_TASK",
               "SLURM_CPUS_ON_NODE", "PBS_JOBID", "NCPUS", "LSB_JOBID", "LSB_DJOB_NUMPROC"]
 
 
@@ -30,15 +30,19 @@ def _reset_default(monkeypatch):
     tf.set_default_threads(None)
 
 
-def test_default_leaves_one_core():
-    cores = _threads.available_cores()
-    available, machine = _threads.processors()
-    assert tf.default_threads() == (max(1, cores - 1) if available >= machine else cores)
+@pytest.fixture
+def cores20(monkeypatch):
+    """A machine of 20 processors, whatever this one is."""
+    monkeypatch.setattr(_threads, "processors", lambda: (20, 20))
+
+
+def test_default_leaves_a_quarter_free():
+    assert tf.default_threads() == _threads.most(_threads.available_cores())
     if _core.openmp:
         assert _core.team_size() == tf.default_threads()
 
 
-def test_limit_and_process_default():
+def test_limit_and_process_default(cores20):
     with _threads.limit(2):
         assert _core.team_size() == (2 if _core.openmp else 1)
         with _threads.limit(1):
@@ -105,60 +109,71 @@ def _decide(env: dict, available: int = 128, machine: int = 128, **kw):
 
 
 def test_rule_desktop_and_jobs():
-    # a desktop: all but one
+    # a desktop: a quarter of the processors kept free
     d = _decide({}, 20, 20)
-    assert (d.threads, d.source, d.reserved, d.job) == (19, None, True, None)
-    assert d.describe() == "19 threads (20 processors; one kept free)"
-    # confined to fewer processors than the machine has (cpuset, taskset): all of them
-    assert _decide({}, 8, 20).threads == 8
-    # a Slurm job confined by its cgroup: all of its processors, none kept free
+    assert (d.threads, d.source, d.reserved, d.job) == (15, None, True, None)
+    assert d.describe() == "15 threads (20 processors; a quarter kept free)"
+    # confined to fewer processors than the machine has (cpuset, taskset): a quarter of those
+    assert _decide({}, 8, 20).threads == 6
+    # a Slurm job confined by its cgroup: a quarter of its processors kept free
     d = _decide({"SLURM_JOB_ID": "123", "SLURM_CPUS_PER_TASK": "8"}, 8, 128)
-    assert (d.threads, d.source, d.reserved, d.scheduler) == (8, None, False, "Slurm")
-    assert d.describe() == "8 threads (8 of 128 processors available to this process; Slurm job 123)"
-    # a job that sees the whole node (no cgroup): the job's processors
+    assert (d.threads, d.source, d.reserved, d.scheduler) == (6, None, True, "Slurm")
+    assert d.describe() == "6 threads (8 of 128 processors available to this process; Slurm job 123; a quarter kept free)"
+    # a job that sees the whole node (no cgroup): a quarter less than the job's processors
     d = _decide({"SLURM_JOB_ID": "123", "SLURM_CPUS_PER_TASK": "8"})
-    assert (d.threads, d.source) == (8, "SLURM_CPUS_PER_TASK")
+    assert (d.threads, d.source) == (6, "SLURM_CPUS_PER_TASK")
     # --ntasks without --cpus-per-task: the job's processors on this node
     d = _decide({"SLURM_JOB_ID": "1", "SLURM_CPUS_ON_NODE": "16"})
-    assert (d.threads, d.source) == (16, "SLURM_CPUS_ON_NODE")
-    # the whole node allocated: every processor
-    assert _decide({"SLURM_JOB_ID": "1", "SLURM_CPUS_ON_NODE": "128"}).threads == 128
+    assert (d.threads, d.source) == (12, "SLURM_CPUS_ON_NODE")
+    # the whole node allocated: still not every processor
+    assert _decide({"SLURM_JOB_ID": "1", "SLURM_CPUS_ON_NODE": "128"}).threads == 96
     # PBS and LSF
-    assert _decide({"PBS_JOBID": "9.pbs", "NCPUS": "12"}).threads == 12
-    assert _decide({"LSB_JOBID": "77", "LSB_DJOB_NUMPROC": "6"}).threads == 6
+    assert _decide({"PBS_JOBID": "9.pbs", "NCPUS": "12"}).threads == 9
+    assert _decide({"LSB_JOBID": "77", "LSB_DJOB_NUMPROC": "6"}).threads == 5
     # the variables of a scheduler count only inside its job
-    assert _decide({"NCPUS": "12"}).threads == 127
-    assert _decide({"SLURM_CPUS_PER_TASK": "8"}).threads == 127
+    assert _decide({"NCPUS": "12"}).threads == 96
+    assert _decide({"SLURM_CPUS_PER_TASK": "8"}).threads == 96
+
+
+@pytest.mark.parametrize("cores, most", [(1, 1), (2, 1), (3, 2), (4, 3), (8, 6), (16, 12), (20, 15), (128, 96)])
+def test_most(cores, most):
+    assert _threads.most(cores) == most
 
 
 def test_rule_order():
     job = {"SLURM_JOB_ID": "5", "SLURM_CPUS_PER_TASK": "16"}
     assert _decide({**job, "OMP_NUM_THREADS": "4"}).threads == 4
-    assert _decide({**job, "OMP_NUM_THREADS": "4", "LANDSCHAFT_NUM_THREADS": "10"}).threads == 10
-    assert _decide({**job, "OMP_NUM_THREADS": "1"}, worker=6).threads == 6
-    assert _decide({**job, "LANDSCHAFT_NUM_THREADS": "3"}, worker=6).threads == 3
-    assert _decide({**job, "LANDSCHAFT_NUM_THREADS": "3"}, fixed=2).threads == 2
-    # a variable gives all its threads, on a desktop too
-    assert _decide({"OMP_NUM_THREADS": "20"}, 20, 20).threads == 20
+    assert _decide({**job, "OMP_NUM_THREADS": "4", "TERRAFLUX_THREADS": "10"}).threads == 10
+    assert _decide({**job, "OMP_NUM_THREADS": "4", "LANDSCHAFT_NUM_THREADS": "10"}).threads == 10   # the old name
+    d = _decide({"TERRAFLUX_THREADS": "7", "LANDSCHAFT_NUM_THREADS": "9"})
+    assert (d.threads, d.source) == (7, "TERRAFLUX_THREADS")
+    # a dask worker's threads: a quarter of them kept free too
+    assert _decide({**job, "OMP_NUM_THREADS": "1"}, worker=6).threads == 5
+    assert _decide({**job, "TERRAFLUX_THREADS": "3"}, worker=6).threads == 3
+    assert _decide({**job, "TERRAFLUX_THREADS": "3"}, fixed=2).threads == 2
+    # every count is held to the most of the processors
+    assert _decide({"OMP_NUM_THREADS": "20"}, 20, 20).threads == 15
+    assert _decide({"TERRAFLUX_THREADS": "99"}, 8, 8).threads == 6
+    assert _decide({}, 8, 8, fixed=8).threads == 6
     # OpenMP's nested levels, Slurm's repeat counts, junk
     assert _decide({"OMP_NUM_THREADS": "8,2"}).threads == 8
-    assert _decide({"SLURM_JOB_ID": "1", "SLURM_CPUS_ON_NODE": "4(x2)"}).threads == 4
-    assert _decide({"OMP_NUM_THREADS": "many", "LANDSCHAFT_NUM_THREADS": "0"}, 20, 20).threads == 19
+    assert _decide({"SLURM_JOB_ID": "1", "SLURM_CPUS_ON_NODE": "4(x2)"}).threads == 3
+    assert _decide({"OMP_NUM_THREADS": "many", "TERRAFLUX_THREADS": "0"}, 20, 20).threads == 15
 
 
-def test_variables_reach_default_threads(monkeypatch):
-    monkeypatch.setenv("LANDSCHAFT_NUM_THREADS", "3")
+def test_variables_reach_default_threads(monkeypatch, cores20):
+    monkeypatch.setenv("TERRAFLUX_THREADS", "3")
     assert tf.default_threads() == 3
     if _core.openmp:
         assert _core.team_size() == 3
     assert tf.set_default_threads(2) == 2
     tf.set_default_threads(None)
-    monkeypatch.delenv("LANDSCHAFT_NUM_THREADS")
+    monkeypatch.delenv("TERRAFLUX_THREADS")
     monkeypatch.setenv("SLURM_JOB_ID", "42")
     monkeypatch.setenv("SLURM_CPUS_PER_TASK", "1")
     assert tf.default_threads() == 1
     monkeypatch.delenv("SLURM_CPUS_PER_TASK")
-    assert tf.default_threads() == _threads.available_cores()   # in a job, none kept free
+    assert tf.default_threads() == _threads.most(_threads.available_cores())   # in a job, a quarter kept free
 
 
 def test_warns_once_for_a_low_omp_num_threads_in_a_job(monkeypatch):
@@ -168,7 +183,7 @@ def test_warns_once_for_a_low_omp_num_threads_in_a_job(monkeypatch):
     monkeypatch.setattr(_threads, "_warned", False)
     monkeypatch.setenv("SLURM_JOB_ID", "42")
     monkeypatch.setenv("OMP_NUM_THREADS", "1")
-    with pytest.warns(RuntimeWarning, match=f"LANDSCHAFT_NUM_THREADS={available}"):
+    with pytest.warns(RuntimeWarning, match=f"TERRAFLUX_THREADS={available}"):
         assert tf.default_threads() == 1
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -181,7 +196,7 @@ def test_warns_once_for_a_low_omp_num_threads_in_a_job(monkeypatch):
         assert tf.default_threads() == 1
 
 
-def test_dask_worker_threads(monkeypatch):
+def test_dask_worker_threads(monkeypatch, cores20):
     class State:
         nthreads = 5
 
@@ -195,7 +210,7 @@ def test_dask_worker_threads(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "distributed", Distributed)
     monkeypatch.setenv("OMP_NUM_THREADS", "1")  # what the nanny sets
-    assert tf.default_threads() == 5
+    assert tf.default_threads() == 4   # 5 threads, a quarter (at least one) kept free
 
     class Outside:
         @staticmethod
@@ -243,8 +258,8 @@ def test_affinity_in_a_process():
             "print(tf.default_threads(), c.team_size() if c.openmp else 2)" % (cpus[0], cpus[1]))
     env = {k: v for k, v in os.environ.items() if k not in _VARIABLES}
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, check=True)
-    # confined to 2 of the machine's processors: both, none kept free
-    assert out.stdout.split() == ["2", "2"]
+    # confined to 2 of the machine's processors: one of them (a quarter, at least one, kept free)
+    assert out.stdout.split() == ["1", "1"]
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
                          env={**env, "SLURM_JOB_ID": "9", "SLURM_CPUS_PER_TASK": "1"})
     assert out.stdout.split()[0] == "1"
@@ -254,4 +269,4 @@ def test_helper_children_get_the_threads():
     from terraflux._dist._slots import child_env
 
     env = child_env(3)
-    assert env["LANDSCHAFT_NUM_THREADS"] == env["OMP_NUM_THREADS"] == "3"
+    assert env["TERRAFLUX_THREADS"] == env["OMP_NUM_THREADS"] == "3"

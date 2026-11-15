@@ -195,7 +195,7 @@ def landscape_mosaic_heatmap(
             Window label for the CSV title (default: ``window_size``; GTB writes
             ``"multiscale"`` for multiscale LM).
         threads
-            OpenMP threads for the LM (0: all cores but one).
+            OpenMP threads for the LM (0: most of the cores).
 
         Returns
         -------
@@ -244,7 +244,7 @@ def landscape_mosaic_change(a, b, window_size: int = 27, *, is_lm103: bool = Fal
     window_size, is_lm103
         As in :func:`landscape_mosaic_heatmap`, for maps.
     threads
-        Threads (0: all cores but one).
+        Threads (0: most of the cores).
 
     Returns
     -------

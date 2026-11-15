@@ -111,7 +111,7 @@ def test_contagion_xarray_metadata():
     )
     res = tf.contagion_pff(da, window_size=3)
     assert isinstance(res, xr.DataArray)
-    assert res.attrs["landschaft_product"] == "CONTAGION"
+    assert res.attrs["terraflux_product"] == "CONTAGION"
     assert res.attrs["metric"] == "Pff"
     assert res.attrs["window_size"] == 3
 

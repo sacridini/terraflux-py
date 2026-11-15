@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Run the R package landscapemetrics on numpy arrays.
 
-``LANDSCHAFT_RSCRIPT`` points to ``Rscript`` (found on PATH or under
-``C:/Program Files/R`` otherwise) and ``LANDSCHAFT_R_LIBS`` to an R library
+``TERRAFLUX_RSCRIPT`` points to ``Rscript`` (found on PATH or under
+``C:/Program Files/R`` otherwise) and ``TERRAFLUX_R_LIBS`` to an R library
 holding the landscapemetrics version to compare against.
 """
 
@@ -21,6 +21,7 @@ import pandas as pd
 import rasterio
 from rasterio.errors import NotGeoreferencedWarning
 from rasterio.transform import Affine
+from terraflux import _env
 
 ROOT = Path(__file__).resolve().parents[1]
 R_SCRIPT = ROOT / "tools" / "lsm_reference.R"
@@ -32,7 +33,7 @@ DEFAULT_R_LIBS = Path.home() / "AppData" / "Local" / "R" / "landschaft-lsm-lib"
 
 
 def find_rscript() -> Path | None:
-    exe = os.environ.get("LANDSCHAFT_RSCRIPT")
+    exe = _env.get("RSCRIPT")
     if exe:
         return Path(exe) if Path(exe).is_file() else None
     found = shutil.which("Rscript")
@@ -47,7 +48,7 @@ def find_lsm_rscript() -> Path | None:
     exe = find_rscript()
     if exe is None:
         return None
-    check = ('lib <- Sys.getenv("LANDSCHAFT_R_LIBS"); if (nzchar(lib)) .libPaths(c(lib, .libPaths())); '
+    check = ('lib <- Sys.getenv("TERRAFLUX_R_LIBS", Sys.getenv("LANDSCHAFT_R_LIBS")); if (nzchar(lib)) .libPaths(c(lib, .libPaths())); '
              'quit(status = !all(sapply(c("terra", "landscapemetrics"), requireNamespace, quietly = TRUE)))')
     proc = subprocess.run([str(exe), "-e", check], capture_output=True, env=r_environment(), timeout=600)
     return exe if proc.returncode == 0 else None
@@ -55,8 +56,8 @@ def find_lsm_rscript() -> Path | None:
 
 def r_environment() -> dict[str, str]:
     env = dict(os.environ)
-    if "LANDSCHAFT_R_LIBS" not in env and DEFAULT_R_LIBS.is_dir():
-        env["LANDSCHAFT_R_LIBS"] = str(DEFAULT_R_LIBS)
+    if "TERRAFLUX_R_LIBS" not in env and "LANDSCHAFT_R_LIBS" not in env and DEFAULT_R_LIBS.is_dir():
+        env["TERRAFLUX_R_LIBS"] = str(DEFAULT_R_LIBS)
     return env
 
 

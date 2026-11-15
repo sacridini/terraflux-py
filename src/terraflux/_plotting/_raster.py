@@ -344,7 +344,7 @@ def colour_values(v: np.ndarray, ok: np.ndarray, cmap, vmin, vmax, log: bool, ti
 
 def choose_cmap(da: xr.DataArray, v: np.ndarray, ok: np.ndarray) -> tuple[str, bool, bool]:
     """(palette, log scale, centred on 0) that suit a continuous raster, from its name and values."""
-    name = f"{da.name or ''} {da.attrs.get('long_name', '')} {da.attrs.get('landschaft_product', '')}".lower()
+    name = f"{da.name or ''} {da.attrs.get('long_name', '')} {da.attrs.get('terraflux_product', '')}".lower()
     if "rank" in name or "priority" in name:
         return "rank", False, False
     if any(k in name for k in ("current", "curmap", "currmap", "flow_potential", "voltage")):
@@ -535,7 +535,7 @@ def render(da: xr.DataArray, *, max_size: int = 2048, cmap=None, vmin=None, vmax
             values = np.unique(v[ok]) if ok.any() else np.array([])
             ramp = _palettes.lut(cmap, max(len(values), 2))
             table = {int(k): (*ramp[i], 255) for i, k in enumerate(values.tolist())}
-        order = _palettes.LEGEND_ORDER.get(da.attrs.get("landschaft_product"))
+        order = _palettes.LEGEND_ORDER.get(da.attrs.get("terraflux_product"))
         if table is None:  # distinct colours, fixed now (a part drawn later keeps them)
             values = np.unique(v[ok]) if ok.any() else np.array([], dtype=v.dtype)
             table = {int(k): (*_palettes.hex_to_rgb(c), 255)

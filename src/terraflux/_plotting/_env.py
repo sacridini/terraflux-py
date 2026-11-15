@@ -9,6 +9,8 @@ import tempfile
 import webbrowser
 from pathlib import Path
 
+from .. import _env as _vars
+
 
 def in_notebook() -> bool:
     """A Jupyter kernel (Jupyter, JupyterLab, VS Code, Colab): plots show inline."""
@@ -40,10 +42,10 @@ def headless() -> str | None:
 
 
 def auto_show() -> bool:
-    """Open windows by themselves (outside notebooks), unless LANDSCHAFT_PLOT_SHOW=0 or no window can
+    """Open windows by themselves (outside notebooks), unless TERRAFLUX_PLOT_SHOW=0 or no window can
     open here (a batch job, a server without a display: said once)."""
     global _told
-    if os.environ.get("LANDSCHAFT_PLOT_SHOW", "1") in ("0", "false", "no") or in_notebook():
+    if _vars.get("PLOT_SHOW", "1") in ("0", "false", "no") or in_notebook():
         return False
     why = headless()
     if why is None:
@@ -70,7 +72,7 @@ def plotly_url() -> str | bool:
 def open_window(html_page: str, title: str = "terraflux", js_api=None) -> Path:
     """A page in a window of its own (pywebview), else in the web browser; the file written.
     ``js_api``: an object whose methods the page calls (pywebview's JavaScript API)."""
-    path = Path(tempfile.mkdtemp(prefix="landschaft_plot_")) / "plot.html"
+    path = Path(tempfile.mkdtemp(prefix="terraflux_plot_")) / "plot.html"
     path.write_text(html_page, encoding="utf-8")
     try:
         import webview

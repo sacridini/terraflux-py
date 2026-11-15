@@ -191,7 +191,7 @@ def map(tool, items, *, on=None, output_dir=None, threads_per_task: int | None =
                 results = list(ex.map(one, calls))
     else:
         results = [None] * len(calls)
-        with tempfile.TemporaryDirectory(prefix="landschaft-map-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="terraflux-map-") as tmp:
             tmp = Path(tmp)
             tasks = []
             for i, (args, kwargs) in enumerate(calls):
@@ -361,7 +361,7 @@ def tiled(tool, raster, *args, halo: int | None = None, tile: int = 1024, on=Non
     else:
         _registry.check_strings(list(args), "args")
         _registry.check_strings(kwargs, "kwargs")
-        with tempfile.TemporaryDirectory(prefix="landschaft-tiles-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="terraflux-tiles-") as tmp:
             tmp = Path(tmp)
             stored = _pack.write((list(args), kwargs), tmp / "args")
             shared = [InputFile.of(p, f"args/{p.name}") for p in _pack.files(stored)]

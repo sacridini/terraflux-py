@@ -27,7 +27,7 @@ CHANNEL_COLUMNS = TABLES["channel_sd"][2]
 
 
 def from_rasters(dem, landuse, soils, *, landuse_lookup, soil_lookup, soil_table, climate: SwatClimate, start=None,
-                 end=None, codes: dict | None = None, name: str = "landschaft", **options) -> SwatProject:
+                 end=None, codes: dict | None = None, name: str = "terraflux", **options) -> SwatProject:
     """A SWAT+ project from a DEM, land use and soil maps, tables and the weather.
 
     :func:`watershed` divides the landscape as QSWAT+ does, :func:`from_tables` writes

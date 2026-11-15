@@ -5,9 +5,11 @@ Reference data too large to ship with the package (coastlines, country
 centroids, institutions...) are downloaded the first time a tool needs them
 and read from the cache afterwards. Every file is pinned by its SHA-256, so a
 result never changes because a remote file did. The cache is
-``LANDSCHAFT_CACHE`` when set, else the platform's cache folder
-(``%LOCALAPPDATA%\\landschaft\\cache`` on Windows, ``~/Library/Caches/landschaft``
-on macOS, ``$XDG_CACHE_HOME/landschaft`` or ``~/.cache/landschaft`` elsewhere).
+``TERRAFLUX_CACHE`` (or ``LANDSCHAFT_CACHE``, its name until 1.58) when set,
+else the platform's cache folder (``%LOCALAPPDATA%\\Terraflux\\python\\cache`` on Windows,
+``~/Library/Caches/terraflux/python`` on macOS, ``$XDG_CACHE_HOME/terraflux/python`` or
+``~/.cache/terraflux/python`` elsewhere: apart from the application's own cache); the ``landschaft`` folder of an older
+version is moved there the first time (and used as it is where it cannot be).
 On a computer without internet access (a cluster's compute node, often),
 ``terraflux-py fetch`` downloads them beforehand on one that has it (the login
 node), into a cache both see.
@@ -25,7 +27,19 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
+from . import _env
+
 __all__ = ["cache_dir", "fetch", "prefetch"]
+
+#: Where the project lives, for the User-Agent of the requests.
+PROJECT_URL = "https://github.com/sacridini/terraflux-py"
+
+
+def user_agent() -> str:
+    """``terraflux/<version> (<project URL>)``."""
+    from . import __version__
+
+    return f"terraflux/{__version__} ({PROJECT_URL})"
 
 #: What ``terraflux-py fetch`` downloads: the first folder of a cached file's name -> the command's argument.
 FETCH = {"sdm": "sdm", "simulate": "examples"}
@@ -65,15 +79,19 @@ def offline_message(what: str, fetch: str | None = None) -> str:
 
 def cache_dir() -> Path:
     """The folder of the downloaded data (created if missing)."""
-    env = os.environ.get("LANDSCHAFT_CACHE")
+    env = _env.get("CACHE")
     if env:
         base = Path(env)
-    elif sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "landschaft" / "cache"
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Caches" / "landschaft"
     else:
-        base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "landschaft"
+        if sys.platform == "win32":
+            root, tail = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")), "cache"
+        elif sys.platform == "darwin":
+            root, tail = Path.home() / "Library" / "Caches", ""
+        else:
+            root, tail = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")), ""
+        # the folder of landschaft (until 1.58) moves to terraflux/python (the app keeps its own cache in terraflux,
+        # "Terraflux" on Windows and macOS: the library's stays apart)
+        base = _env.migrate(root / "landschaft" / tail, root / "terraflux" / "python" / tail)
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -111,7 +129,7 @@ def fetch(name: str, urls: str | list[str], sha256: str | None = None, *, refres
         fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".download-")
         os.close(fd)
         try:
-            request = urllib.request.Request(url, headers={"User-Agent": "landschaft"})
+            request = urllib.request.Request(url, headers={"User-Agent": user_agent()})
             with urllib.request.urlopen(request, timeout=60) as response, open(tmp, "wb") as out:
                 shutil.copyfileobj(response, out)
             got = _sha256(Path(tmp))
