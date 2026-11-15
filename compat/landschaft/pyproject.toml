@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "landschaft"
-version = "1.58.1"
+version = "1.59.0"
 description = "landschaft is now terraflux: this package only installs terraflux and re-exports it."
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: GIS",
     "Topic :: Scientific/Engineering",
 ]
-dependencies = ["terraflux-py==1.58.1"]
+dependencies = ["terraflux-py==1.59.0"]
 
 [project.urls]
 Homepage = "https://sacridini.github.io/terraflux/"
