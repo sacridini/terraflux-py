@@ -5,6 +5,7 @@ fakes from local files. The downloads themselves with TERRAFLUX_ONLINE_TESTS=1 (
 
 from __future__ import annotations
 
+import warnings
 import zipfile
 
 import numpy as np
@@ -14,8 +15,8 @@ import xarray as xr
 from affine import Affine
 
 import terraflux as tf
-from terraflux import download as D
 from terraflux import _env
+from terraflux import download as D
 
 ONLINE = pytest.mark.skipif(_env.get("ONLINE_TESTS") != "1",
                             reason="downloads from the servers (TERRAFLUX_ONLINE_TESTS=1)")
@@ -171,6 +172,127 @@ def test_a_stac_catalogue(tmp_path, monkeypatch):
     assert len(signed) == 3
     with pytest.raises(ValueError, match="asset"):
         tf.download.stac("https://stac.example/v1", "s2", assets="nir", **kw)
+
+
+def test_the_masks_codes():
+    cl = ("cloud", "shadow", "cirrus")
+    scl = lambda c, k=cl: bool(D._mask_marks("scl", np.array([c]), k)[0])
+    # no data and saturated always; the classes by the codes
+    assert scl(0, ()) and scl(1, ()) and not scl(4, cl) and not scl(5, cl) and not scl(7, cl)
+    assert scl(3) and not scl(3, ("cloud",)) and scl(8) and scl(9) and not scl(8, ("shadow",))
+    assert scl(10) and not scl(10, ("cloud",)) and not scl(11) and scl(11, ("snow",))
+    qa = lambda c, k=cl: bool(D._mask_marks("qa_pixel", np.array([c]), k)[0])
+    assert qa(1, ()) and not qa(0, cl) and qa(0b10) and qa(0b1000) and not qa(0b10, ("shadow",))
+    assert qa(0b100) and not qa(0b100, ("cloud",)) and qa(0b10000) and not qa(0b10000, ("cloud",))
+    assert not qa(0b100000) and qa(0b100000, ("snow",))
+    fm = lambda c, k=cl: bool(D._mask_marks("fmask", np.array([c]), k)[0])
+    assert fm(255, ()) and not fm(0, cl) and fm(0b10) and fm(0b100) and not fm(0b10, ("snow",))
+    assert fm(0b1) and not fm(0b1, ("cloud",)) and fm(0b1000) and not fm(0b1000, ("cloud",))
+    assert not fm(0b10000) and fm(0b10000, ("snow",))
+    # the choice by the collection, and the errors
+    assert D._mask_kind("none", "sentinel-2-l2a") is None
+    assert D._mask_kind("auto", "Sentinel-2-L2A") == "scl" and D._mask_kind("auto", "landsat-c2-l2") == "qa_pixel"
+    assert D._mask_kind("auto", "hls2-s30") == "fmask" and D._mask_kind("fmask", "anything") == "fmask"
+    with pytest.raises(ValueError, match="no mask is known"):
+        D._mask_kind("auto", "cop-dem-glo-30")
+    with pytest.raises(ValueError, match="mask: none, auto"):
+        D._mask_kind("cloudy", "sentinel-2-l2a")
+    # the assets in any case
+    item = {"assets": {"SCL": {"href": "a"}, "red": {"href": "b"}}}
+    assert D._find_asset(item, "scl") == "a" and D._find_asset(item, "Red") == "b" and D._find_asset(item, "nir") is None
+
+
+def test_the_mask_is_grown_by_a_square():
+    m = np.zeros((5, 5), bool)
+    m[2, 2] = True
+    d = D._dilate(m, 1)
+    assert d.sum() == 9 and d[1:4, 1:4].all()
+    assert D._dilate(m, 0).sum() == 1 and D._dilate(m, 2).all()
+    # at the edge the square is cut
+    m = np.zeros((3, 3), bool)
+    m[0, 0] = True
+    assert D._dilate(m, 1).tolist() == [[True, True, False], [True, True, False], [False] * 3]
+    # a cell without a code is marked but does not grow
+    nan = np.nan
+    codes = np.array([[4.0, 4, 4], [4, 4, nan], [4, 4, 4]])
+    assert D._mask_cells("scl", ("cloud",), 1, codes).sum() == 1
+    codes = np.array([[4.0, 4, 4], [4, 9, 4], [4, 4, nan]])
+    assert D._mask_cells("scl", ("cloud",), 1, codes).all()
+
+
+def test_a_mask_keeps_the_clouds_out_of_the_composite(tmp_path, monkeypatch):
+    # Terraflux's test of the same name: the same scenes, the same numbers
+    t = Affine(1, 0, 10, 0, -1, 20)
+    kw = {"extent": (10, 18, 15, 20), "cellsize": 1, "resampling": "near"}
+    scenes = [("a", [100, 100, 30, 30, 500], [9, 4, 4, 4, 3]), ("b", [10] * 5, [4] * 5), ("c", [20] * 5, [4] * 5)]
+    items = []
+    for id_, v, s in scenes:
+        r = write(tmp_path / f"{id_}-red.tif", [v, v], t)
+        c = write(tmp_path / f"{id_}-scl.tif", [s, s], t)
+        # (the Planetary Computer names it SCL)
+        items.append({"id": id_, "assets": {"red": {"href": r}, "SCL" if id_ == "c" else "scl": {"href": c}}})
+    d = write(tmp_path / "d-red.tif", np.full((2, 5), 1000.0), t)
+    four = items + [{"id": "d", "assets": {"red": {"href": d}}}]
+
+    def run(its, **extra):
+        monkeypatch.setattr(D, "_post", lambda url, body: {"features": its, "links": []})
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            r = tf.download.stac("https://stac.example/v1", "sentinel-2-l2a", assets="red", **kw, **extra)
+        return r.values[0].tolist(), [str(x.message) for x in w]
+
+    v, w = run(items)
+    assert v == [20] * 5 and not w
+    assert run(items, composite="first")[0] == [100, 100, 30, 30, 500]
+    # auto (Sentinel-2: scl, in any case): the cloud and the shadow are out
+    v, w = run(items, mask="auto")
+    assert v == [15, 20, 20, 20, 15] and not w
+    assert run(items, mask="auto", composite="first")[0] == [10, 100, 30, 30, 10]
+    # the buffer widens it to the neighbours of the cloud and of the shadow
+    assert run(items, mask="scl", mask_buffer=1, composite="first")[0] == [10, 10, 30, 10, 10]
+    # only snow asked: the cloud stays; the classes as a list or as names with commas
+    assert run(items, mask="auto", mask_classes=["snow"], composite="first")[0] == [100, 100, 30, 30, 500]
+    assert run(items, mask="auto", mask_classes="cloud,snow", composite="first")[0] == [10, 100, 30, 30, 500]
+    # an item without the mask asset is left out, and said
+    v, w = run(four, mask="auto")
+    assert v == [15, 20, 20, 20, 15] and len(w) == 1 and "1 of 4" in w[0] and "scl" in w[0]
+    # without a mask it counts: the median of 100, 10, 20 and 1000
+    assert run(four)[0] == [60, 60, 25, 25, 260]
+    # the masks are kept apart, never a layer
+    assert len(list(tmp_path.glob("cache/data/*/mask-*.tif"))) >= 3
+    r = tf.download.stac
+    monkeypatch.setattr(D, "_post", lambda url, body: {"features": [four[3]], "links": []})
+    with pytest.raises(ValueError, match="no item has the mask asset"):
+        r("https://stac.example/v1", "sentinel-2-l2a", assets="red", mask="auto", **kw)
+    with pytest.raises(ValueError, match="no mask is known"):
+        r("https://stac.example/v1", "cop-dem-glo-30", assets="red", mask="auto", **kw)
+    with pytest.raises(ValueError, match="mask_classes"):
+        r("https://stac.example/v1", "sentinel-2-l2a", assets="red", mask="auto", mask_classes=["fog"], **kw)
+    with pytest.raises(ValueError, match="mask_buffer"):
+        r("https://stac.example/v1", "sentinel-2-l2a", assets="red", mask="auto", mask_buffer=-1, **kw)
+
+
+def test_the_mask_is_part_of_the_cache_key(tmp_path, cache, monkeypatch):
+    t = Affine(1, 0, 10, 0, -1, 20)
+    r = write(tmp_path / "r.tif", np.full((2, 5), 5.0), t)
+    s = write(tmp_path / "s.tif", np.full((2, 5), 4.0), t)
+    items = [{"id": "a", "assets": {"red": {"href": r}, "scl": {"href": s}}}]
+    monkeypatch.setattr(D, "_post", lambda url, body: {"features": items, "links": []})
+    kw = {"extent": (10, 18, 15, 20), "cellsize": 1, "resampling": "near"}
+    folders = lambda: {p.parent.name for p in cache.glob("data/*/red.tif")}
+    tf.download.stac("https://stac.example/v1", "sentinel-2-l2a", assets="red", **kw)
+    plain = folders()
+    tf.download.stac("https://stac.example/v1", "sentinel-2-l2a", assets="red", mask="none", **kw)
+    assert folders() == plain and len(plain) == 1
+    for extra in ({"mask": "auto"}, {"mask": "scl", "mask_buffer": 2}, {"mask": "scl", "mask_classes": ["cloud"]}):
+        before = folders()
+        tf.download.stac("https://stac.example/v1", "sentinel-2-l2a", assets="red", **kw, **extra)
+        assert len(folders()) == len(before) + 1
+    # auto is scl here, and the order of the classes does not matter
+    n = len(folders())
+    tf.download.stac("https://stac.example/v1", "sentinel-2-l2a", assets="red", mask="scl",
+                     mask_classes=["cirrus", "cloud", "shadow"], **kw)
+    assert len(folders()) == n
 
 
 def test_environment90m_tables(tmp_path, monkeypatch):

@@ -6,6 +6,9 @@ in a new major version.
 
 ## [Unreleased]
 
+### Added
+- `download.stac(mask=..., mask_classes=..., mask_buffer=...)`: the per-pixel cloud mask, as Terraflux's `data.stac`. `mask` is `none`, `auto` (by the collection: Sentinel-2 `scl`, Landsat `qa_pixel`, HLS `fmask`), `scl`, `qa_pixel` or `fmask`; the mask asset of each item (in any case) is read once with the nearest cell, kept in the cache and never a layer, and the cells it marks (`mask_classes`: `cloud`, `shadow`, `cirrus`, `snow`; fill and no data always; grown by `mask_buffer` cells) are NaN in every asset of the item before the composite. An item without the mask asset is left out, with a warning. The cache key changes only when a mask is asked.
+
 ### Changed
 - The documentation is on Terraflux's website, https://sacridini.github.io/terraflux/python/ (built from Terraflux's
   repository): the MkDocs site (`docs/`, `mkdocs.yml`, the `docs` extra, `tools/check_docs.py`,

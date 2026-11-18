@@ -649,9 +649,99 @@ def _search(url: str, body: dict, limit: int) -> list[dict]:
     return items[:limit]
 
 
+#: What a per-pixel mask can mark.
+_MASK_CLASSES = ("cloud", "shadow", "cirrus", "snow")
+#: The mask asset's name of each kind (looked up in any case).
+_MASK_ASSETS = {"scl": "scl", "qa_pixel": "qa_pixel", "fmask": "fmask"}
+
+
+def _mask_kind(mask: str, collection: str) -> str | None:
+    """The mask of a setting: None, or by the collection's name for ``auto`` (Sentinel-2, Landsat, HLS)."""
+    if mask == "none":
+        return None
+    if mask in _MASK_ASSETS:
+        return mask
+    if mask == "auto":
+        c = collection.lower()
+        for part, kind in (("sentinel-2", "scl"), ("landsat", "qa_pixel"), ("hls", "fmask")):
+            if part in c:
+                return kind
+        raise ValueError(f"mask: no mask is known for the collection {collection!r}: set mask to none, or to scl, "
+                         "qa_pixel or fmask")
+    raise ValueError(f"mask: none, auto, scl, qa_pixel or fmask, not {mask!r}")
+
+
+def _mask_marks(kind: str, codes: np.ndarray, classes) -> np.ndarray:
+    """The cells whose codes are marked: always fill and no data, else when the class is among ``classes``."""
+    code = np.clip(np.floor(np.nan_to_num(np.asarray(codes, dtype=np.float64), nan=0.0) + 0.5), 0, 4294967295)
+    code = code.astype(np.uint32)
+    has = lambda c: c in classes
+    bit = lambda b: (code >> b) & 1 == 1
+    out = np.zeros(code.shape, dtype=bool)
+    if kind == "scl":
+        # Sentinel-2 L2A SCL: 0 no data, 1 saturated or defective, 3 cloud shadow, 8 and 9 cloud (medium and high
+        # probability), 10 thin cirrus, 11 snow or ice
+        out |= (code == 0) | (code == 1)
+        for c, name in ((3, "shadow"), (10, "cirrus"), (11, "snow")):
+            if has(name):
+                out |= code == c
+        if has("cloud"):
+            out |= (code == 8) | (code == 9)
+    elif kind == "qa_pixel":
+        # Landsat C2 L2 QA_PIXEL: bit 0 fill, 1 dilated cloud, 2 cirrus, 3 cloud, 4 cloud shadow, 5 snow
+        out |= bit(0)
+        if has("cloud"):
+            out |= bit(1) | bit(3)
+        for b, name in ((2, "cirrus"), (4, "shadow"), (5, "snow")):
+            if has(name):
+                out |= bit(b)
+    else:
+        # HLS v2.0 Fmask: bit 0 cirrus (reserved), 1 cloud, 2 adjacent to cloud or shadow, 3 cloud shadow, 4 snow or
+        # ice; 255 fill
+        out |= code == 255
+        if has("cloud"):
+            out |= bit(1) | bit(2)
+        for b, name in ((0, "cirrus"), (3, "shadow"), (4, "snow")):
+            if has(name):
+                out |= bit(b)
+    return out
+
+
+def _find_asset(item: dict, name: str) -> str | None:
+    """An item's asset address by name, in any case (Earth Search's ``scl``, the Planetary Computer's ``SCL``)."""
+    for k, a in (item.get("assets") or {}).items():
+        if k.lower() == name.lower():
+            return a.get("href")
+    return None
+
+
+def _dilate(m: np.ndarray, b: int) -> np.ndarray:
+    """A mask grown by ``b`` cells in every direction (a square of side 2b + 1)."""
+    if b <= 0:
+        return m.copy()
+    h, w = m.shape
+    pad = np.zeros((h + 2 * b, w + 2 * b), dtype=bool)
+    pad[b:b + h, b:b + w] = m
+    rows = np.zeros((h + 2 * b, w), dtype=bool)
+    for dx in range(2 * b + 1):
+        rows |= pad[:, dx:dx + w]
+    out = np.zeros((h, w), dtype=bool)
+    for dy in range(2 * b + 1):
+        out |= rows[dy:dy + h]
+    return out
+
+
+def _mask_cells(kind: str, classes, buffer: int, codes: np.ndarray) -> np.ndarray:
+    """The cells a mask's codes mark: the classes (and fill), grown by ``buffer`` cells; a cell without a code
+    (outside the item) is marked too, but does not grow."""
+    nan = np.isnan(codes)
+    return _dilate(_mask_marks(kind, codes, classes) & ~nan, buffer) | nan
+
+
 def stac(url: str, collection: str, like=None, *, assets, datetime: str | None = None, query: dict | None = None,
          limit: int = 50, composite: str = "median", extent=None, cellsize=None, sign=None, classes: bool = False,
-         resampling: str = "auto", refresh: bool = False, n_threads: int | None = None) -> xr.DataArray:
+         resampling: str = "auto", mask: str = "none", mask_classes=("cloud", "shadow", "cirrus"),
+         mask_buffer: int = 0, refresh: bool = False, n_threads: int | None = None) -> xr.DataArray:
     """The scenes of a STAC catalogue over a grid, each asset warped onto it and the scenes combined.
 
     The catalogue's search (``POST /search``) gives the items of the
@@ -690,6 +780,28 @@ def stac(url: str, collection: str, like=None, *, assets, datetime: str | None =
         files need a token, as Planetary Computer's ``planetary_computer.sign``).
     classes
         The assets are classes (``auto`` resampling: the most common).
+    mask
+        The per-pixel mask that keeps clouds out of the composite: ``none``;
+        ``auto`` (by the collection: ``sentinel-2`` gives ``scl``,
+        ``landsat`` gives ``qa_pixel``, ``hls`` gives ``fmask``; any other
+        collection is an error); ``scl`` (Sentinel-2 L2A's scene
+        classification), ``qa_pixel`` (Landsat Collection 2 Level-2) or
+        ``fmask`` (HLS v2.0). The mask asset of each item (named in any case:
+        ``scl`` or ``SCL``) is read once, with the nearest cell, onto the grid
+        (kept in the cache, never a layer); the cells it marks are NaN in
+        every asset of that item before the items are combined. An item
+        without the mask asset is left out, with a warning; if none has it,
+        an error. The codes: ``scl`` 0 and 1 (no data, saturated) always,
+        3 shadow, 8 and 9 cloud, 10 cirrus, 11 snow; ``qa_pixel`` bit 0
+        (fill) always, cloud is bit 1 or 3, cirrus bit 2, shadow bit 4, snow
+        bit 5; ``fmask`` 255 (fill) always, cloud is bit 1 or 2, cirrus bit
+        0, shadow bit 3, snow bit 4.
+    mask_classes
+        What the mask marks, among ``cloud``, ``shadow``, ``cirrus`` and
+        ``snow`` (a list, or names separated by commas).
+    mask_buffer
+        Cells to grow the marked area by in every direction (a square of
+        side ``2 * mask_buffer + 1``), for the edges of clouds and shadows.
     extent, cellsize, resampling, refresh, n_threads
         As :func:`worldclim`.
 
@@ -700,6 +812,16 @@ def stac(url: str, collection: str, like=None, *, assets, datetime: str | None =
     """
     if composite not in ("median", "mean", "min", "max", "first"):
         raise ValueError(f"composite: median, mean, min, max or first, not {composite!r}")
+    kind = _mask_kind(mask, collection)
+    mclasses = ([c.strip() for c in mask_classes.split(",") if c.strip()] if isinstance(mask_classes, str)
+                else list(mask_classes))
+    bad = next((c for c in mclasses if c not in _MASK_CLASSES), None)
+    if bad is not None:
+        raise ValueError(f"mask_classes: cloud, shadow, cirrus or snow, not {bad!r}")
+    mclasses = sorted(set(mclasses))
+    mask_buffer = int(mask_buffer)
+    if mask_buffer < 0:
+        raise ValueError("mask_buffer: the cells to grow the mask by, 0 or more")
     assets = [assets] if isinstance(assets, str) else list(assets)
     g = _grid_of(like, extent, cellsize)
     lon, lat = _lonlat_box(g)
@@ -718,30 +840,72 @@ def stac(url: str, collection: str, like=None, *, assets, datetime: str | None =
         raise ValueError(f"the catalogue has no item of {collection!r} over the grid")
     n = resolve(n_threads)
     ids = [it.get("id", "") for it in items]
-    h = hashlib.sha1(f"{url}|{collection}|{ids}|{assets}|{composite}|{classes}|{g.key}|{resampling}".encode())
+    key = f"{url}|{collection}|{ids}|{assets}|{composite}|{classes}|{g.key}|{resampling}"
+    if kind is not None:
+        # (a mask changes the layers; none leaves the key as it was)
+        key += f"|mask:{kind}|{mclasses}|{mask_buffer}"
+    h = hashlib.sha1(key.encode())
     folder = _download.cache_dir() / "data" / h.hexdigest()[:16]
     folder.mkdir(parents=True, exist_ok=True)
     arrays = []
+    import warnings
+
     import rasterio
 
+    def readable(href: str) -> str:
+        if sign is not None:
+            href = sign(href)
+        return _curl(href) if href.startswith(("http://", "https://")) else href
+
+    def stem(s: str) -> str:
+        return re.sub(r"[^A-Za-z0-9_.-]", "_", s)
+
+    masks: list[np.ndarray | None] | None = None
+
+    def item_masks() -> list[np.ndarray | None]:
+        """Each item's marked cells (None: the item has no mask asset), the mask read once and kept."""
+        out: list[np.ndarray | None] = []
+        for k, it in enumerate(items):
+            href = _find_asset(it, _MASK_ASSETS[kind])
+            if href is None:
+                out.append(None)
+                continue
+            f = folder / f"mask-{stem(ids[k])}.tif"
+            if f.is_file() and not refresh:
+                with rasterio.open(f) as src:
+                    codes = src.read(1)
+            else:
+                # (codes: the nearest cell always)
+                codes = _warp([readable(href)], 1, g, _method("near", True), np.float32, n)
+                _write(f, codes, g)
+            out.append(_mask_cells(kind, mclasses, mask_buffer, codes))
+        without = sum(m is None for m in out)
+        if without == len(items):
+            raise ValueError(f"no item has the mask asset {_MASK_ASSETS[kind]!r}")
+        if without:
+            warnings.warn(f"{without} of {len(items)} items have no {_MASK_ASSETS[kind]} asset (the mask): left out",
+                          stacklevel=3)
+        return out
+
     for asset in assets:
-        out = folder / f"{re.sub(r'[^A-Za-z0-9_.-]', '_', asset)}.tif"
+        out = folder / f"{stem(asset)}.tif"
         if out.is_file() and not refresh:
             with rasterio.open(out) as src:
                 arrays.append(src.read(1))
             continue
         method = _method(resampling, classes)
         dtype = np.float64 if classes else np.float32
+        if kind is not None and masks is None:
+            masks = item_masks()
         scenes = []
-        for it in items:
+        for k, it in enumerate(items):
             a = it.get("assets", {}).get(asset)
-            if a is None:
+            if a is None or (masks is not None and masks[k] is None):
                 continue
-            href = a["href"]
-            if sign is not None:
-                href = sign(href)
-            path = _curl(href) if href.startswith(("http://", "https://")) else href
-            scenes.append(_warp([path], 1, g, method, dtype, n))
+            s = _warp([readable(a["href"])], 1, g, method, dtype, n)
+            if masks is not None:
+                s[masks[k]] = np.nan
+            scenes.append(s)
         if not scenes:
             raise ValueError(f"no item has the asset {asset!r}")
         stack = np.stack(scenes)
