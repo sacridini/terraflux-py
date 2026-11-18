@@ -18,6 +18,10 @@ in a new major version.
   sacridini.github.io/terraflux-py/) redirect to their pages there (`pages/`). The figure tools write to
   `build/figures` (or `TERRAFLUX_FIGURES`).
 
+### Fixed
+- Interactive maps with folium 1.0: its inline Bootstrap glyphicons stylesheet (fonts from a CDN, for markers terraflux
+  does not use) is left out, so the pages still open offline with Leaflet only.
+
 ## [1.59.0] - 2026-11-15
 
 ### Changed

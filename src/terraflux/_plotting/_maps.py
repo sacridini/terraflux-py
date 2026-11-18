@@ -486,6 +486,7 @@ def new_map(basemap: str | None = "satellite"):
     m = folium.Map(tiles=None, prefer_canvas=True, control_scale=True, zoom_snap=0.25, fade_animation=False,
                    width="100%", height="100%")
     m.default_js, m.default_css = [], []  # Leaflet only, in the page (folium's jQuery, Bootstrap... are not used)
+    m.glyphicons_css = ""  # (folium 1.0 inlines Bootstrap's glyphicons, fonts from a CDN: markers not used)
     _install(m)
     from . import _live
 
