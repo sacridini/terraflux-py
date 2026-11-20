@@ -70,3 +70,43 @@ mt_corridor_fixed <- function(x, ...) {
   environment(f) <- asNamespace("move2utils")
   f(x, ...)
 }
+
+# The dynamic Brownian bridge (mt_dbbmm_variance, mt_dbbmm_ud, ...).
+#
+# mt_aeqd_crs: move2utils calls move2::mt_aeqd_crs (.ensure_projected, mt_dbbmm_ud.move2), which centres the
+# projection on a point transformed to EPSG:4236 where 4326 is meant (see move2_fixed.R). with_fixed_aeqd(expr)
+# runs expr with move2's own function replaced by the corrected one and puts it back after. The rest is move2utils'
+# code.
+#
+# dbbmm_ud_out(u) / dbbmm_var_out(o): the numbers of a UD raster and of the variance objects, in the order the
+# tests read them.
+
+with_fixed_aeqd <- function(expr) {
+  ns <- asNamespace("move2")
+  orig <- get("mt_aeqd_crs", envir = ns)
+  unlockBinding("mt_aeqd_crs", ns)
+  assign("mt_aeqd_crs", mt_aeqd_crs_fixed, envir = ns)
+  on.exit({
+    assign("mt_aeqd_crs", orig, envir = ns)
+    lockBinding("mt_aeqd_crs", ns)
+  })
+  expr
+}
+
+project_center <- function(x, center = "center") sf::st_transform(x, mt_aeqd_crs_fixed(x, center))
+
+dbbmm_var_out <- function(o) {
+  vl <- if (inherits(o, "mt_dbbmm_variance")) list(o) else o
+  td <- function(f) unlist(lapply(vl, function(v) f(v$track_data)))
+  list(variance = unlist(lapply(vl, `[[`, "variance")), in_windows = unlist(lapply(vl, `[[`, "in_windows")),
+       interest = as.numeric(unlist(lapply(vl, `[[`, "interest"))), le = td(function(d) d$location_error),
+       n = vapply(vl, function(v) as.numeric(v$track_data$n_locs), numeric(1)),
+       nbreaks = vapply(vl, function(v) as.numeric(length(v$break_list)), numeric(1)),
+       breaks = as.numeric(unlist(lapply(vl, `[[`, "break_list"))),
+       x = td(function(d) d$x), y = td(function(d) d$y))
+}
+
+dbbmm_ud_out <- function(u) {
+  list(ud = as.numeric(terra::values(u)), dim = c(terra::nrow(u), terra::ncol(u), terra::nlyr(u)),
+       ext = as.vector(terra::ext(u)))
+}

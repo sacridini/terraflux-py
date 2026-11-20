@@ -19,6 +19,7 @@
 #include "move/clean.hpp"
 #include "move/distr.hpp"
 #include "move/geo.hpp"
+#include "move/python_ud.hpp"
 #include "move/rnmath.hpp"
 #include "move/track.hpp"
 #include "nlm/rng.hpp"
@@ -460,6 +461,7 @@ void register_python(py::module_& m) {
         "amt's random_steps draws for calls (sl name, sl params, ta name, ta params, n steps, [(n, size)...]) in turn.");
 
     register_python_corridor(m);
+    register_python_ud(m);
 }
 
 }  // namespace move

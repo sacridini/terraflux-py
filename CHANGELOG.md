@@ -65,6 +65,35 @@ in a new major version.
     the neighbourhoods come out 3.28 times too small) and projects longitude / latitude with `move2::mt_aeqd_crs`, whose
     centre is moved about a kilometre by a datum typo (EPSG:4236). Its manual says `min_segments` is the number of qualifying
     neighbours; the code counts all the neighbours, as here.
+- `tf.move`: the dynamic Brownian bridge movement model (dBBMM) from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026),
+  on the C kernels of the `move` package that it keeps (Kranstauber et al. 2012), bit for bit with move2utils (tests
+  against it in R on move2's fishers, its projected, longitude / latitude, Argos, missing-error and burst cases, and by
+  tolerance against the legacy `move` on `leroy`). The distribution of dBGB, the directional bridge, is the next step.
+  - `dbbmm_variance(tracks, location_error, window_size=31, margin=11, location_error_na="median")`: `mt_dbbmm_variance`,
+    the motion variance along each track by a moving window with a BIC test of one break point per window; adds the
+    columns `motion_variance`, `in_windows`, `interest` (and `location_error`, the errors used) to a copy of the tracks,
+    the break points in `attrs`. The location error is a number, an array, a column (underscores, dashes or Movebank's
+    colons) or `"auto"` (e-obs accuracy, else Argos classes), with `location_error_na` (`median`, `mean`, `zero`,
+    `approx`) for the missing ones; tracks shorter than the window are skipped with a warning; bursts
+    (`resample`'s `burst_`) are tracks of their own. Longitude / latitude is projected to the corrected azimuthal
+    equidistant CRS of `aeqd_crs`.
+  - `dbbmm_ud(tracks, location_error=None, like=None, res=None, dim_size=None, ext_factor=0.5, time_step=None, ...)`:
+    `mt_dbbmm_ud`, a raster with one band per track (or burst) summing to 1, on a common grid made as move2utils makes
+    it (`res`, `dim_size` or a template `like`; a grid that cannot hold the bridges' windows is enlarged with a warning,
+    a template is never). With or without the variance columns of `dbbmm_variance`. The cells are computed in strips on
+    several threads, every cell adding its time steps in their order: the same bits with any number of threads. The
+    distribution is returned in the metric CRS it was computed in (with a note in `attrs`); `crs="input"` warps it back
+    to the CRS of the tracks (bilinear, as move2utils does through terra; within a tolerance, not bit for bit).
+  - `motion_variance`, `suggest_dbbmm_window` (the window and margin from the sampling), `mask_segments` (leave
+    segments, such as the bridges across long gaps, out of the distribution), `ud_volume` (the cumulative probability
+    of the cells from the largest down) and `ud_outer_probability` (the volume at locations).
+  - Where move2utils is wrong, tf.move does the right thing, as above: it calls move2's `mt_aeqd_crs`, which centres its
+    projection on a point moved to EPSG:4236 (the Hu Tzu Shan datum) where WGS84 is meant, and the references of the
+    tests use the corrected one (from longitude / latitude the projected coordinates of pyproj's PROJ differ from R's
+    by a few units in the last place, which the variance carries to ~1e-7: those cases are tested by tolerance, and bit
+    for bit from R's projected coordinates); its `location_error = "auto"` and column names do not find Movebank's
+    `eobs:horizontal-accuracy-estimate`; the loop that reaches `xEnd == nX` in its kernel reads one cell past the
+    grid, which tf.move refuses as a window that does not fit.
 
 ### Fixed
 - `tf.move.random_numbers` / `random_steps` (gamma): R's `rgamma()` kept its cached constants in statics and drew from the caller's generator through a global pointer, so draws on two threads at once (Terraflux runs two models, or its tests in parallel) used each other's generator or a null one and crashed. Both are `thread_local` now; the draws are the same.

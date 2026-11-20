@@ -51,6 +51,8 @@ from ._ssf import Distribution, extract_covariates, fit_distr, make_distribution
 from ._steps import (cum_dist, filter_min_n_burst, msd, nsd, resample, sinuosity, steps, straightness, tac,
                      time_of_day, tot_dist)
 from ._tracks import set_columns
+from ._ud import (WindowSuggestion, dbbmm_ud, dbbmm_variance, mask_segments, motion_variance, suggest_dbbmm_window,
+                  ud_outer_probability, ud_volume)
 
 __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "distance", "Distribution", "example_data",
            "extract_covariates", "extract_covariates_along",
@@ -60,4 +62,6 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "random_numbers", "random_steps", "resample", "segments", "set_columns", "simulate_brownian", "sinuosity",
            "speed", "steps", "straightness", "tac", "thin_distance", "thin_time", "time_lags", "time_of_day",
            "tot_dist", "track_data", "track_lines", "turn_angle", "unique", "v_phys_estimate", "VPhys",
-           "corridor", "corridor_lines", "ud_distance"]
+           "corridor", "corridor_lines", "ud_distance",
+           "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "mask_segments", "motion_variance",
+           "suggest_dbbmm_window", "ud_outer_probability", "ud_volume"]

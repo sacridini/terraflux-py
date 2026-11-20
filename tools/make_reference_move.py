@@ -81,7 +81,7 @@ def main() -> None:
         sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     along = move_cases.along_track_sets()
     sets = {**move_cases.track_sets(), **move_cases.m2u_track_sets(), **along,
-            **move_cases.corridor_track_sets()}
+            **move_cases.corridor_track_sets(), **move_cases.ud_track_sets()}
     inputs: dict[str, np.ndarray] = {}
     with tempfile.TemporaryDirectory(prefix="move_ref_") as tmp:
         tmp = Path(tmp)
@@ -116,10 +116,13 @@ def main() -> None:
     m2u = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.m2u_track_sets()}
     alg = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in along}
     cor = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.corridor_track_sets()}
-    save(OUT / "inputs.npz", {k: v for k, v in inputs.items() if k not in m2u and k not in alg and k not in cor})
+    ud = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.ud_track_sets()}
+    save(OUT / "inputs.npz", {k: v for k, v in inputs.items()
+                              if k not in m2u and k not in alg and k not in cor and k not in ud})
     save(OUT / "inputs_move2utils.npz", m2u)
     save(OUT / "inputs_along.npz", alg)
     save(OUT / "inputs_corridor.npz", cor)
+    save(OUT / "inputs_move2utils_ud.npz", ud)
 
 
 if __name__ == "__main__":

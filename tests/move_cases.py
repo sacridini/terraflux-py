@@ -760,3 +760,176 @@ CASES.update({
     "emd_fishers": Case("fishers", _EMD_UDS, "move2utils_corridor"),
     "emd_lonlat": Case("fishers", _EMD_LL, "move2utils_corridor"),
 })
+
+
+# move2utils' dynamic Brownian bridge (group "move2utils_ud"): the motion variance, the utilization distribution and
+# what goes with them. Its sets are drawn apart again (inputs_move2utils_ud.npz). R runs the cases with the
+# corrected move2::mt_aeqd_crs (with_fixed_aeqd, tools/move2utils_fixed.R); lon / lat sets are projected there to
+# the centre of their ranges first (project_center) where the distribution is asked for, since move2utils then warps
+# it back to lon / lat through terra, which is not portable.
+
+def ud_track_sets() -> dict[str, dict]:
+    """name -> {x, y, t (seconds), track (ids), crs, extra columns}, for the dBBMM cases."""
+    rng = np.random.default_rng(20261121)
+    sets = {}
+
+    def track(n, start, blocks, length, lags=(300, 600, 600, 900, 1800), gap_at=None):
+        """A walk whose step size changes by blocks of `length` locations (so that windows find break points)."""
+        scales = np.resize(np.repeat(blocks, length), n - 1)
+        steps = rng.normal(0, 1, (n - 1, 2)) * scales[:, None]
+        xy = np.vstack([[0.0, 0.0], np.cumsum(steps, axis=0)]) + np.asarray(start)
+        t = T0 + np.cumsum(rng.choice(lags, n)).astype(np.float64)
+        if gap_at is not None:
+            t[gap_at:] += 10800.0
+        return xy[:, 0], xy[:, 1], t
+
+    def stack(parts, crs, **extra):
+        out = {"x": np.concatenate([p[0] for p in parts[1]]), "y": np.concatenate([p[1] for p in parts[1]]),
+               "t": np.concatenate([p[2] for p in parts[1]]),
+               "track": np.array([k for k, p in zip(parts[0], parts[1]) for _ in p[0]]), "crs": crs}
+        out.update(extra)
+        return out
+
+    # projected (UTM 23S, metres): two tracks of different regimes (one with a gap) and one shorter than any window
+    sets["ud_utm"] = stack((["u1", "u2", "u3"],
+                            [track(220, (300000.0, 7000000.0), [3.0, 40.0, 8.0, 120.0], 40),
+                             track(170, (305000.0, 7004000.0), [10.0, 60.0, 5.0], 35, gap_at=100),
+                             track(9, (302000.0, 7002000.0), [20.0], 10)]), "EPSG:32723")
+    # lon / lat (steps of 20 to 300 m)
+    sets["ud_ll"] = stack((["l1", "l2"],
+                           [track(150, (-47.9, -15.8), [2e-4, 1.5e-3, 4e-4], 50),
+                            track(110, (-47.85, -15.75), [5e-4, 3e-3], 55)]), "EPSG:4326")
+    # one track with a location error that has missing, negative and infinite values, Argos classes (1..7: 3 2 1 0 A
+    # B Z) and an e-obs accuracy estimate with gaps
+    x, y, t = track(140, (310000.0, 7010000.0), [6.0, 45.0, 12.0], 35)
+    n = len(x)
+    le = np.round(rng.uniform(5.0, 40.0, n), 1)
+    le[[0, 1, 30, 31, 60, 139]] = np.nan
+    le[90], le[100] = -3.0, np.inf
+    hacc = np.round(rng.uniform(3.0, 15.0, n), 1)
+    hacc[[5, 6, 77, 138]] = np.nan
+    sets["ud_err"] = {"x": x, "y": y, "t": t, "track": np.array(["e"] * n), "crs": "EPSG:32723", "le": le,
+                      "lc": rng.integers(1, 8, n).astype(np.float64), "eobs_horizontal_accuracy_estimate": hacc}
+    # two tracks of two bursts each (the burst a number within the track), with a location error with gaps
+    parts = [track(200, (320000.0, 7020000.0), [4.0, 30.0], 50), track(160, (321000.0, 7021500.0), [9.0, 50.0], 40)]
+    burst = np.r_[np.repeat([1.0, 2.0], 100), np.repeat([1.0, 2.0], 80)]
+    le = np.round(rng.uniform(5.0, 30.0, 360), 1)
+    le[[3, 4, 50, 120, 199, 200, 250, 359]] = np.nan
+    sets["ud_burst"] = stack((["b1", "b2"], parts), "EPSG:32723", burst=burst, le=le)
+    return sets
+
+
+# the R steps shared by the cases
+_UD_NE = "x <- x[!st_is_empty(x), ]\n"
+_UD_M1 = 'x <- x[as.character(mt_track_id(x)) == "M1", ]\n'
+_UD_500 = "x <- x[ave(seq_len(nrow(x)), as.character(mt_track_id(x)), FUN = seq_along) <= 500, ]\n"
+_UD_PROJ = "x <- project_center(x)\nxy <- sf::st_coordinates(x)\n"
+_UD_BURST = ('x$burst_id <- paste(mt_track_id(x), x$burst, sep = "__")\nx <- mt_set_track_id(x, "burst_id")\n')
+_UD_ARGOS = ('x$eobs_horizontal_accuracy_estimate <- NULL\n'
+             'x$argos_lc <- c("3", "2", "1", "0", "A", "B", "Z")[x$lc]\n')
+
+
+def _ud_case(data, pre, body):
+    """R: `body` (the last line gives the list of numbers) after `pre`, with the corrected AEQD, warnings and
+    messages silenced."""
+    return Case(data, "with_fixed_aeqd(local({\nsuppressWarnings(suppressMessages({\n" + pre + body + "\n}))\n}))",
+                "move2utils_ud")
+
+
+def _ud_var(data, pre, call):
+    return _ud_case(data, pre, f"o <- {call}\ndbbmm_var_out(o)")
+
+
+# the variance: name -> (data, R steps, the call)
+UD_VARIANCE = {
+    "var_fishers": ("fishers", _UD_NE, "mt_dbbmm_variance(x, location_error = 25, window_size = 31, margin = 11)"),
+    "var_m1": ("fishers", _UD_NE + _UD_M1, "mt_dbbmm_variance(x, location_error = 25, window_size = 31, margin = 11)"),
+    "var_m1_w21": ("fishers", _UD_NE + _UD_M1, "mt_dbbmm_variance(x, 15, 21, 5)"),
+    "var_utm": ("ud_utm", "", "mt_dbbmm_variance(x, location_error = 10, window_size = 21, margin = 7)"),
+    "var_noerr": ("ud_utm", "", "mt_dbbmm_variance(x, NULL, 21, 7)"),
+    "var_ll": ("ud_ll", "", "mt_dbbmm_variance(x, 5, 31, 11)"),
+    "var_burst": ("ud_burst", _UD_BURST, "mt_dbbmm_variance(x, 5, 21, 7)"),
+    "var_burst_err": ("ud_burst", _UD_BURST, 'mt_dbbmm_variance(x, "le", 21, 7, location_error_na = "approx")'),
+    "var_err_median": ("ud_err", "", 'mt_dbbmm_variance(x, "le", 31, 11, location_error_na = "median")'),
+    "var_err_mean": ("ud_err", "", 'mt_dbbmm_variance(x, "le", 31, 11, location_error_na = "mean")'),
+    "var_err_zero": ("ud_err", "", 'mt_dbbmm_variance(x, "le", 31, 11, location_error_na = "zero")'),
+    "var_err_approx": ("ud_err", "", 'mt_dbbmm_variance(x, "le", 31, 11, location_error_na = "approx")'),
+    "var_err_vec": ("ud_err", "", "mt_dbbmm_variance(x, x$le, 31, 11)"),
+    "var_argos": ("ud_err", _UD_ARGOS, 'mt_dbbmm_variance(x, "auto", 31, 11)'),
+    "var_eobs": ("ud_err", "", 'mt_dbbmm_variance(x, "auto", 31, 11)'),
+}
+
+# the distribution: name -> (data, R steps, the call that gives the raster `u`, more R after it)
+UD_DIST = {
+    "ud_m1_res": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                  "mt_dbbmm_ud(x, location_error = 25, res = 100, verbose = FALSE)"),
+    "ud_m1_dim": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                  "mt_dbbmm_ud(x, location_error = 25, dim_size = 120, ext_factor = 0.3, window_size = 21, margin = 5, "
+                  "verbose = FALSE)"),
+    "ud_m1_enlarge_dim": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                          "mt_dbbmm_ud(x, location_error = 25, dim_size = 60, ext_factor = 0, verbose = FALSE)"),
+    "ud_m1_enlarge_res": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                          "mt_dbbmm_ud(x, location_error = 25, res = 200, ext_factor = 0, verbose = FALSE)"),
+    "ud_m1_step": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                   "mt_dbbmm_ud(x, location_error = 25, res = 150, time_step = 3, verbose = FALSE)"),
+    "ud_m1_like": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                   "{ bb <- sf::st_bbox(x)\n  r <- terra::rast(xmin = floor((bb[['xmin']] - 4000) / 200) * 200, "
+                   "xmax = ceiling((bb[['xmax']] + 4000) / 200) * 200, ymin = floor((bb[['ymin']] - 4000) / 200) * 200, "
+                   "ymax = ceiling((bb[['ymax']] + 4000) / 200) * 200, resolution = 200, crs = sf::st_crs(x)$wkt)\n"
+                   "  mt_dbbmm_ud(x, raster = r, location_error = 25, verbose = FALSE) }"),
+    "ud_fishers500": ("fishers", _UD_NE + _UD_500 + _UD_PROJ,
+                      "mt_dbbmm_ud(x, location_error = 25, dim_size = 150, verbose = FALSE)"),
+    "ud_utm": ("ud_utm", "", "mt_dbbmm_ud(x, location_error = 10, dim_size = 90, window_size = 21, margin = 7, "
+                             "verbose = FALSE)"),
+    "ud_ll": ("ud_ll", _UD_PROJ, "mt_dbbmm_ud(x, location_error = 5, dim_size = 80, verbose = FALSE)"),
+    "ud_argos": ("ud_err", _UD_ARGOS, 'mt_dbbmm_ud(x, location_error = "auto", dim_size = 100, verbose = FALSE)'),
+    "ud_eobs": ("ud_err", "", 'mt_dbbmm_ud(x, location_error = "auto", res = 40, verbose = FALSE)'),
+    "ud_err_approx": ("ud_err", "", 'mt_dbbmm_ud(x, location_error = "le", location_error_na = "approx", res = 40, '
+                                    "verbose = FALSE)"),
+    "ud_burst": ("ud_burst", _UD_BURST, "mt_dbbmm_ud(x, location_error = 5, window_size = 21, margin = 7, res = 40, "
+                                        "verbose = FALSE)"),
+    "ud_masked": ("ud_utm", 'x <- x[as.character(mt_track_id(x)) == "u1", ]\n'
+                            "v <- mt_dbbmm_variance(x, 10, 21, 7)\nv <- mt_mask_segments(v, c(30:40, 90L, 150L))\n",
+                  "mt_dbbmm_ud(v, res = 20, verbose = FALSE)"),
+}
+
+CASES.update({
+    **{k: _ud_var(*v) for k, v in UD_VARIANCE.items()},
+    **{k: _ud_case(v[0], v[1], f"u <- {v[2]}\nc(dbbmm_ud_out(u), list(xy = if (exists('xy', inherits = FALSE)) as.numeric(xy) else NULL, "
+                                    "interest = if (exists('v', inherits = FALSE)) as.numeric(v$interest) else NULL))")
+       for k, v in UD_DIST.items()},
+    # ud_volume and ud_outer_probability on the distribution of ud_m1_res, and on cells that tie
+    "ud_volume": _ud_case("fishers", _UD_NE + _UD_M1 + _UD_PROJ, """u <- mt_dbbmm_ud(x, location_error = 25, res = 100, verbose = FALSE)
+pts <- rbind(sf::st_coordinates(x)[seq(1, nrow(x), by = 7), ], c(0, 0))
+list(vol = as.numeric(terra::values(ud_volume(u))), outer = ud_outer_probability(pts, u),
+     outer_sf = ud_outer_probability(x[1:40, ], u))"""),
+    "ud_volume_ties": _ud_case("fishers", "", """v1 <- rep(c(0.1, 0.05, 0.05, 0.2, 0.3, 0, 0.05), 6); v1[c(4, 20, 33)] <- NA
+r <- terra::rast(nrows = 6, ncols = 7, nlyrs = 3, xmin = 0, xmax = 7, ymin = 0, ymax = 6)
+v2 <- c(rep(c(1, 3, 3, 3, 2, 2, 3), 5), 7, 7, 1, 0, 0, 0, 0)
+terra::values(r) <- cbind(v1, v2, rep(0, 42))
+list(vol = as.numeric(terra::values(ud_volume(r))))"""),
+    "suggest_window": _ud_case("fishers", _UD_NE, """sg <- function(s) if (is.null(s)) rep(NA_real_, 5) else
+  c(s$window_size, s$margin, s$median_dt_secs, s$window_hours, s$n_windows)
+flat <- function(s) if (is.null(s) || !is.null(s$window_size)) sg(s) else unlist(lapply(s, sg))
+m1 <- x[as.character(mt_track_id(x)) == "M1", ]
+list(h1 = flat(mt_suggest_dbbmm_window(x, target_hours = 1, plot = FALSE)),
+     h4 = flat(mt_suggest_dbbmm_window(x, target_hours = 4, plot = FALSE)),
+     h12 = flat(mt_suggest_dbbmm_window(x, target_hours = 12, plot = FALSE)),
+     m1_h4 = flat(mt_suggest_dbbmm_window(m1, target_hours = 4, plot = FALSE)),
+     m1_h0_3 = flat(mt_suggest_dbbmm_window(m1, target_hours = 0.3, plot = FALSE)))"""),
+    "suggest_window_utm": _ud_case("ud_utm", "", """sg <- function(s) if (is.null(s)) rep(NA_real_, 5) else
+  c(s$window_size, s$margin, s$median_dt_secs, s$window_hours, s$n_windows)
+list(h1 = unlist(lapply(mt_suggest_dbbmm_window(x, target_hours = 1, plot = FALSE), sg)),
+     h5 = unlist(lapply(mt_suggest_dbbmm_window(x, target_hours = 5, plot = FALSE), sg)))"""),
+})
+
+# the legacy `move` package on move::leroy (the fishers' M1) in the projected coordinates of move2utils' own parity
+# tests: the variance and the distribution (res = 100, ext = 2), to be compared by tolerance (move2utils is not
+# bit for bit with it)
+CASES["move_leroy"] = _ud_case("fishers", _UD_NE + _UD_M1 + "x <- project_center(x, 'centroid')\n", """cc <- sf::st_coordinates(x)
+lm <- move::move(x = cc[, 1], y = cc[, 2], time = move2::mt_time(x), proj = sf::st_crs(x)$proj4string, animal = 'leroy')
+rv <- move::brownian.motion.variance.dyn(lm, location.error = 25, window.size = 31, margin = 11)
+ud <- move::brownian.bridge.dyn(lm, raster = 100, location.error = 25, margin = 11, window.size = 31, ext = 2,
+                                verbose = FALSE)
+list(xy = as.numeric(cc), var = rv@means, ud = raster::values(ud), dim = c(nrow(ud), ncol(ud)),
+     ext = as.vector(raster::extent(ud)))""")

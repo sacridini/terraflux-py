@@ -319,15 +319,18 @@ set_target_properties(statscore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(movecore STATIC
     src/cpp/move/along.cpp
     src/cpp/move/amt.cpp
+    src/cpp/move/bridge.cpp
     src/cpp/move/clean.cpp
     src/cpp/move/corridor.cpp
     src/cpp/move/distr.cpp
     src/cpp/move/emd.cpp
     src/cpp/move/geo.cpp
     src/cpp/move/geodesic_proj.cpp
+    src/cpp/move/locerr.cpp
     src/cpp/move/rnmath.cpp
     src/cpp/move/track.cpp
     src/cpp/move/vendor/emdist/emd_rubner.cpp
+    src/cpp/move/ud.cpp
 )
 target_include_directories(movecore PUBLIC src/cpp)
 set_target_properties(movecore PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -512,7 +515,8 @@ if(TERRAFLUX_PYTHON)
                         src/cpp/sim/python.cpp src/cpp/opt/python.cpp src/cpp/rest/python.cpp src/cpp/hydro/python.cpp
                         src/cpp/serv/python.cpp src/cpp/serv/python_coastal.cpp src/cpp/serv/python_swy.cpp
                         src/cpp/swat/python.cpp src/cpp/stats/python.cpp src/cpp/move/python.cpp
-                        src/cpp/move/python_corridor.cpp)
+                        src/cpp/move/python_corridor.cpp
+                        src/cpp/move/python_ud.cpp)
     target_link_libraries(_core PRIVATE eigen_headers)
     target_link_libraries(_core PRIVATE gtbcore lsmcore conncore circuitcore nlmcore biocore costcore surfcore priocore
                           iocore sdmcore simcore optcore restcore hydrocore servcore swatcore statscore movecore)
