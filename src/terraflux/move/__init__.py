@@ -17,7 +17,10 @@ From amt, the values of a raster along each step (:func:`extract_covariates_alon
 ascent, descent and delta, which tell a step up a hill from one along a contour line).
 From move2utils again, the corridors the animals use (:func:`corridor`, LaPoint et al. 2013: fast, straight
 passages among the neighbouring segments; :func:`corridor_lines`) and the earth mover's distance between
-utilisation distributions (:func:`ud_distance`, Sinkhorn or exact).
+utilisation distributions (:func:`ud_distance`, Sinkhorn or exact). The dynamic Brownian bridge of move2utils
+(:func:`dbbmm_variance`, :func:`dbbmm_ud`: the motion variance by moving windows and the utilisation distribution, with
+:func:`ud_volume` for its contours), and amt's home ranges (:func:`hr_mcp`, :func:`hr_kde` with its bandwidths,
+:func:`hr_locoh`, :func:`hr_isopleths`, :func:`hr_overlap`; :func:`home_range` for short).
 
 Typical use::
 
