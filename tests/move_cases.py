@@ -933,3 +933,190 @@ ud <- move::brownian.bridge.dyn(lm, raster = 100, location.error = 25, margin = 
                                 verbose = FALSE)
 list(xy = as.numeric(cc), var = rv@means, ud = raster::values(ud), dim = c(nrow(ud), ncol(ud)),
      ext = as.vector(raster::extent(ud)))""")
+
+
+# amt's home ranges (group "amt_hr"; tools/amt_hr.R holds the R helpers). Its sets are drawn apart from the others so
+# that tests/data/reference/move/inputs.npz keeps its bytes: they are stored in inputs_hr.npz.
+
+HR_FISHERS = "data/move/fishers.csv.gz"   # relative to tests/
+
+
+def _hr_times(n):
+    return T0 + np.arange(n) * 3600.0
+
+
+def _hr_fishers():
+    """The fishers' locations in UTM 18N (EPSG:32618), whole and the first 150 of each animal."""
+    from pathlib import Path
+
+    import pandas as pd
+    from pyproj import Transformer
+
+    df = pd.read_csv(Path(__file__).parent / HR_FISHERS, usecols=["location-long", "location-lat",
+                                                                   "individual-local-identifier"], low_memory=False)
+    df = df.dropna()
+    x, y = Transformer.from_crs(4326, 32618, always_xy=True).transform(df["location-long"].to_numpy(),
+                                                                       df["location-lat"].to_numpy())
+    df = pd.DataFrame({"x": np.asarray(x, np.float64), "y": np.asarray(y, np.float64),
+                       "track": df["individual-local-identifier"].astype(str).to_numpy()})
+    out = {}
+    for name, d in (("hr_fishers", df), ("hr_fishers_s", df.groupby("track", sort=False).head(150))):
+        t = np.concatenate([_hr_times(n) for n in d.groupby("track", sort=False).size().to_numpy()])
+        # tracks as consecutive blocks, in the order of their first appearance
+        d = pd.concat([g for _, g in d.groupby("track", sort=False)])
+        out[name] = {"x": d["x"].to_numpy(), "y": d["y"].to_numpy(), "t": t, "track": d["track"].to_numpy(),
+                     "crs": "EPSG:32618"}
+    return out
+
+
+def hr_track_sets() -> dict[str, dict]:
+    """name -> {x, y, t (seconds), track (ids), crs}: the tracks of the home-range cases."""
+    rng = np.random.default_rng(20261121)
+    sets = {}
+    ax, ay = _walk(rng, 70, (190000.0, 8250000.0), [8.0, 25.0, 60.0], False)
+    bx = np.r_[190200.0 + rng.normal(0, 30, 25), 190450.0 + rng.normal(0, 25, 25)]
+    by = np.r_[8250100.0 + rng.normal(0, 30, 25), 8250180.0 + rng.normal(0, 25, 25)]
+    cx, cy = _walk(rng, 40, (190050.0, 8249950.0), [15.0], False)
+    for k in (7, 14, 21, 28):   # repeated locations
+        cx[k], cy[k] = cx[k - 1], cy[k - 1]
+    ns = [70, 50, 40]
+    utm = {"x": np.r_[ax, bx, cx], "y": np.r_[ay, by, cy], "t": np.concatenate([_hr_times(n) for n in ns]),
+           "track": np.array(["a"] * 70 + ["b"] * 50 + ["c"] * 40), "crs": "EPSG:32723"}
+    sets["hr_utm"] = utm
+    sets["hr_plain"] = {**utm, "x": utm["x"] - 190000.0, "y": utm["y"] - 8250000.0, "crs": None}
+    ns = [25, 30, 22]
+    cen = [(190000.0, 8250000.0), (190060.0, 8250040.0), (189960.0, 8250020.0)]
+    sets["hr_small"] = {
+        "x": np.concatenate([c[0] + rng.normal(0, 40, n) for c, n in zip(cen, ns)]),
+        "y": np.concatenate([c[1] + rng.normal(0, 30, n) for c, n in zip(cen, ns)]),
+        "t": np.concatenate([_hr_times(n) for n in ns]), "track": np.array(["s"] * 25 + ["t"] * 30 + ["u"] * 22),
+        "crs": "EPSG:32723"}
+    sets.update(_hr_fishers())
+    # degenerate tracks: one, two and three locations, ten on a line, a vertical line, doubled locations
+    parts = [("e1", [(190000.0, 8250000.0)]), ("e2", [(190000.0, 8250000.0), (190010.0, 8250030.0)]),
+             ("e3", [(190000.0, 8250000.0), (190040.0, 8250010.0), (190020.0, 8250050.0)]),
+             ("col", [(190000.0 + 10 * i, 8250000.0 + 20 * i) for i in range(10)]),
+             ("vert", [(190100.0, 8250000.0 + 7.5 * i) for i in range(8)])]
+    dx, dy = rng.normal(0, 20, 8), rng.normal(0, 20, 8)
+    parts.append(("dup", [(190300.0 + dx[i % 8], 8250000.0 + dy[i % 8]) for i in range(16)]))
+    parts.append(("rnd", [(190500.0 + a, 8250000.0 + b) for a, b in rng.normal(0, 30, (12, 2))]))
+    sets["hr_edge"] = {"x": np.array([p[0] for _, ps in parts for p in ps]),
+                       "y": np.array([p[1] for _, ps in parts for p in ps]),
+                       "t": np.concatenate([_hr_times(len(ps)) for _, ps in parts]),
+                       "track": np.array([n for n, ps in parts for _ in ps]), "crs": "EPSG:32723"}
+    return sets
+
+
+_HR_LV = "c(0.1, 0.5, 0.75, 0.95, 1)"
+_HR_TRACKS = "tr <- amt_tracks(x)\n"
+_HR_EMPTY = "x <- x[!st_is_empty(x), ]\n"
+
+_HR_KDE = """tr <- amt_tracks(x); tp <- hr_pooled(x); lv <- c(0.5, 0.9, 0.95)
+k <- lapply(tr, function(t) hr_kde(t, trast = tp, levels = lv{h}))
+iso <- lapply(k, hr_isopleths)
+list(h = unlist(lapply(k, function(z) z$h)), grid = hr_grid(tp),
+     ud = unlist(lapply(k, function(z) hr_values(z$ud))),
+     udn = hr_values(hr_ud(k[[1]])), cud = hr_values(hr_cud(k[[1]])),
+     level = unlist(lapply(iso, function(d) d$level)), area = unlist(lapply(iso, function(d) as.numeric(d$area))),
+     geom = unlist(lapply(iso, hr_enc_all)))"""
+
+_HR_LOCOH = """tr <- amt_tracks(x)
+l <- lapply(tr, function(t) hr_locoh(t, {args})$locoh)
+list(level = unlist(lapply(l, function(d) d$level)), area = unlist(lapply(l, function(d) as.numeric(d$area))),
+     geom = unlist(lapply(l, hr_enc_all)))"""
+
+_HR_OVERLAP = """tr <- amt_tracks(x); tp <- hr_pooled(x)
+kk <- lapply(tr, function(t) hr_kde(t, trast = tp, levels = c(0.5, 0.9)))
+mm <- lapply(tr, function(t) hr_mcp(t, levels = c(0.5, 0.9)))
+ll <- lapply(tr, function(t) hr_locoh(t, n = 6, levels = c(0.5, 0.9)))
+ov <- function(e, ty, cond = FALSE, which = "all") hr_overlap(e, type = ty, conditional = cond, which = which)$overlap
+list(hr_kde = ov(kk, "hr"), hr_mcp = ov(mm, "hr"), hr_locoh = ov(ll, "hr"), hr_cons = ov(mm, "hr", which = "consecutive"),
+     hr_one = ov(mm, "hr", which = "one_to_all"),
+     phr = ov(kk, "phr"), vi = ov(kk, "vi"), ba = ov(kk, "ba"), udoi = ov(kk, "udoi"), hd = ov(kk, "hd"),
+     cphr = ov(kk, "phr", TRUE), cvi = ov(kk, "vi", TRUE), cba = ov(kk, "ba", TRUE), cudoi = ov(kk, "udoi", TRUE),
+     chd = ov(kk, "hd", TRUE), cons = ov(kk, "vi", which = "consecutive"),
+     pair = hr_overlap(kk[[1]], kk[[2]], type = "hr")$overlap, pairu = hr_overlap(kk[[2]], kk[[1]], type = "udoi")$overlap)"""
+
+CASES.update({
+    "hr_trast_utm": Case("hr_utm", """tr <- amt_tracks(x)
+list(def = unlist(lapply(tr, function(t) hr_grid(make_trast(t)))),
+     res = unlist(lapply(tr, function(t) hr_grid(make_trast(t, res = 13.3)))),
+     fac = unlist(lapply(tr, function(t) hr_grid(make_trast(t, factor = 2, res = 7)))),
+     big = unlist(lapply(tr, function(t) hr_grid(make_trast(t, res = 1000)))),
+     pooled = hr_grid(hr_pooled(x)), pooled_res = hr_grid(hr_pooled(x, res = 5)))""", "amt_hr"),
+    "hr_trast_plain": Case("hr_plain", """tr <- amt_tracks(x)
+list(def = unlist(lapply(tr, function(t) hr_grid(make_trast(t)))), pooled = hr_grid(hr_pooled(x, factor = 1.2)))""",
+                           "amt_hr"),
+    "hr_trast_fishers": Case("hr_fishers", _HR_EMPTY + """tr <- amt_tracks(x)
+list(def = unlist(lapply(tr, function(t) hr_grid(make_trast(t)))), pooled = hr_grid(hr_pooled(x)))""", "amt_hr"),
+    **{f"hr_mcp_{k}": Case(f"hr_{k}", _HR_TRACKS + f"""m <- lapply(tr, function(t) {fn}(t, levels = {_HR_LV})$mcp)
+list(area = unlist(lapply(m, function(d) as.numeric(d$area))), level = unlist(lapply(m, function(d) d$level)),
+     geom = unlist(lapply(m, hr_enc_all)), iu = sapply(tr, function(t) as.numeric({iu}(t))))""", "amt_hr")
+       for k, fn, iu in (("utm", "hr_mcp", "intensity_use"), ("plain", "hr_mcp_fixed", "intensity_use_fixed"),
+                         ("fishers", "hr_mcp", "intensity_use"), ("small", "hr_mcp", "intensity_use"))},
+    "hr_bw_utm": Case("hr_utm", _HR_TRACKS + """f <- function(g) unlist(lapply(tr, g))
+list(ref = f(function(t) hr_kde_ref(t)), refu = f(function(t) hr_kde_ref(t, rescale = "unitvar")),
+     refx = f(function(t) hr_kde_ref(t, rescale = "xvar")),
+     pi = f(function(t) hr_kde_pi(t)), pi_raw = f(function(t) hr_kde_pi(t, correct = FALSE)),
+     piu = f(function(t) hr_kde_pi_fixed(t, rescale = "unitvar")), pix = f(function(t) hr_kde_pi(t, rescale = "xvar")),
+     pi_l0 = f(function(t) hr_kde_pi(t, level = 0)), pi_l1 = f(function(t) hr_kde_pi(t, level = 1)),
+     pi_l3 = f(function(t) hr_kde_pi(t, level = 3)), pi_l4 = f(function(t) hr_kde_pi(t, level = 4)),
+     pi_l5 = f(function(t) hr_kde_pi(t, level = 5)),
+     pi_sd = f(function(t) hr_kde_pi(t, scalest = "stdev")), pi_iqr = f(function(t) hr_kde_pi(t, scalest = "iqr")),
+     pi_k = f(function(t) hr_kde_pi(t, kernel = "epanech", gridsize = 201L, truncate = FALSE)))""", "amt_hr"),
+    "hr_bw_fishers": Case("hr_fishers", _HR_EMPTY + _HR_TRACKS + """f <- function(g) unlist(lapply(tr, g))
+list(ref = f(function(t) hr_kde_ref(t)), refu = f(function(t) hr_kde_ref(t, rescale = "unitvar")),
+     pi = f(function(t) hr_kde_pi(t)), piu = f(function(t) hr_kde_pi_fixed(t, rescale = "unitvar")))""", "amt_hr"),
+    "hr_lscv": Case("hr_small", _HR_TRACKS + """f <- function(g, key) unlist(lapply(tr, function(t) suppressWarnings(g(t))[[key]]))
+a <- function(t) hr_kde_lscv(t)
+b <- function(t) hr_kde_lscv(t, which_min = "local")
+u <- function(t) hr_kde_lscv_fixed(t, rescale = "unitvar")
+r <- function(t) hr_kde_lscv(t, range = seq(2, 60, length.out = 30))
+list(h = f(a, "h"), res = f(a, "res"), conv = f(a, "converged"), range = f(a, "range"),
+     hl = f(b, "h"), resl = f(b, "res"), hu = f(u, "h"), resu = f(u, "res"), hr = f(r, "h"), resr = f(r, "res"))""",
+                      "amt_hr"),
+    "hr_kde_utm": Case("hr_utm", _HR_KDE.format(h=""), "amt_hr"),
+    "hr_kde_utm_h": Case("hr_utm", _HR_KDE.format(h=", h = c(25, 40)"), "amt_hr"),
+    "hr_kde_plain": Case("hr_plain", _HR_KDE.format(h=""), "amt_hr"),
+    "hr_kde_fishers": Case("hr_fishers", _HR_EMPTY + _HR_KDE.format(h=""), "amt_hr"),
+    "hr_kde_single": Case("hr_utm", """tr <- amt_tracks(x); lv <- c(0.5, 0.95)
+k <- lapply(tr, function(t) hr_kde(t, levels = lv))
+iso <- lapply(k, hr_isopleths)
+list(h = unlist(lapply(k, function(z) z$h)), grid = unlist(lapply(k, function(z) hr_grid(z$trast))),
+     ud = unlist(lapply(k, function(z) hr_values(z$ud))),
+     level = unlist(lapply(iso, function(d) d$level)), area = unlist(lapply(iso, function(d) as.numeric(d$area))),
+     geom = unlist(lapply(iso, hr_enc_all)))""", "amt_hr"),
+    "hr_kde_pi_ud": Case("hr_utm", """tr <- amt_tracks(x); tp <- hr_pooled(x)
+k <- lapply(tr, function(t) hr_kde(t, h = hr_kde_pi(t), trast = tp, levels = 0.95))
+l <- lapply(tr, function(t) hr_kde_lscv(t)$h)
+list(h = unlist(lapply(k, function(z) z$h)), area = unlist(lapply(k, function(z) as.numeric(hr_area(z)$area))),
+     lscv_h = unlist(l))""", "amt_hr"),
+    "hr_kde_scaled": Case("hr_utm", """tr <- amt_tracks(x); tp <- hr_pooled(x)
+a <- lapply(tr, function(t) suppressWarnings(hr_kde_ref_scaled(t, trast = tp, levels = 0.95)))
+b <- lapply(tr, function(t) suppressWarnings(hr_kde_ref_scaled(t, trast = tp, levels = 0.9, num.of.parts = 2, tol = 0.5)))
+g <- function(l) unlist(lapply(l, function(h) c(as.numeric(h), attr(h, "n.iter"), as.numeric(attr(h, "success")))))
+list(one = g(a), two = g(b))""", "amt_hr"),
+    "hr_locoh_k_utm": Case("hr_utm", _HR_LOCOH.format(args="n = 8, type = \"k\", levels = c(0.5, 0.9, 0.95)"),
+                           "amt_hr"),
+    "hr_locoh_k_small": Case("hr_small", _HR_LOCOH.format(args="n = 4, type = \"k\", levels = c(0.3, 0.8, 1)"),
+                             "amt_hr"),
+    "hr_locoh_k_fishers": Case("hr_fishers_s", _HR_EMPTY + _HR_LOCOH.format(args="n = 10, levels = c(0.5, 0.95)"),
+                               "amt_hr"),
+    "hr_locoh_r_utm": Case("hr_utm", _HR_LOCOH.format(args="n = 60, type = \"r\", levels = c(0.5, 0.9, 0.95)"),
+                           "amt_hr"),
+    "hr_locoh_a_utm": Case("hr_utm", _HR_LOCOH.format(args="n = 400, type = \"a\", levels = c(0.5, 0.9, 0.95)"),
+                           "amt_hr"),
+    "hr_locoh_plain": Case("hr_plain", _HR_LOCOH.format(args="n = 6, type = \"k\", levels = 0.95"), "amt_hr"),
+    "hr_overlap_utm": Case("hr_utm", _HR_OVERLAP, "amt_hr"),
+    "hr_overlap_fishers": Case("hr_fishers_s", _HR_OVERLAP, "amt_hr"),
+    "hr_edge": Case("hr_edge", """tr <- amt_tracks(x); tp <- hr_pooled(x)
+na2 <- function(v, n) if (is.null(v)) rep(NA_real_, n) else as.numeric(v)
+mc <- lapply(tr, function(t) hr_safe(hr_mcp(t, levels = c(0.5, 1))$mcp))
+kd <- lapply(tr, function(t) hr_safe(hr_isopleths(hr_kde(t, trast = tp, levels = 0.9))))
+lc <- lapply(tr, function(t) hr_safe(hr_locoh(t, n = 2, levels = c(0.5, 0.9))$locoh))
+list(mcp_ok = sapply(mc, function(m) as.numeric(!is.null(m))), mcp_area = unlist(lapply(mc, function(m) na2(m$area, 2))),
+     kde_ok = sapply(kd, function(m) as.numeric(!is.null(m))), kde_area = unlist(lapply(kd, function(m) na2(m$area, 1))),
+     locoh_ok = sapply(lc, function(m) as.numeric(!is.null(m))),
+     locoh_area = unlist(lapply(lc, function(m) na2(m$area, 2))), locoh_level = unlist(lapply(lc, function(m) na2(m$level, 2))))""",
+                    "amt_hr"),
+})

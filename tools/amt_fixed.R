@@ -6,6 +6,8 @@
 # taken as the anticlockwise angle from east; here it is converted, 90 - bearing.
 # sinuosity: the turn angles, already in radians, are converted from degrees
 # (cos(ta * pi / 180)); here they are taken as radians.
+# hr_kde_pi, hr_kde_lscv (rescale = "unitvar"), hr_mcp (a track without a CRS): see hr_kde_pi_fixed,
+# hr_kde_lscv_fixed and hr_mcp_fixed below.
 # fit_distr(x, "exp"): fitdistrplus' BFGS fails for rates below 1e-3 (its
 # numerical gradient steps the rate below 0); here the maximum likelihood rate,
 # 1 / mean(x), from which amt's BFGS starts.
@@ -101,4 +103,87 @@ amt_along <- function(steps, r) {
   out <- list(off = c(0, cumsum(vapply(m, nrow, 1L))))
   for (k in seq_len(ncol(all))) out[[paste0("v", k)]] <- all[, k]
   out
+}
+
+# hr_kde_pi(rescale = "unitvar") and hr_kde_lscv(rescale = "unitvar") multiply the bandwidth by sd(x[, 1]) and
+# sd(x[, 2]): x[, 1] of a track (a tibble) is a one-column table, which sd() refuses ("'list' object cannot be
+# coerced to type 'double'"); here the columns x_ and y_. The rest is amt's code.
+hr_kde_pi_fixed <- function(x, rescale = "none", correct = TRUE, ...) {
+  if (!rescale %in% c("unitvar", "xvar", "none")) {
+    stop("rhrHpi: scale: not one of unitvar, xvar or none")
+  }
+  xs <- dplyr::pull(x, "x_")
+  ys <- dplyr::pull(x, "y_")
+  if (rescale == "unitvar") {
+    xs <- xs / sd(xs)
+    ys <- ys / sd(ys)
+  } else if (rescale == "xvar") {
+    ys <- (ys / sd(ys)) * sd(xs)
+  }
+  hx <- KernSmooth::dpik(xs, ...)
+  hy <- KernSmooth::dpik(ys, ...)
+  h <- c(hx, hy)
+  if (rescale == "unitvar") {
+    h <- KernSmooth::dpik(xs, ...)
+    h <- h * c(sd(x$x_), sd(x$y_))
+  }
+  if (correct) {
+    h <- h^(5 / 6)
+  }
+  h
+}
+
+hr_kde_lscv_fixed <- function(x, range = do.call(seq, as.list(c(amt::hr_kde_ref(x) * c(0.1, 2), length.out = 100))),
+                              which_min = "global", rescale = "none", trast = amt::make_trast(x)) {
+  if (!rescale %in% c("unitvar", "xvar", "none")) {
+    stop("scale: not one of unit, sd or none")
+  }
+  xs <- dplyr::pull(x, "x_")
+  ys <- dplyr::pull(x, "y_")
+  if (rescale == "unitvar") {
+    xs <- xs / sd(xs)
+    ys <- ys / sd(ys)
+  } else if (rescale == "xvar") {
+    ys <- (ys / sd(ys)) * sd(xs)
+  }
+  converged <- TRUE
+  res <- amt:::lscv(cbind(xs, ys), range)
+  if (which_min == "global") {
+    h <- range[which.min(res)]
+  } else {
+    h <- range[max(amt:::local_minima(res))]
+  }
+  if (range[1] == h | range[length(range)] == h) {
+    converged <- FALSE
+    warning("hr_kde_lscv: lscv did not converge.")
+  }
+  if (rescale == "unitvar") {
+    h <- h * c(sd(x$x_), sd(x$y_))
+  } else {
+    h <- c(h, h)
+  }
+  list(h = h, converged = converged, res = res, which_min = which_min, rescale = rescale, range = range)
+}
+
+# hr_mcp(): st_as_sfc(geometry, crs = get_crs(x)) refuses the NA of a track without a CRS ("is.numeric(crs) ||
+# is.character(crs) || inherits(crs, "crs") is not TRUE"), so no minimum convex polygon (nor intensity_use) of such a
+# track; here the NA CRS of sf. The rest is amt's code.
+hr_mcp_fixed <- function(x, levels = 0.95, keep.data = TRUE, ...) {
+  checkmate::assert_numeric(levels, lower = 0, upper = 1, min.len = 1)
+  levels <- sort(levels)
+  xy <- x[, c("x_", "y_")]
+  mxy <- colMeans(xy)
+  sqd <- (xy$x_ - mxy[1])^2 + (xy$y_ - mxy[2])^2
+  qts <- stats::quantile(sqd, levels)
+  geometry <- lapply(qts, function(i) amt:::chull_mcp(xy[sqd <= i, ]))
+  crs <- amt:::get_crs(x)
+  geometry <- sf::st_as_sfc(geometry, crs = if (is.na(crs)) sf::NA_crs_ else crs)
+  mcps <- sf::st_sf(level = levels, what = "estimate", area = sf::st_area(geometry), geometry)
+  mcp <- list(mcp = mcps, levels = levels, estimator = "mcp", crs = crs, data = if (keep.data) x else NULL)
+  class(mcp) <- c("mcp", "hr_geom", "hr")
+  mcp
+}
+
+intensity_use_fixed <- function(x, ...) {
+  amt::cum_dist(x) / amt::hr_area(hr_mcp_fixed(x, levels = 1))$area^0.5
 }

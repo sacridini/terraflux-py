@@ -94,6 +94,30 @@ in a new major version.
     for bit from R's projected coordinates); its `location_error = "auto"` and column names do not find Movebank's
     `eobs:horizontal-accuracy-estimate`; the loop that reaches `xEnd == nX` in its kernel reads one cell past the
     grid, which tf.move refuses as a window that does not fit.
+- `tf.move`: the home ranges of R's amt 0.3.1 (Signer, Fieberg & Avgar 2019, doi:10.1002/ece3.4823), the same numbers
+  (tests against amt in R on random-walk sets, on move2's fishers in UTM and on tracks of the edge cases). amt works
+  one track at a time: here the functions take a table of tracks and give a row (or a band) per track. Not here: `hr_akde`
+  and `hr_od` (they need ctmm), `hr_overlap_feature` and `hr_to_sf`.
+  - `hr_mcp(tracks, levels=0.95)`: minimum convex polygons (`chull`, the quantile of the squared distance to the mean
+    location), `hr_kde(tracks, h, trast, levels)`: kernel density estimates (KernSmooth's `bkde2D`, with R's own fft ported
+    to C++, on the template raster), `hr_locoh(tracks, n, type="k"|"a"|"r", levels)`: local convex hulls (Getz et al.
+    2007). They give a `HomeRange` with `polygons` (`track`, `level`, `what`, `area`, `geometry`) and, for the kernel
+    estimate, `ud`, a `(track, y, x)` DataArray; `home_range(tracks, method="mcp"|"kde"|"locoh")` is the shortcut.
+  - The bandwidths: `hr_kde_ref` (rescale `none`, `unitvar`, `xvar`), `hr_kde_ref_scaled` (the bisection for a number of
+    polygons), `hr_kde_pi` (KernSmooth's `dpik`, levels 0 to 5, scale estimates and kernels) and `hr_kde_lscv`
+    (least-squares cross-validation, `global` or `local` minimum, the bandwidths in parallel).
+  - `hr_isopleths`, `hr_area`, `hr_ud` and `hr_cud`: the isopleths of a kernel estimate are R's `contourLines` (what
+    `terra::as.contour` calls) of the cumulative distribution, closed and united by GEOS as in `sf`; they also take a
+    raster. `hr_overlap` (`hr`, `phr`, `vi`, `ba`, `udoi`, `hd`; `conditional`; two estimates, or `consecutive` / `all` /
+    `one_to_all` among many), `intensity_use` and `make_trast` (terra's rule for the cells of a template).
+  - Where amt is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
+    `tools/amt_fixed.R`: `hr_mcp` (and `intensity_use`) refuse a track without a CRS (`st_as_sfc(crs = NA)`), and
+    `hr_kde_pi` and `hr_kde_lscv` with `rescale = "unitvar"` fail on `sd(x[, 1])` of a tibble. The tracks must be
+    projected: amt's areas of a track in longitude / latitude come from `s2` on a plane computed in degrees, here an
+    error that asks for the projection. A template made for all the tracks (one grid for the bands of `ud`) is the
+    default of several tracks; for one, amt's. C++ (`movecore`): the same result with any number of threads. The
+    areas are GDAL's (what `sf::st_area` calls on a projected CRS, not GEOS's), as the tests found out. The LoCoH areas
+    agree with amt's to 1e-8 only: GEOS 3.13's buffer of the hulls (1e-5) has other vertices than 3.12's (the references').
 
 ### Fixed
 - `tf.move.random_numbers` / `random_steps` (gamma): R's `rgamma()` kept its cached constants in statics and drew from the caller's generator through a global pointer, so draws on two threads at once (Terraflux runs two models, or its tests in parallel) used each other's generator or a null one and crashed. Both are `thread_local` now; the draws are the same.

@@ -42,6 +42,7 @@ std::int64_t check(const F64& x, const F64& y, const I64& track) {
 namespace move {
 
 void register_python_corridor(py::module_& m);  // python_corridor.cpp
+void register_python_hr(py::module_& m);  // python_hr.cpp
 
 void register_python(py::module_& m) {
     m.def(
@@ -462,6 +463,7 @@ void register_python(py::module_& m) {
 
     register_python_corridor(m);
     register_python_ud(m);
+    register_python_hr(m);
 }
 
 }  // namespace move

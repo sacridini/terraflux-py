@@ -44,6 +44,9 @@ from ._examples import example_data
 from ._filters import (filter_movebank_visible, filter_per_interval, filter_unique, movebank_visible, per_interval,
                        unique)
 from ._geometry import aeqd_crs, interpolate, segments, track_data, track_lines
+from ._homerange import (HomeRange, Lscv, LscvFit, home_range, hr_area, hr_cud, hr_isopleths, hr_kde, hr_kde_lscv,
+                         hr_kde_pi, hr_kde_ref, hr_kde_ref_scaled, hr_locoh, hr_mcp, hr_overlap, hr_ud, intensity_use,
+                         make_trast)
 from ._measures import azimuth, distance, speed, time_lags, turn_angle
 from ._read import as_tracks, load_tracks
 from ._simulate import simulate_brownian
@@ -64,4 +67,8 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "tot_dist", "track_data", "track_lines", "turn_angle", "unique", "v_phys_estimate", "VPhys",
            "corridor", "corridor_lines", "ud_distance",
            "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "mask_segments", "motion_variance",
-           "suggest_dbbmm_window", "ud_outer_probability", "ud_volume"]
+           "suggest_dbbmm_window", "ud_outer_probability", "ud_volume",
+           "HomeRange", "Lscv", "LscvFit", "home_range", "hr_area", "hr_cud", "hr_isopleths", "hr_kde", "hr_kde_lscv",
+           "hr_kde_pi", "hr_kde_ref", "hr_kde_ref_scaled", "hr_locoh", "hr_mcp", "hr_overlap", "hr_ud",
+           "intensity_use", "make_trast"]
+

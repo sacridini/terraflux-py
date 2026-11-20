@@ -10,9 +10,10 @@ Draws the track sets of ``tests/move_cases.py``, runs the cases through
 ``tools/amt_fixed.R`` and ``tools/move2utils_fixed.R``, the packages' corrected
 functions) and stores the inputs in ``tests/data/reference/move/inputs.npz``
 (those of move2 and amt; the sets of move2utils, in
-``inputs_move2utils.npz``; the steps of extract_covariates_along, in ``inputs_along.npz``) and the results in
+``inputs_move2utils.npz``; the steps of extract_covariates_along, in ``inputs_along.npz``; those of amt's
+home ranges in ``inputs_hr.npz``) and the results in
 ``tests/data/reference/move/<group>.npz`` (``move2.npz``, ``amt.npz``,
-``move2utils.npz``, ``amt_along.npz``; keys ``<case>/<key>``).
+``move2utils.npz``, ``amt_along.npz``, ``amt_hr.npz``; keys ``<case>/<key>``).
 ``--case`` regenerates only the named cases (the others are kept).
 The along sets are drawn with tf.move.random_steps, so terraflux must be importable.
 
@@ -80,8 +81,9 @@ def main() -> None:
     if rscript is None:
         sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     along = move_cases.along_track_sets()
+    hr_sets = move_cases.hr_track_sets()
     sets = {**move_cases.track_sets(), **move_cases.m2u_track_sets(), **along,
-            **move_cases.corridor_track_sets(), **move_cases.ud_track_sets()}
+            **move_cases.corridor_track_sets(), **move_cases.ud_track_sets(), **hr_sets}
     inputs: dict[str, np.ndarray] = {}
     with tempfile.TemporaryDirectory(prefix="move_ref_") as tmp:
         tmp = Path(tmp)
@@ -117,12 +119,15 @@ def main() -> None:
     alg = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in along}
     cor = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.corridor_track_sets()}
     ud = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.ud_track_sets()}
+    hr = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in hr_sets}
     save(OUT / "inputs.npz", {k: v for k, v in inputs.items()
-                              if k not in m2u and k not in alg and k not in cor and k not in ud})
+                              if k not in m2u and k not in alg and k not in cor and k not in ud
+                              and k not in hr})
     save(OUT / "inputs_move2utils.npz", m2u)
     save(OUT / "inputs_along.npz", alg)
     save(OUT / "inputs_corridor.npz", cor)
     save(OUT / "inputs_move2utils_ud.npz", ud)
+    save(OUT / "inputs_hr.npz", hr)
 
 
 if __name__ == "__main__":

@@ -327,6 +327,7 @@ add_library(movecore STATIC
     src/cpp/move/geo.cpp
     src/cpp/move/geodesic_proj.cpp
     src/cpp/move/locerr.cpp
+    src/cpp/move/homerange.cpp
     src/cpp/move/rnmath.cpp
     src/cpp/move/track.cpp
     src/cpp/move/vendor/emdist/emd_rubner.cpp
@@ -516,7 +517,8 @@ if(TERRAFLUX_PYTHON)
                         src/cpp/serv/python.cpp src/cpp/serv/python_coastal.cpp src/cpp/serv/python_swy.cpp
                         src/cpp/swat/python.cpp src/cpp/stats/python.cpp src/cpp/move/python.cpp
                         src/cpp/move/python_corridor.cpp
-                        src/cpp/move/python_ud.cpp)
+                        src/cpp/move/python_ud.cpp
+                        src/cpp/move/python_hr.cpp)
     target_link_libraries(_core PRIVATE eigen_headers)
     target_link_libraries(_core PRIVATE gtbcore lsmcore conncore circuitcore nlmcore biocore costcore surfcore priocore
                           iocore sdmcore simcore optcore restcore hydrocore servcore swatcore statscore movecore)

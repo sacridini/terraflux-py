@@ -21,6 +21,7 @@ tools <- Sys.getenv("TOOLS")
 source(file.path(tools, "move2_fixed.R"))
 source(file.path(tools, "amt_fixed.R"))
 source(file.path(tools, "move2utils_fixed.R"))
+source(file.path(tools, "amt_hr.R"))
 
 read_f64 <- function(path, n) readBin(path, "double", n = n, size = 8, endian = "little")
 
