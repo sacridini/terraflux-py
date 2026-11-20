@@ -4914,6 +4914,10 @@ ls.move.validate(ud, cur)
    isopletas, `hr_overlap` (HR, PHR, VI, BA, UDOI, HD); a API `home_range(method=...)`.
 6. move v1: dBBMM (a variância por janela móvel com os pontos de quebra pelo BIC), BBMM, `getVolumeUD`, `corridor`.
    `validate` contra as superfícies de conectividade.
+   **Atualização (2026-11-20):** as fases 5 e 6 viraram um bloco com o plano no `IDEAS.md` do Terraflux ("Áreas de
+   vida, UDs, corredores e limpeza de trajetórias"): a referência da fase 6 passa a ser o move2utils 0.4.6
+   (github.com/move2universe/move2utils: dBBMM, dBGB, `ud_volume`, `emd`, `mt_corridor`), mais a limpeza simples e o
+   desbaste dele; a cascata de outliers dele fica de fora até o artigo sair.
 7. recurse (revisitas e tempo de residência, em pontos, em locais e em polígonos) e enerscape
    (`ls.cost.energy_landscape`).
 8. HMM: o moveHMM (`prepData`, `fitHMM` com o `nlm` do R portado, o algoritmo forward em C++, `viterbi`,
