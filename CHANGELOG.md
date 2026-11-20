@@ -34,6 +34,9 @@ in a new major version.
     with a single location to score (a result of length one is taken for a scalar attribute) and then fails to bind the
     tracks of a set that has one.
 
+### Fixed
+- `tf.move.random_numbers` / `random_steps` (gamma): R's `rgamma()` kept its cached constants in statics and drew from the caller's generator through a global pointer, so draws on two threads at once (Terraflux runs two models, or its tests in parallel) used each other's generator or a null one and crashed. Both are `thread_local` now; the draws are the same.
+
 ## [1.60.0] - 2026-11-18
 
 ### Added
