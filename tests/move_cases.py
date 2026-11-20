@@ -414,3 +414,191 @@ list(v = m[, 1], lo = m[, 2], hi = m[, 3], kmh = m[, 4])""", "move2utils"),
                                                              "sat_min = 8, dop_max = 3"), "move2utils"),
     "gps_fishers": Case("fishers", _QUALITY_FIXED, "move2utils"),
 })
+
+
+# amt's extract_covariates_along (group "amt_along", in amt_along.npz; the steps of its sets are stored in
+# inputs_along.npz): the steps start at the points x, y of a set and end at its x2, y2; the rasters of ALONG_RASTERS
+# have three layers made of integers, so that R and numpy build the same values.
+
+ALONG_LAYERS = ("cover", "lvl", "hill")
+ALONG_RASTERS = {
+    "fishers": dict(nrows=355, ncols=1100, xmin=-73.94041, xres=0.0005, ymax=42.85101, yres=0.0004, crs="EPSG:4326"),
+    "utm": dict(nrows=200, ncols=200, xmin=186999.63, xres=37.3, ymax=8253000.91, yres=37.3, crs="EPSG:32723"),
+    "edges": dict(nrows=10, ncols=12, xmin=0.0, xres=1.0, ymax=10.0, yres=1.0, crs="EPSG:32723"),
+    "tenth": dict(nrows=30, ncols=40, xmin=0.0, xres=0.1, ymax=3.0, yres=0.1, crs=None),
+    "origin": dict(nrows=15, ncols=20, xmin=1.3, xres=2.5, ymax=17.2, yres=1.7, crs=None),
+    "big": dict(nrows=40, ncols=60, xmin=500000.123, xres=30.0, ymax=7500000.456, yres=30.0, crs="EPSG:32723"),
+}
+
+
+def along_raster(name: str) -> dict:
+    """The extent and the values (layer: (nrows, ncols) array, NaN for no data) of a raster of ALONG_RASTERS."""
+    p = ALONG_RASTERS[name]
+    nr, nc = p["nrows"], p["ncols"]
+    cell = np.arange(nr * nc, dtype=np.float64)
+    row, col = cell // nc, cell % nc
+    cover = cell + 1
+    cover[cover % 13 == 0] = np.nan
+    lvl = (row * 31 + col * 17) % 101
+    lvl[(row + col) % 11 == 0] = np.nan
+    hill = (row - nr // 2) ** 2 + (col - nc // 2) ** 2
+    values = {k: v.reshape(nr, nc) for k, v in zip(ALONG_LAYERS, (cover, lvl, hill))}
+    return {**p, "xmax": p["xmin"] + nc * p["xres"], "ymin": p["ymax"] - nr * p["yres"], "values": values}
+
+
+def _r_along_raster(name: str, layers: int = 3) -> str:
+    p = ALONG_RASTERS[name]
+    crs = "NA_character_" if p["crs"] is None else '"' + p["crs"] + '"'
+    sel = "" if layers == 3 else "r <- r[[1]]\n"
+    return f"""nr <- {p['nrows']}; nc <- {p['ncols']}
+r <- terra::rast(nrows = nr, ncols = nc, xmin = {p['xmin']!r}, xmax = {p['xmin']!r} + nc * {p['xres']!r},
+                 ymin = {p['ymax']!r} - nr * {p['yres']!r}, ymax = {p['ymax']!r}, nlyrs = 3, crs = {crs})
+cell <- 0:(nr * nc - 1); row <- cell %/% nc; col <- cell %% nc
+cover <- cell + 1; cover[cover %% 13 == 0] <- NA
+lvl <- (row * 31 + col * 17) %% 101; lvl[(row + col) %% 11 == 0] <- NA
+hill <- (row - nr %/% 2)^2 + (col - nc %/% 2)^2
+terra::values(r) <- cbind(cover, lvl, hill); names(r) <- c("cover", "lvl", "hill")
+{sel}"""
+
+
+def _along_set(x1, y1, x2, y2, crs=None) -> dict:
+    n = len(x1)
+    return {"x": np.asarray(x1, np.float64), "y": np.asarray(y1, np.float64), "t": T0 + np.arange(n, dtype=np.float64),
+            "track": np.array(["s"] * n), "crs": crs, "x2": np.asarray(x2, np.float64), "y2": np.asarray(y2, np.float64)}
+
+
+def _ulps(v, k):
+    """v moved by k units in the last place."""
+    for _ in range(abs(k)):
+        v = np.nextafter(v, np.inf if k > 0 else -np.inf)
+    return v
+
+
+def _random_steps_set() -> dict:
+    """The steps of tf.move.random_steps on the utm set (this needs terraflux)."""
+    import geopandas as gpd
+    import pandas as pd
+    from shapely.geometry import Point
+
+    import terraflux as tf
+
+    s = track_sets()["utm"]
+    geom = [Point(a, b) for a, b in zip(s["x"], s["y"])]
+    df = {"time": pd.to_datetime((s["t"] * 1e9).astype(np.int64), utc=True), "track": s["track"]}
+    tr = tf.move.as_tracks(gpd.GeoDataFrame(df, geometry=geom, crs=s["crs"]), "time", "track", sort=False)
+    rs = tf.move.random_steps(tf.move.steps(tr), n_control=5, seed=42)
+    return _along_set(rs["x1_"], rs["y1_"], rs["x2_"], rs["y2_"], crs=s["crs"])
+
+
+def along_track_sets() -> dict[str, dict]:
+    """name -> the steps of the along cases, as the sets of track_sets (x, y, t, track, crs, x2, y2)."""
+    rng = np.random.default_rng(20261121)
+    sets = {}
+    pick = lambda a, m: a[rng.integers(0, len(a), m)]  # noqa: E731
+
+    def lattice(k, lo, hi, m=3000):
+        return rng.integers(round(lo / k), round(hi / k) + 1, m) * k
+
+    # on the edges and corners of a 12 x 10 raster of unit cells: lines along each edge and each diagonal of the
+    # cells, and steps between points of lattices of 0.5 and 0.25, some of them outside
+    sx, sy, ex, ey = [], [], [], []
+    for i in range(0, 13):
+        sx += [i, i]
+        sy += [0, 10]
+        ex += [i, i]
+        ey += [10, 0]
+    for j in range(0, 11):
+        sx += [0, 12]
+        sy += [j, j]
+        ex += [12, 0]
+        ey += [j, j]
+    for i in range(0, 12):
+        for j in range(0, 10):
+            sx += [i, i + 1, i, i + 1]
+            sy += [j, j, j + 1, j + 1]
+            ex += [i + 1, i, i + 1, i]
+            ey += [j + 1, j + 1, j, j]
+    parts = [[np.array(a, np.float64) for a in (sx, sy, ex, ey)]]
+    for k in (0.5, 0.25):
+        parts.append([lattice(k, -1, 13), lattice(k, -1, 11), lattice(k, -1, 13), lattice(k, -1, 11)])
+    sets["along_edges"] = _along_set(*(np.concatenate(c) for c in zip(*parts)), crs="EPSG:32723")
+    # vertical and horizontal lines, and lines within 0.01 pixel of them (and of 1e-4 of the end of a cell)
+    d_pos = np.array([0, 1e-5, 0.001, 0.005, 0.0099, 0.00999999, 0.01, 0.0100001, 0.02, 0.5, 0.999, 1 - 1e-5])
+    d_pos = np.r_[d_pos, -d_pos]
+    d_len = np.array([0, 1e-5, 1e-4, 0.00009999, 0.0001, 0.004, 0.0099, 0.01, 0.0100001, 0.02])
+    d_len = np.r_[d_len, -d_len]
+    m = 2000
+    ends = np.r_[np.arange(-1, 13, 0.5), rng.uniform(-1, 13, 20)]
+    vx = rng.integers(-1, 14, m) + rng.choice(d_pos, m)
+    horiz_y = rng.integers(-1, 12, m) + rng.choice(d_pos, m)
+    sets["along_axis"] = _along_set(np.r_[vx, pick(ends, m)], np.r_[pick(ends, m), horiz_y],
+                                    np.r_[vx + rng.choice(d_len, m), pick(ends, m)],
+                                    np.r_[pick(ends, m), horiz_y + rng.choice(d_len, m)], crs="EPSG:32723")
+    # zero-length steps: on the edges and corners, inside, outside, on the border of the raster
+    zx = np.r_[lattice(0.5, -1, 13), rng.uniform(-1, 13, 1000), [0, 12, 0, 12, 6, 6, 0, 12, 13, -1]]
+    zy = np.r_[lattice(0.5, -1, 11), rng.uniform(-1, 11, 1000), [0, 0, 10, 10, 0, 10, 5, 5, 5, 5]]
+    sets["along_zero"] = _along_set(zx, zy, zx, zy, crs="EPSG:32723")
+    # partly and wholly outside, and touching the border from outside
+    ox = rng.uniform(-6, 18, (3000, 2))
+    oy = rng.uniform(-6, 16, (3000, 2))
+    tx = np.array([[12, 14], [14, 12], [12, 14], [-2, 0], [0, -2], [5, 5], [5, 5], [5, 7], [7, 5], [-3, -1], [13, 15],
+                   [12, 12], [0, 0], [12, 13], [0, -1], [12, 12], [0, 0], [6, 8], [6, 4], [-1, -1]], np.float64)
+    ty = np.array([[5, 7], [5, 7], [3, 3], [5, 5], [5, 5], [10, 12], [0, -2], [10, 12], [-2, 0], [-1, 1], [5, 5],
+                   [2, 5], [2, 5], [5, 5], [5, 5], [11, 13], [-1, -3], [10, 12], [0, -2], [3, 6]], np.float64)
+    sets["along_outside"] = _along_set(np.r_[ox[:, 0], tx[:, 0]], np.r_[oy[:, 0], ty[:, 0]], np.r_[ox[:, 1], tx[:, 1]],
+                                       np.r_[oy[:, 1], ty[:, 1]], crs="EPSG:32723")
+    # coordinates that paste0's 15 significant digits change: multiples of 0.1 made in several ways, neighbours in ulps
+    k = np.arange(-3, 44)
+    base = np.r_[k * 0.1, k / 10, 0.1 + 0.2 + (k - 3) * 0.1, (k * 0.3) / 3, k * (1 / 10)]
+    base = np.r_[base, [_ulps(b, u) for b in base[::3] for u in (-2, -1, 1, 2)]]
+    k = np.arange(-3, 34)
+    by = np.r_[k * 0.1, k / 10, [_ulps(b, u) for b in k[3:] * 0.1 for u in (-1, 1)]]
+    m = 3000
+    sets["along_digits"] = _along_set(pick(base, m), pick(by, m), pick(base, m), pick(by, m))
+    # coordinates of the size of UTM ones near the edges, with digits beyond the 15th
+    big = ALONG_RASTERS["big"]
+    gx = big["xmin"] + np.arange(0, 61) * big["xres"]
+    gy = big["ymax"] - np.arange(0, 41) * big["yres"]
+    noise = np.array([0.0, 1e-10, -1e-10, 3e-10, -4.4e-10, 6e-10, -1e-9, 2e-9])
+
+    def jitter(g, m):
+        return pick(g, m) + rng.choice(noise, m) + rng.integers(0, 2, m) * rng.uniform(0, 1e-3, m)
+
+    m = 3000
+    sets["along_big"] = _along_set(jitter(gx, m), jitter(gy, m), jitter(gx, m), jitter(gy, m), crs="EPSG:32723")
+    # a raster whose origin is not a multiple of its cell size: steps on and near the edges, and random ones
+    o = ALONG_RASTERS["origin"]
+    ex = o["xmin"] + np.arange(-1, 22) * o["xres"]
+    ey = o["ymax"] - np.arange(-1, 17) * o["yres"]
+    xmax, ymin = o["xmin"] + o["ncols"] * o["xres"], o["ymax"] - o["nrows"] * o["yres"]
+    sets["along_origin"] = _along_set(
+        np.r_[pick(ex, 1500), rng.uniform(o["xmin"] - 3, xmax + 3, 1500)], np.r_[pick(ey, 1500), rng.uniform(ymin - 3, o["ymax"] + 3, 1500)],
+        np.r_[pick(ex, 1500), rng.uniform(o["xmin"] - 3, xmax + 3, 1500)], np.r_[pick(ey, 1500), rng.uniform(ymin - 3, o["ymax"] + 3, 1500)])
+    # a single step, and a single one outside the raster
+    sets["along_one"] = _along_set([0.5], [0.5], [9.5], [3.2], crs="EPSG:32723")
+    sets["along_one_out"] = _along_set([-5.0], [-5.0], [-4.0], [-3.0], crs="EPSG:32723")
+    sets["along_random"] = _random_steps_set()
+    return sets
+
+
+# case -> raster (the cases of the steps of a set; the fishers' steps are the data's own)
+ALONG_CASES = {"along_edges": "edges", "along_axis": "edges", "along_zero": "edges", "along_outside": "edges",
+               "along_digits": "tenth", "along_big": "big", "along_origin": "origin", "along_one": "edges",
+               "along_one_out": "edges", "along_random": "utm"}
+_ALONG_STEPS = "xy <- sf::st_coordinates(x); s <- data.frame(x1_ = xy[, 1], y1_ = xy[, 2], x2_ = x$x2, y2_ = x$y2)\n"
+_FISHERS_STEPS = """x <- x[!st_is_empty(x), ]
+s <- do.call(rbind, lapply(amt_tracks(x), function(t) {
+  as.data.frame(suppressWarnings(amt::steps(t, lonlat = TRUE)))[, c("x1_", "y1_", "x2_", "y2_")] }))
+"""
+
+CASES.update({
+    **{name: Case(name, _r_along_raster(raster) + _ALONG_STEPS + "amt_along(s, r)", "amt_along")
+       for name, raster in ALONG_CASES.items()},
+    "along_fishers": Case("fishers", _r_along_raster("fishers") + _FISHERS_STEPS + "amt_along(s, r)", "amt_along"),
+    "along_fishers_one": Case("fishers", _r_along_raster("fishers", 1) + _FISHERS_STEPS
+                              + "s <- s[1:5000, ]\namt_along(s, r)", "amt_along"),
+    # one layer: a vector per step instead of a data frame
+    "along_edges_one": Case("along_edges", _r_along_raster("edges", 1) + _ALONG_STEPS + "amt_along(s, r)", "amt_along"),
+    "along_origin_one": Case("along_origin", _r_along_raster("origin", 1) + _ALONG_STEPS + "amt_along(s, r)",
+                             "amt_along"),
+})

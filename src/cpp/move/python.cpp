@@ -7,12 +7,14 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "move/along.hpp"
 #include "move/amt.hpp"
 #include "move/clean.hpp"
 #include "move/distr.hpp"
@@ -149,6 +151,54 @@ void register_python(py::module_& m) {
         py::arg("jitter") = std::numeric_limits<double>::quiet_NaN(), py::arg("threads") = 1,
         "mt_flag_speed_cap with a hard cap: step speeds, fixes next to a step above the cap or below the jitter "
         "(1, 0; -1 left out) and the log-LR.");
+
+    m.def(
+        "move_along_cells",
+        [](const F64& x1, const F64& y1, const F64& x2, const F64& y2, double xmin, double xmax, double ymin,
+           double ymax, std::int64_t nx, std::int64_t ny, bool round15, int threads) {
+            if (x1.ndim() != 1 || y1.size() != x1.size() || x2.size() != x1.size() || y2.size() != x1.size())
+                throw std::invalid_argument("x1, y1, x2 and y2: 1-D arrays of the same length");
+            if (nx < 1 || ny < 1 || !(xmax > xmin) || !(ymax > ymin))
+                throw std::invalid_argument("the raster needs cells and an extent");
+            const auto n = static_cast<std::int64_t>(x1.size());
+            AlongCells r;
+            {
+                py::gil_scoped_release release;
+                r = along_cells(x1.data(), y1.data(), x2.data(), y2.data(), n, xmin, xmax, ymin, ymax, nx, ny, round15,
+                                threads);
+            }
+            I64 off(static_cast<py::ssize_t>(r.offsets.size())), cell(static_cast<py::ssize_t>(r.cell.size())),
+                rank(static_cast<py::ssize_t>(r.rank.size()));
+            std::copy(r.offsets.begin(), r.offsets.end(), off.mutable_data());
+            std::copy(r.cell.begin(), r.cell.end(), cell.mutable_data());
+            std::copy(r.rank.begin(), r.rank.end(), rank.mutable_data());
+            return py::make_tuple(off, cell, rank);
+        },
+        py::arg("x1"), py::arg("y1"), py::arg("x2"), py::arg("y2"), py::arg("xmin"), py::arg("xmax"),
+        py::arg("ymin"), py::arg("ymax"), py::arg("nx"), py::arg("ny"), py::arg("round15") = true,
+        py::arg("threads") = 1,
+        "The cells terra's extract(r, LINESTRING) takes for each step (offsets, cell numbers in terra's order, "
+        "ranks along the step; -1: NA).");
+
+    m.def(
+        "move_along_stats",
+        [](const I64& offsets, const I64& cell, const I64& rank, const F64& v, int threads) {
+            if (offsets.size() < 1 || cell.size() != rank.size() || offsets.data()[offsets.size() - 1] != cell.size())
+                throw std::invalid_argument("offsets, cell and rank do not fit");
+            AlongCells c;
+            c.offsets.assign(offsets.data(), offsets.data() + offsets.size());
+            c.cell.assign(cell.data(), cell.data() + cell.size());
+            c.rank.assign(rank.data(), rank.data() + rank.size());
+            const auto n = static_cast<std::int64_t>(offsets.size()) - 1;
+            F64 out({static_cast<py::ssize_t>(n), static_cast<py::ssize_t>(6)});
+            {
+                py::gil_scoped_release release;
+                along_stats(c, v.data(), static_cast<std::int64_t>(v.size()), threads, out.mutable_data());
+            }
+            return out;
+        },
+        py::arg("offsets"), py::arg("cell"), py::arg("rank"), py::arg("values"), py::arg("threads") = 1,
+        "Mean, min, max, ascent, descent and delta of a raster's values along each step (move_along_cells).");
 
     m.def(
         "move_thin_time",

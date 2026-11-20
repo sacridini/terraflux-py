@@ -12,6 +12,9 @@ projection, Brownian tracks. Computed in C++ with OpenMP. From R's move2utils
 allometric speed limit (:func:`v_phys_estimate`, Hirt et al. 2017), the locations
 beside steps above it (:func:`flag_speed`), GPS quality (:func:`filter_gps_quality`)
 and thinning in time and in distance (:func:`filter_thin_time`, :func:`filter_thin_distance`).
+From amt, the values of a raster along each step (:func:`extract_covariates_along`, the cells terra's
+``extract`` takes for the line) and, added here, their summaries per step (:func:`along_summary`: mean, range,
+ascent, descent and delta, which tell a step up a hill from one along a contour line).
 
 Typical use::
 
@@ -29,6 +32,7 @@ Typical use::
     tf.write_vector(lines, "tracks.gpkg")
 """
 
+from ._along import along_summary, extract_covariates_along
 from ._clean import (VPhys, filter_gps_quality, filter_thin_distance, filter_thin_time, flag_speed, gps_quality,
                      thin_distance, thin_time, v_phys_estimate)
 from ._examples import example_data
@@ -43,8 +47,8 @@ from ._steps import (cum_dist, filter_min_n_burst, msd, nsd, resample, sinuosity
                      time_of_day, tot_dist)
 from ._tracks import set_columns
 
-__all__ = ["aeqd_crs", "as_tracks", "azimuth", "cum_dist", "distance", "Distribution", "example_data",
-           "extract_covariates",
+__all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "distance", "Distribution", "example_data",
+           "extract_covariates", "extract_covariates_along",
            "filter_gps_quality", "filter_min_n_burst", "filter_movebank_visible", "filter_per_interval",
            "filter_thin_distance", "filter_thin_time", "filter_unique", "fit_distr", "flag_speed", "gps_quality",
            "interpolate", "load_tracks", "make_distribution", "movebank_visible", "msd", "nsd", "per_interval",

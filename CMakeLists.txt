@@ -317,6 +317,7 @@ set_target_properties(statscore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # Movement ecology (tf.move): steps of tracks as move2 and amt compute them (s2, lwgeom's PROJ geodesics,
 # R's nmath, optim and circular's von Mises).
 add_library(movecore STATIC
+    src/cpp/move/along.cpp
     src/cpp/move/amt.cpp
     src/cpp/move/clean.cpp
     src/cpp/move/distr.cpp

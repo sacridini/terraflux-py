@@ -89,3 +89,16 @@ amt_tracks <- function(x) {
 
 # The column `col` of each table of a list, one after the other.
 amt_cat <- function(tables, col) unlist(lapply(tables, function(d) as.numeric(d[[col]])), use.names = FALSE)
+
+# amt's extract_covariates_along on a table of steps (columns x1_, y1_, x2_, y2_), flattened for the references:
+# off (the cells of each step: its values are [off[i], off[i + 1])) and v1, v2, ... (the values of each layer, the
+# steps one after the other, in the order amt's list has them). A raster of one layer gives vectors, of several
+# data frames; both are read here.
+amt_along <- function(steps, r) {
+  l <- amt:::extract_covariates_along.steps_xy(steps, r)
+  m <- lapply(l, function(v) if (is.data.frame(v)) as.matrix(v) else matrix(as.numeric(v), ncol = 1))
+  all <- do.call(rbind, m)
+  out <- list(off = c(0, cumsum(vapply(m, nrow, 1L))))
+  for (k in seq_len(ncol(all))) out[[paste0("v", k)]] <- all[, k]
+  out
+}

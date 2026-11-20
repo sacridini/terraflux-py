@@ -7,6 +7,15 @@ in a new major version.
 ## [Unreleased]
 
 ### Added
+- `tf.move`: the values of a raster along each step, amt 0.3.1's `extract_covariates_along` bit for bit (cell by cell,
+  in terra's order, on terra 1.9-50 with GDAL 3.9.3's ALL_TOUCHED line walk on the grid terra crops to the line; tests
+  against amt in R on the fishers' steps, random steps, steps on cell edges and corners, near-vertical and horizontal,
+  zero-length, partly and wholly outside, NaN cells, a raster whose origin is not a multiple of its cell size, and
+  coordinates with more than 15 digits).
+  - `extract_covariates_along(steps, covariates)`: a list with one array per step (a DataFrame for several layers).
+  - `along_summary(steps, covariates, stats=...)`: not in amt. Columns `<layer>_along_<stat>`: `mean`, `min`, `max`
+    of the cells a step crosses, and `ascent`, `descent`, `delta` with the cells in order along the step, which tell a
+    step that climbs a hill from one that follows a contour line. Parallel over steps; the same result for any thread count.
 - `tf.move`: the simple part of cleaning a track, from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026, bioRxiv
   doi:10.64898/2026.07.07.736908), bit for bit with it (tests against its functions in R, on move2's fishers, on its
   synthetic track with known outliers and on small sets of the edge cases). The cascade of outlier detectors, the
