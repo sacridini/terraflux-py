@@ -15,6 +15,9 @@ and thinning in time and in distance (:func:`filter_thin_time`, :func:`filter_th
 From amt, the values of a raster along each step (:func:`extract_covariates_along`, the cells terra's
 ``extract`` takes for the line) and, added here, their summaries per step (:func:`along_summary`: mean, range,
 ascent, descent and delta, which tell a step up a hill from one along a contour line).
+From move2utils again, the corridors the animals use (:func:`corridor`, LaPoint et al. 2013: fast, straight
+passages among the neighbouring segments; :func:`corridor_lines`) and the earth mover's distance between
+utilisation distributions (:func:`ud_distance`, Sinkhorn or exact).
 
 Typical use::
 
