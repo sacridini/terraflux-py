@@ -7,7 +7,11 @@ any table of locations). The first part is R's move2 (Kranstauber et al.
 2024), the same numbers: the distance, speed, direction and turn of each step
 (``sf`` / ``s2`` and ``lwgeom`` on the sphere and the ellipsoid), duplicates and
 one location per interval, interpolation in time, tracks as lines, a local
-projection, Brownian tracks. Computed in C++ with OpenMP.
+projection, Brownian tracks. Computed in C++ with OpenMP. From R's move2utils
+(Kranstauber, Safi & Scharf 2026) comes the simple part of cleaning a track: the
+allometric speed limit (:func:`v_phys_estimate`, Hirt et al. 2017), the locations
+beside steps above it (:func:`flag_speed`), GPS quality (:func:`filter_gps_quality`)
+and thinning in time and in distance (:func:`filter_thin_time`, :func:`filter_thin_distance`).
 
 Typical use::
 
@@ -19,9 +23,14 @@ Typical use::
     tracks["turn"] = tf.move.turn_angle(tracks, "deg")
     hourly = tf.move.filter_per_interval(tracks, "hour")
     lines = tf.move.track_lines(tracks)                     # one line per animal
+    tracks = tf.move.filter_gps_quality(tracks)             # satellites, DOP, accuracy
+    flagged = tf.move.flag_speed(tracks, mass=5, mode="flying")   # beside a step above Hirt's limit
+    thin = tf.move.filter_thin_time(tracks, "45 min")       # about 45 minutes between locations
     tf.write_vector(lines, "tracks.gpkg")
 """
 
+from ._clean import (VPhys, filter_gps_quality, filter_thin_distance, filter_thin_time, flag_speed, gps_quality,
+                     thin_distance, thin_time, v_phys_estimate)
 from ._examples import example_data
 from ._filters import (filter_movebank_visible, filter_per_interval, filter_unique, movebank_visible, per_interval,
                        unique)
@@ -36,8 +45,9 @@ from ._tracks import set_columns
 
 __all__ = ["aeqd_crs", "as_tracks", "azimuth", "cum_dist", "distance", "Distribution", "example_data",
            "extract_covariates",
-           "filter_min_n_burst", "filter_movebank_visible", "filter_per_interval", "filter_unique", "fit_distr",
+           "filter_gps_quality", "filter_min_n_burst", "filter_movebank_visible", "filter_per_interval",
+           "filter_thin_distance", "filter_thin_time", "filter_unique", "fit_distr", "flag_speed", "gps_quality",
            "interpolate", "load_tracks", "make_distribution", "movebank_visible", "msd", "nsd", "per_interval",
            "random_numbers", "random_steps", "resample", "segments", "set_columns", "simulate_brownian", "sinuosity",
-           "speed", "steps", "straightness", "tac", "time_lags", "time_of_day", "tot_dist", "track_data",
-           "track_lines", "turn_angle", "unique"]
+           "speed", "steps", "straightness", "tac", "thin_distance", "thin_time", "time_lags", "time_of_day",
+           "tot_dist", "track_data", "track_lines", "turn_angle", "unique", "v_phys_estimate", "VPhys"]

@@ -318,6 +318,7 @@ set_target_properties(statscore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # R's nmath, optim and circular's von Mises).
 add_library(movecore STATIC
     src/cpp/move/amt.cpp
+    src/cpp/move/clean.cpp
     src/cpp/move/distr.cpp
     src/cpp/move/geo.cpp
     src/cpp/move/geodesic_proj.cpp

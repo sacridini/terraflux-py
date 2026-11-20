@@ -6,6 +6,34 @@ in a new major version.
 
 ## [Unreleased]
 
+### Added
+- `tf.move`: the simple part of cleaning a track, from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026, bioRxiv
+  doi:10.64898/2026.07.07.736908), bit for bit with it (tests against its functions in R, on move2's fishers, on its
+  synthetic track with known outliers and on small sets of the edge cases). The cascade of outlier detectors, the
+  automatic speed thresholds and `pool_by` are not here.
+  - `v_phys_estimate(mass, mode="flying", ci_level=0.95)`: Hirt et al.'s (2017) allometric maximum speed (m/s) for a body
+    mass in kg and a mode (flying, running, swimming), with the delta-method interval of the parameters' standard
+    errors (a `VPhys` tuple: `v_max`, `lower`, `upper`, `kmh`, `mass`, `mode`, `ci_level`; floats for one mass, arrays
+    for several).
+  - `flag_speed(tracks, v_max=None, mass=None, mode=None, jitter=None, remove=False)`: `mt_flag_speed_cap` with a hard
+    cap (`threshold_type = "hard"`): the locations next to a step faster than `v_max` (or `v_phys_estimate(mass,
+    mode)`, without a margin), haversine on 6 371 008.8 m for longitude / latitude, planar otherwise; `jitter` also flags
+    the steps shorter than it. Adds move2utils' columns (`is_outlier`, `step_speed`, `is_speed_above_cap`,
+    `is_step_below_jitter`, `flagged_by_speed`, `loglr_speed`), the cap in `attrs["v_max_used"]`.
+  - `gps_quality` / `filter_gps_quality(sat_min=5, dop_max=10, hacc_max=100, drop_empty=True)`: `mt_filter_gps_quality`.
+  - `thin_time(tracks, interval, tolerance=None, criterion="closest")` and `thin_distance(tracks, distance,
+    method="step", tolerance=None)`, with `filter_thin_time` and `filter_thin_distance`: `mt_thin_time` (the longest
+    chain of locations about `interval` apart, a dynamic programme that splits at gaps longer than `interval +
+    tolerance`; not `per_interval`'s clock buckets) and `mt_thin_distance` (`"step"`: the greedy walk; `"interval"`: the
+    same dynamic programme over the distance travelled). C++ (`movecore`), the tracks in parallel, the same result
+    with any number of threads: a million locations in 0.1 to 0.6 s.
+  - Where move2utils is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
+    `tools/move2utils_fixed.R`: `mt_filter_gps_quality` does not find Movebank's own column names
+    (`gps:satellite-count`, `gps:dop`, `eobs:horizontal-accuracy-estimate`; only `gps_...` and `gps-...`), so on a
+    Movebank file (the example of its manual too) it filters nothing; `mt_flag_speed_cap` loses the columns of a track
+    with a single location to score (a result of length one is taken for a scalar attribute) and then fails to bind the
+    tracks of a set that has one.
+
 ## [1.60.0] - 2026-11-18
 
 ### Added

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Golden outputs of R's move2 and amt for tf.move (run by tools/make_reference_move.py).
+# Golden outputs of R's move2, amt and move2utils for tf.move (run by tools/make_reference_move.py).
 #
 # Usage: Rscript move_reference.R job.json outdir
 # job.json: {"sets": {name: {"dir", "n", "crs", "track", "extra"}}, "cases": [{"name", "data", "code"}]}
@@ -11,6 +11,7 @@ suppressPackageStartupMessages({
   library(jsonlite)
   library(sf)
   library(move2)
+  library(move2utils)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -19,11 +20,13 @@ outdir <- args[2]
 tools <- Sys.getenv("TOOLS")
 source(file.path(tools, "move2_fixed.R"))
 source(file.path(tools, "amt_fixed.R"))
+source(file.path(tools, "move2utils_fixed.R"))
 
 read_f64 <- function(path, n) readBin(path, "double", n = n, size = 8, endian = "little")
 
 make_set <- function(name) {
   if (name == "fishers") return(mt_read(mt_example()))
+  if (name == "m2u_synthetic") return(mt_read(file.path(dirname(tools), "tests", "data", "move", "m2u_synthetic.csv.gz")))
   s <- job$sets[[name]]
   n <- s$n
   df <- data.frame(
@@ -43,7 +46,8 @@ manifest <- list()
 for (case in job$cases) {
   if (is.null(sets[[case$data]])) sets[[case$data]] <- make_set(case$data)
   x <- sets[[case$data]]
-  res <- eval(parse(text = case$code))
+  res <- tryCatch(eval(parse(text = case$code)),
+                  error = function(e) stop("case ", case$name, ": ", conditionMessage(e), call. = FALSE))
   for (key in names(res)) {
     v <- res[[key]]
     if (is.null(v)) next

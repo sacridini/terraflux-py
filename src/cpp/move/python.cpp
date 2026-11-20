@@ -8,11 +8,13 @@
 #include <pybind11/stl.h>
 
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "move/amt.hpp"
+#include "move/clean.hpp"
 #include "move/distr.hpp"
 #include "move/geo.hpp"
 #include "move/rnmath.hpp"
@@ -113,6 +115,75 @@ void register_python(py::module_& m) {
             return py::make_tuple(x, y);
         },
         py::arg("lon"), py::arg("lat"), "s2's centroid of points (degrees).");
+
+    m.def(
+        "move_v_phys",
+        [](const F64& mass, int mode, double ci_level) {
+            if (mode < 0 || mode > 2) throw std::invalid_argument("mode: 0 flying, 1 running, 2 swimming");
+            const auto n = static_cast<std::int64_t>(mass.size());
+            F64 v(n), lo(n), hi(n), kmh(n);
+            v_phys(mass.data(), n, mode, ci_level, v.mutable_data(), lo.mutable_data(), hi.mutable_data(),
+                   kmh.mutable_data());
+            return py::make_tuple(v, lo, hi, kmh);
+        },
+        py::arg("mass"), py::arg("mode"), py::arg("ci_level") = 0.95,
+        "v_phys_estimate: the speed (m/s), its interval and the speed in km/h for each mass (Hirt et al. 2017).");
+
+    m.def(
+        "move_speed_cap",
+        [](const F64& x, const F64& y, const F64& t, const I64& track, bool lonlat, double v_max, double jitter,
+           int threads) {
+            const std::int64_t n = check(x, y, track);
+            if (t.size() != x.size()) throw std::invalid_argument("t: the same length as x");
+            F64 speed(n), loglr(n);
+            py::array_t<signed char> above(n), below(n);
+            {
+                py::gil_scoped_release release;
+                speed_cap_hard(x.data(), y.data(), t.data(), track.data(), n, lonlat, v_max, jitter, threads,
+                               speed.mutable_data(), above.mutable_data(), below.mutable_data(),
+                               loglr.mutable_data());
+            }
+            return py::make_tuple(speed, above, below, loglr);
+        },
+        py::arg("x"), py::arg("y"), py::arg("t"), py::arg("track"), py::arg("lonlat"), py::arg("v_max"),
+        py::arg("jitter") = std::numeric_limits<double>::quiet_NaN(), py::arg("threads") = 1,
+        "mt_flag_speed_cap with a hard cap: step speeds, fixes next to a step above the cap or below the jitter "
+        "(1, 0; -1 left out) and the log-LR.");
+
+    m.def(
+        "move_thin_time",
+        [](const F64& t, const I64& track, double interval, double tolerance, bool closest, int threads) {
+            if (track.size() != t.size()) throw std::invalid_argument("t and track: the same length");
+            const auto n = static_cast<std::int64_t>(t.size());
+            py::array_t<unsigned char> out(n);
+            {
+                py::gil_scoped_release release;
+                thin_time(t.data(), track.data(), n, interval, tolerance, closest, threads, out.mutable_data());
+            }
+            return out;
+        },
+        py::arg("t"), py::arg("track"), py::arg("interval"), py::arg("tolerance"), py::arg("closest") = true,
+        py::arg("threads") = 1,
+        "mt_thin_time on locations sorted by track and time (NaN times last in their track): 1 where kept.");
+
+    m.def(
+        "move_thin_distance",
+        [](const F64& step, const I64& track, int method, double distance, double tolerance, bool closest,
+           int threads) {
+            if (track.size() != step.size()) throw std::invalid_argument("step and track: the same length");
+            const auto n = static_cast<std::int64_t>(step.size());
+            py::array_t<unsigned char> out(n);
+            {
+                py::gil_scoped_release release;
+                thin_distance(step.data(), track.data(), n, method, distance, tolerance, closest, threads,
+                              out.mutable_data());
+            }
+            return out;
+        },
+        py::arg("step"), py::arg("track"), py::arg("method"), py::arg("distance"), py::arg("tolerance") = 0.0,
+        py::arg("closest") = true, py::arg("threads") = 1,
+        "mt_thin_distance on locations grouped by track: step is the distance to the next location; "
+        "method 0 \"step\", 1 \"interval\"; 1 where kept.");
 
     m.def("move_r_fmod", &r_fmod, py::arg("x1"), py::arg("x2"), "R's x %% y for doubles.");
     m.def("move_r_fdiv", &r_fdiv, py::arg("x1"), py::arg("x2"), "R's x %/% y for doubles.");

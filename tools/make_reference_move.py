@@ -1,22 +1,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Generate golden outputs of R's move2 and amt for tf.move.
+"""Generate golden outputs of R's move2, amt and move2utils for tf.move.
 
 Usage::
 
     python tools/make_reference_move.py [--case NAME ...]
 
 Draws the track sets of ``tests/move_cases.py``, runs the cases through
-``tools/move_reference.R`` (with ``tools/move2_fixed.R`` and
-``tools/amt_fixed.R``, the packages' corrected functions) and stores the
-inputs in ``tests/data/reference/move/inputs.npz`` and the results in
-``tests/data/reference/move/<group>.npz`` (``move2.npz``, ``amt.npz``; keys
-``<case>/<key>``).
+``tools/move_reference.R`` (with ``tools/move2_fixed.R``,
+``tools/amt_fixed.R`` and ``tools/move2utils_fixed.R``, the packages' corrected
+functions) and stores the inputs in ``tests/data/reference/move/inputs.npz``
+(those of move2 and amt; the sets of move2utils, in
+``inputs_move2utils.npz``) and the results in
+``tests/data/reference/move/<group>.npz`` (``move2.npz``, ``amt.npz``,
+``move2utils.npz``; keys ``<case>/<key>``).
 ``--case`` regenerates only the named cases (the others are kept).
 
 Needs Rscript (``TERRAFLUX_RSCRIPT`` as in ``tests/lsm_reference.py``) and the
 library ``%LOCALAPPDATA%/R/landschaft-move-lib`` (``TERRAFLUX_MOVE_R_LIBS``) with
 move2 0.5.0, sf, s2, lwgeom, units, amt 0.3.1, fitdistrplus 1.2-6, circular
-0.5-2, geosphere 1.6-8, suncalc 0.5.1 and terra. Runs R with ``TZ=UTC`` (suncalc
+0.5-2, geosphere 1.6-8, suncalc 0.5.1, terra and move2utils 0.4.6 (commit b3304d6). Runs R with ``TZ=UTC`` (suncalc
 takes the noon of the machine's time zone). The test-suite reads the stored files,
 so it runs anywhere without R.
 """
@@ -65,7 +67,7 @@ def main() -> None:
     rscript = lsm_reference.find_rscript()
     if rscript is None:
         sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
-    sets = move_cases.track_sets()
+    sets = {**move_cases.track_sets(), **move_cases.m2u_track_sets()}
     inputs: dict[str, np.ndarray] = {}
     with tempfile.TemporaryDirectory(prefix="move_ref_") as tmp:
         tmp = Path(tmp)
@@ -97,7 +99,9 @@ def main() -> None:
                 mine = {**{k: old[k] for k in old.files if k.split("/", 1)[0] not in cases}, **mine}
         np.savez_compressed(npz, **mine)
         print(f"{group}: {len(mine)} arrays -> {npz.relative_to(ROOT)}")
-    np.savez_compressed(OUT / "inputs.npz", **inputs)
+    m2u = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.m2u_track_sets()}
+    np.savez_compressed(OUT / "inputs.npz", **{k: v for k, v in inputs.items() if k not in m2u})
+    np.savez_compressed(OUT / "inputs_move2utils.npz", **m2u)
 
 
 if __name__ == "__main__":

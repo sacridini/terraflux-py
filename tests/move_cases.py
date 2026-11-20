@@ -226,3 +226,191 @@ list(track = unlist(lapply(tr, function(t) amt::extract_covariates(t, r)$cover))
      start = unlist(lapply(s, function(t) amt::extract_covariates(t, r, where = "start")$cover)),
      random = unlist(lapply(rs, function(t) amt::extract_covariates(t, r)$cover)))""", "amt"),
 })
+
+
+# move2utils (group "move2utils"): the cleaning and thinning functions. Its sets are drawn apart from the others so
+# that tests/data/reference/move/inputs.npz keeps its bytes: they are stored in inputs_move2utils.npz.
+
+M2U_SYNTHETIC = "tests/data/move/m2u_synthetic.csv.gz"   # move2utils' synthetic_tracks.csv.gz (GPL-3.0-or-later)
+
+
+def m2u_track_sets() -> dict[str, dict]:
+    """name -> {x, y, t (seconds), track (ids), crs, extra columns}, for the cleaning and thinning cases."""
+    rng = np.random.default_rng(20261120)
+    sets = {}
+
+    def walk_set(specs, crs, lonlat, steps=(600, 900, 900, 900, 1200, 3600)):
+        xs, ys, ts, ks = [], [], [], []
+        for name, n, start, scales in specs:
+            x, y = _walk(rng, n, start, scales, lonlat)
+            t = T0 + np.cumsum(rng.choice(steps, n)).astype(np.float64)
+            xs.append(x), ys.append(y), ts.append(t), ks.extend([name] * n)
+        return {"x": np.concatenate(xs), "y": np.concatenate(ys), "t": np.concatenate(ts), "track": np.array(ks),
+                "crs": crs}
+
+    # lon / lat: tracks of 70, 2 and 45 fixes; the last with a zero time lag, a repeated location and a 4 hour gap
+    ll = walk_set([("a", 70, (-47.9, -15.8), [0.0005, 0.002, 0.004, 0.02, 0.0005, 0.0005]),
+                   ("b", 2, (10.0, 50.0), [0.003]),
+                   ("c", 45, (179.9, 10.0), [0.001, 0.003, 0.03, 0.001])], "EPSG:4326", True)
+    c0 = 72  # the first fix of track c
+    ll["t"][c0 + 7] = ll["t"][c0 + 6]
+    ll["x"][c0 + 10], ll["y"][c0 + 10] = ll["x"][c0 + 9], ll["y"][c0 + 9]
+    ll["t"][c0 + 20:] += 14400.0
+    sets["cl_ll"] = ll
+    # projected (UTM 23S, metres), without a CRS, and in US survey feet (EPSG:2263)
+    utm = walk_set([("p", 60, (190000.0, 8250000.0), [0.5, 5.0, 20.0, 2.0, 0.5]),
+                    ("q", 40, (191000.0, 8251000.0), [1.0, 8.0, 300.0, 3.0])], "EPSG:32723", False)
+    utm["t"][5] = utm["t"][4]
+    sets["cl_utm"] = utm
+    sets["cl_plain"] = {**utm, "x": utm["x"] - 190000.0, "y": utm["y"] - 8250000.0, "crs": None}
+    sets["cl_ft"] = walk_set([("f", 50, (1000000.0, 200000.0), [2.0, 15.0, 60.0, 3.0]),
+                              ("g", 30, (1001000.0, 201000.0), [4.0, 30.0, 500.0])], "EPSG:2263", False)
+    # tracks of one fix, of three and four fixes (a zero lag in the last), and with locations without a time (UTM)
+    t = T0 + np.array([0.0, 0.0, 60.0, 120.0, 0.0, 0.0, 60.0, 120.0, 180.0, 0.0, 60.0, 60.0])
+    sets["cl_edge"] = {"x": np.array([0.0, 0.0, 10.0, 5000.0, 7.0, 0.0, 10.0, 20.0, 5030.0, 1.0, 2.0, 3.0]),
+                       "y": np.zeros(12), "t": t, "crs": "EPSG:32723",
+                       "track": np.array(["s1", "s2", "s2", "s2", "s3", "s4", "s4", "s4", "s4", "s5", "s5", "s5"])}
+    t = T0 + np.array([0.0, np.nan, 120.0, 180.0, np.nan, np.nan, np.nan, np.nan, np.nan, 0.0, 60.0, 90.0, np.nan, 60.0,
+                       120.0, np.nan, 0.0, 70.0])
+    sets["cl_nat"] = {"x": np.array([0.0, 5.0, 10.0, 5000.0, 1.0, 2.0, 3.0, 4.0, 5.0, 0.0, 10.0, 20.0, 100.0, 5.0, 6000.0,
+                                     20.0, 0.0, 4000.0]),
+                      "y": np.zeros(18), "t": t, "crs": "EPSG:32723",
+                      "track": np.array(["n1"] * 4 + ["n2"] * 3 + ["n3"] + ["n4"] * 6 + ["n5"] * 2 + ["n6"] * 2)}
+    # the dynamic programme's ties and limits: a regular grid, irregular steps, zero lags, gaps
+    g1_t = np.arange(21) * 10.0
+    g2_t = np.cumsum(rng.choice([5.0, 10.0, 15.0], 80))
+    g3_t = np.repeat(np.arange(8) * 10.0, 2)
+    g4_t = np.concatenate([np.arange(4) * 10.0, 500 + np.arange(4) * 10.0, 1000 + np.arange(4) * 10.0])
+    ts = [g1_t, g2_t, g3_t, g4_t]
+    xs = [g1_t, g2_t + np.cumsum(rng.choice([0.0, 2.0], 80)), g3_t, g4_t * 0.5]
+    sets["cl_grid"] = {"x": np.concatenate(xs), "y": np.zeros(sum(map(len, ts))), "t": T0 + np.concatenate(ts),
+                       "track": np.array(sum(([n] * len(a) for n, a in zip("wxyz", ts)), [])), "crs": "EPSG:32723"}
+    # GPS quality: the columns by their names with underscores (and with dashes), missing values, two empty locations
+    n = 40
+    sat = rng.integers(3, 13, n).astype(np.float64)
+    dop = np.round(rng.uniform(0.8, 14.0, n), 1)
+    hacc = np.round(rng.uniform(5.0, 150.0, n), 1)
+    sat[[4, 20]] = np.nan
+    dop[[9, 30]] = np.nan
+    hacc[[2, 12, 33]] = np.nan
+    x = np.arange(n, dtype=np.float64) * 10.0
+    x[[3, 17]] = np.nan
+    q = {"x": x, "y": np.zeros(n), "t": T0 + np.arange(n) * 60.0, "track": np.array(["q"] * n), "crs": "EPSG:32723"}
+    sets["cl_q"] = {**q, "gps_satellite_count": sat, "gps_dop": dop, "eobs_horizontal_accuracy_estimate": hacc}
+    sets["cl_qd"] = {**q, "gps-satellite-count": sat, "gps-dop": dop, "eobs-horizontal-accuracy-estimate": hacc}
+    return sets
+
+
+# thinning cases: name -> (data, interval or distance, tolerance, criterion[, method]); the R call is made from these
+THIN_TIME = {
+    "tt_fishers": ("fishers", "1 hour", "10 mins", "closest"),
+    "tt_fishers_first": ("fishers", 3600, 600, "first"),
+    "tt_synth": ("m2u_synthetic", "45 mins", "5 mins", "closest"),
+    "tt_synth_first": ("m2u_synthetic", "20 mins", None, "first"),
+    "tt_ll": ("cl_ll", "30 mins", "5 mins", "closest"),
+    "tt_ll_first": ("cl_ll", "30 mins", "5 mins", "first"),
+    "tt_utm": ("cl_utm", "10 mins", None, "closest"),
+    "tt_grid": ("cl_grid", 30, 10, "closest"),
+    "tt_grid_first": ("cl_grid", 30, 10, "first"),
+    "tt_grid_wide": ("cl_grid", 20, 20, "closest"),
+    "tt_grid_tight": ("cl_grid", 20, 0, "closest"),
+    "tt_edge": ("cl_edge", 60, 10, "closest"),
+    "tt_edge_wide": ("cl_edge", 60, 60, "closest"),
+    "tt_nat": ("cl_nat", 60, 10, "closest"),
+    "tt_nat_first": ("cl_nat", 60, 10, "first"),
+}
+THIN_DISTANCE = {
+    "td_utm_step": ("cl_utm", 200, None, "closest", "step"),
+    "td_utm_int": ("cl_utm", 200, 40, "closest", "interval"),
+    "td_utm_int_first": ("cl_utm", 200, 40, "first", "interval"),
+    "td_ll_step": ("cl_ll", 5000, None, "closest", "step"),
+    "td_ll_int": ("cl_ll", 5000, 1000, "closest", "interval"),
+    "td_ft_step": ("cl_ft", 150, None, "closest", "step"),
+    "td_ft_int": ("cl_ft", 150, 30, "closest", "interval"),
+    "td_fishers_step": ("fishers", 300, None, "closest", "step"),
+    "td_fishers_int": ("fishers", 300, 60, "closest", "interval"),
+    "td_synth_step": ("m2u_synthetic", 100, None, "closest", "step"),
+    "td_synth_int": ("m2u_synthetic", 100, 20, "closest", "interval"),
+    "td_grid_step": ("cl_grid", 25, None, "closest", "step"),
+    "td_grid_int": ("cl_grid", 30, 10, "closest", "interval"),
+    "td_grid_int_first": ("cl_grid", 30, 10, "first", "interval"),
+    "td_edge_step": ("cl_edge", 100, None, "closest", "step"),
+    "td_edge_int": ("cl_edge", 100, 20, "closest", "interval"),
+}
+# hard speed caps: name -> (data, v_max, jitter, R function); no v_max: the limit of v_phys_estimate(MASS, MODE)
+SPEED_MASS, SPEED_MODE = 2.0, "running"
+SPEED = {
+    "speed_cl_ll": ("cl_ll", 1.5, None, "mt_flag_speed_cap"),
+    "speed_cl_ll_jitter": ("cl_ll", 1.5, 30.0, "mt_flag_speed_cap"),
+    "speed_cl_utm": ("cl_utm", 0.1, None, "mt_flag_speed_cap"),
+    "speed_cl_utm_jitter": ("cl_utm", 0.1, 0.5, "mt_flag_speed_cap"),
+    "speed_cl_plain": ("cl_plain", 0.1, 0.5, "mt_flag_speed_cap"),
+    "speed_cl_ft": ("cl_ft", 0.3, 1.0, "mt_flag_speed_cap"),
+    "speed_fishers": ("fishers", 1.0, 5.0, "mt_flag_speed_cap"),
+    "speed_synth": ("m2u_synthetic", 5.0, None, "mt_flag_speed_cap"),
+    "speed_synth_phys": ("m2u_synthetic", None, 3.0, "mt_flag_speed_cap"),
+    "speed_edge": ("cl_edge", 3.0, 5.0, "mt_flag_speed_cap_fixed"),
+    "speed_nat": ("cl_nat", 3.0, 5.0, "mt_flag_speed_cap_fixed"),
+}
+
+
+def _r_arg(v):
+    return "NULL" if v is None else (f'"{v}"' if isinstance(v, str) else repr(v))
+
+
+_NUM = "num <- function(v) if (is.null(v)) NULL else as.numeric(v)\n"
+_NONEMPTY = "x <- x[!st_is_empty(x), ]\n"
+
+
+def _speed_case(data, v_max, jitter, fn):
+    pre = _NONEMPTY if data == "fishers" else ""
+    v = f'v <- as.numeric(v_phys_estimate({SPEED_MASS}, "{SPEED_MODE}"))\n' if v_max is None else ""
+    return Case(data, pre + _NUM + v + f"""o <- {fn}(x, v_max = {'v' if v_max is None else v_max}, threshold_type = "hard", jitter = {_r_arg(jitter)}, plot = FALSE, silent = TRUE)
+list(outlier = num(o[["is_outlier"]]), speed = num(o[["step_speed"]]), above = num(o[["is_speed_above_cap"]]),
+     below = num(o[["is_step_below_jitter"]]), flagged = num(o[["flagged_by_speed"]]), loglr = num(o[["loglr_speed"]]),
+     vmax = num(attr(o, "v_max_used")))""", "move2utils")
+
+
+def _thin_case(kind, data, size, tolerance, criterion, method=None):
+    pre = _NONEMPTY if (kind == "distance" and data == "fishers") else ""
+    if kind == "time":
+        call = (f"mt_thin_time(x, interval = {_r_arg(size)}, tolerance = {_r_arg(tolerance)}, "
+                f'criterion = "{criterion}")')
+    else:
+        call = (f"mt_thin_distance(x, distance = {size}, tolerance = {_r_arg(tolerance)}, "
+                f'criterion = "{criterion}", method = "{method}")')
+    return Case(data, pre + f"o <- {call}\nlist(selected = as.numeric(o$thin_selected))", "move2utils")
+
+
+_QUALITY = """x$rowid <- seq_len(nrow(x))
+mask <- function(...) as.numeric(x$rowid %in% FN(x, ...)$rowid)
+list(default = mask(), nosat = mask(sat_min = NULL), strict = mask(sat_min = 8, dop_max = 3, hacc_max = 40),
+     keepempty = mask(drop_empty = FALSE), nodop = mask(dop_max = NULL, hacc_max = 60),
+     none = mask(sat_min = NULL, dop_max = NULL, hacc_max = NULL, drop_empty = FALSE))"""
+# the points of NaN coordinates the sets hold are empty locations for the filter
+_EMPTY = "x$geometry[is.na(sf::st_coordinates(x)[, 1])] <- sf::st_point()\n"
+_QUALITY_FIXED = _QUALITY.replace("FN", "mt_filter_gps_quality_fixed")
+_QUALITY = "mt_filter_gps_quality_quiet <- function(x, ...) mt_filter_gps_quality(x, ..., verbose = FALSE)\n" \
+    + _QUALITY.replace("FN", "mt_filter_gps_quality_quiet")
+
+CASES.update({
+    "v_phys": Case("cl_edge", """masses <- c(1e-9, 3e-8, 0.001, 0.02, 0.5, 1, 2, 5, 6, 70, 250, 1000, 25000, 1.084e5, 2e5)
+res <- list()
+for (lv in c(0.95, 0.9, 0.99)) for (md in c("flying", "running", "swimming")) for (m in masses) {
+  r <- suppressWarnings(v_phys_estimate(m, md, ci_level = lv))
+  res[[length(res) + 1]] <- c(as.numeric(r), attr(r, "ci"), attr(r, "kmh"))
+}
+m <- do.call(rbind, res)
+list(v = m[, 1], lo = m[, 2], hi = m[, 3], kmh = m[, 4])""", "move2utils"),
+    **{k: _speed_case(*v) for k, v in SPEED.items()},
+    **{k: _thin_case("time", *v) for k, v in THIN_TIME.items()},
+    **{k: _thin_case("distance", *v) for k, v in THIN_DISTANCE.items()},
+    "gps_cl_q": Case("cl_q", _EMPTY + _QUALITY, "move2utils"),
+    "gps_cl_qd": Case("cl_qd", _EMPTY + _QUALITY, "move2utils"),
+    "gps_cl_q_fixed": Case("cl_q", _EMPTY + _QUALITY_FIXED, "move2utils"),
+    "gps_synth": Case("m2u_synthetic", _QUALITY_FIXED.replace("sat_min = 8, dop_max = 3, hacc_max = 40",
+                                                              "sat_min = 8, dop_max = 3"), "move2utils"),
+    "gps_synth_orig": Case("m2u_synthetic", _QUALITY.replace("sat_min = 8, dop_max = 3, hacc_max = 40",
+                                                             "sat_min = 8, dop_max = 3"), "move2utils"),
+    "gps_fishers": Case("fishers", _QUALITY_FIXED, "move2utils"),
+})
