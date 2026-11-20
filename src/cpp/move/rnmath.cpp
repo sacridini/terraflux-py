@@ -146,7 +146,7 @@ inline double lgamma(double x) {
 double bessel_k_ex(double, double, double, double*) { return std::numeric_limits<double>::quiet_NaN(); }
 
 // the generator rgamma() draws from (r_rgamma sets it)
-nlm::RRng* current_rng = nullptr;
+thread_local nlm::RRng* current_rng = nullptr;  // per thread: ops run concurrently
 double norm_rand(void) { return current_rng->norm_rand(); }
 double unif_rand(void) { return current_rng->unif_rand(); }
 double exp_rand(void) { return current_rng->exp_rand(); }

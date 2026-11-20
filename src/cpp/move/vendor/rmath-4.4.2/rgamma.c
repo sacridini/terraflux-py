@@ -79,10 +79,11 @@ double rgamma(double a, double scale)
     const static double a7 = 0.1233795;
 
     /* State variables [FIXME for threading!] :*/
-    static double aa = 0.;
-    static double aaa = 0.;
-    static double s, s2, d;    /* no. 1 (step 1) */
-    static double q0, b, si, c;/* no. 2 (step 4) */
+    /* terraflux: thread_local, so rgamma() calls from several threads do not share the cache */
+    thread_local double aa = 0.;
+    thread_local double aaa = 0.;
+    thread_local double s, s2, d;    /* no. 1 (step 1) */
+    thread_local double q0, b, si, c;/* no. 2 (step 4) */
 
     double e, p, q, r, t, u, v, w, x, ret_val;
 
