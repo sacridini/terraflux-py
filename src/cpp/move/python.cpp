@@ -40,6 +40,8 @@ std::int64_t check(const F64& x, const F64& y, const I64& track) {
 
 namespace move {
 
+void register_python_corridor(py::module_& m);  // python_corridor.cpp
+
 void register_python(py::module_& m) {
     m.def(
         "move_distances",
@@ -456,6 +458,8 @@ void register_python(py::module_& m) {
         },
         py::arg("seed"), py::arg("calls"), py::arg("n_random"), py::arg("n_control"),
         "amt's random_steps draws for calls (sl name, sl params, ta name, ta params, n steps, [(n, size)...]) in turn.");
+
+    register_python_corridor(m);
 }
 
 }  // namespace move

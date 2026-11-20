@@ -602,3 +602,161 @@ CASES.update({
     "along_origin_one": Case("along_origin", _r_along_raster("origin", 1) + _ALONG_STEPS + "amt_along(s, r)",
                              "amt_along"),
 })
+
+
+# Corridors and the distance between UDs (group "move2utils_corridor"): mt_corridor and emd of move2utils. Their sets are
+# drawn apart so that inputs.npz and inputs_move2utils.npz keep their bytes: they are in inputs_corridor.npz. The UDs the
+# emd cases compare are made in R (mt_dbbmm_ud on the fishers, and blobs on a lon / lat grid) and stored with the results.
+
+def corridor_track_sets() -> dict[str, dict]:
+    """name -> {x, y, t (seconds), track (ids), crs}: lattices where the midpoints fall on the buffers' boundaries."""
+    rng = np.random.default_rng(20261121)
+    sets = {}
+    # a lattice of tracks (UTM 23S, metres) whose steps are 3-4-5 triples and halves: midpoints at the buffers' vertices and
+    # between them, 10 s between the fixes
+    i, j = np.arange(31), np.arange(61)
+    walks = [("ga", 10.0 * i, np.zeros(31)), ("gb", 2.5 + 5.0 * j, np.zeros(61)), ("gc", 10.0 * i, np.full(31, 5.0)),
+             ("gd", 3.0 * i, 4.0 * i), ("ge", 1.5 + 3.0 * i, 2.0 + 4.0 * i), ("gf", np.full(31, 150.0), 10.0 * i - 50.0)]
+    sets["cor_grid"] = {"x": np.concatenate([w[1] for w in walks]), "y": np.concatenate([w[2] for w in walks]),
+                        "t": np.concatenate([T0 + 10.0 * np.arange(len(w[1])) for w in walks]),
+                        "track": np.array(sum(([w[0]] * len(w[1]) for w in walks), [])), "crs": "EPSG:32723"}
+    # random walks on the lattice: steps of the 3-4-5 family and none (zero-length steps), midpoints on half integers
+    moves = np.array([(0, 0), (3, 4), (-3, 4), (5, 0), (0, 5), (4, 3), (-4, -3), (0, 3), (3, 0), (-5, 0), (0, 0), (6, 8)],
+                     np.float64)
+    xs, ys, ts, ks = [], [], [], []
+    for name, n, start in [("ra", 250, (0.0, 0.0)), ("rb", 150, (2.0, 2.0)), ("rc", 80, (-3.0, 1.0))]:
+        m = moves[rng.integers(0, len(moves), n - 1)]
+        xs.append(start[0] + np.r_[0.0, np.cumsum(m[:, 0])])
+        ys.append(start[1] + np.r_[0.0, np.cumsum(m[:, 1])])
+        ts.append(T0 + 10.0 * np.arange(n))
+        ks += [name] * n
+    sets["cor_lattice"] = {"x": np.concatenate(xs), "y": np.concatenate(ys), "t": np.concatenate(ts), "track": np.array(ks),
+                           "crs": "EPSG:32723"}
+    # dwelling animals: a third of the steps have no length, large coordinates, a minute between the fixes
+    xs, ys, ts, ks = [], [], [], []
+    for name, n, start in [("z1", 200, (190000.0, 8250000.0)), ("z2", 150, (190100.0, 8250060.0))]:
+        step = rng.normal(0, 30.0, (n - 1, 2)) * (rng.random((n - 1, 1)) > 0.35)
+        xs.append(start[0] + np.r_[0.0, np.cumsum(step[:, 0])])
+        ys.append(start[1] + np.r_[0.0, np.cumsum(step[:, 1])])
+        ts.append(T0 + 60.0 * np.arange(n))
+        ks += [name] * n
+    sets["cor_zero"] = {"x": np.concatenate(xs), "y": np.concatenate(ys), "t": np.concatenate(ts), "track": np.array(ks),
+                        "crs": "EPSG:32723"}
+    return sets
+
+
+# corridor cases: name -> (data, one track of the fishers or None, arguments, R function). mt_corridor_fixed
+# (tools/move2utils_fixed.R) where move2utils is wrong: longitude / latitude (the projection of mt_aeqd_crs) and CRSs not in metres
+_FIX = "mt_corridor_fixed"
+CORRIDOR = {
+    "cor_fishers_default": ("fishers", None, {}, _FIX),
+    "cor_fishers_given": ("fishers", None, {"speed_threshold": 0.3, "circvar_threshold": 0.25}, _FIX),
+    "cor_m1_default": ("fishers", "M1", {}, _FIX),
+    **{f"cor_m1_min{m}": ("fishers", "M1", {"speed_threshold": 0.2, "circvar_threshold": 0.3, "min_segments": m}, _FIX)
+       for m in (1, 2, 3, 4)},
+    "cor_m1_mixed": ("fishers", "M1", {"speed_threshold": 0.2}, _FIX),
+    "cor_utm_default": ("utm", None, {}, "mt_corridor"),
+    "cor_utm_given": ("utm", None, {"speed_threshold": 2.0, "circvar_threshold": 0.6}, "mt_corridor"),
+    "cor_utm_loose": ("utm", None, {"speed_threshold": 0.0, "circvar_threshold": 1.0}, "mt_corridor"),
+    "cor_utm_min4": ("utm", None, {"speed_threshold": 0.5, "circvar_threshold": 0.8, "min_segments": 4}, "mt_corridor"),
+    "cor_grid_given": ("cor_grid", None, {"speed_threshold": 0.4, "circvar_threshold": 0.3}, "mt_corridor"),
+    "cor_grid_min1": ("cor_grid", None, {"speed_threshold": 0.4, "circvar_threshold": 0.9, "min_segments": 1}, "mt_corridor"),
+    "cor_grid_min5": ("cor_grid", None, {"speed_threshold": 0.4, "circvar_threshold": 0.9, "min_segments": 5}, "mt_corridor"),
+    "cor_grid_default": ("cor_grid", None, {}, "mt_corridor"),
+    "cor_lattice_given": ("cor_lattice", None, {"speed_threshold": 0.3, "circvar_threshold": 0.7}, "mt_corridor"),
+    "cor_lattice_min3": ("cor_lattice", None, {"speed_threshold": 0.0, "circvar_threshold": 1.0, "min_segments": 3},
+                         "mt_corridor"),
+    "cor_lattice_default": ("cor_lattice", None, {}, "mt_corridor"),
+    "cor_zero_given": ("cor_zero", None, {"speed_threshold": 0.2, "circvar_threshold": 0.5}, "mt_corridor"),
+    "cor_zero_default": ("cor_zero", None, {}, "mt_corridor"),
+    "cor_ft_given": ("cl_ft", None, {"speed_threshold": 0.01, "circvar_threshold": 0.5}, _FIX),
+    "cor_ft_default": ("cl_ft", None, {}, _FIX),
+    "cor_ft_loose": ("cl_ft", None, {"speed_threshold": 0.0, "circvar_threshold": 1.0}, _FIX),
+    "cor_ll_given": ("ll", None, {"speed_threshold": 5.0, "circvar_threshold": 0.4}, _FIX),
+    "cor_ll_default": ("ll", None, {}, _FIX),
+}
+
+
+def _corridor_case(data, track, args, fn):
+    pre = f'x <- x[mt_track_id(x) == "{track}", ]\n' if track else ""
+    call = ", ".join(f"{k} = {_r_arg(v)}" for k, v in args.items())
+    return Case(data, pre + f"""o <- suppressWarnings(suppressMessages({fn}(x{', ' + call if call else ''})))
+num <- function(v) as.numeric(v)
+cv <- num(o$corridor_circvar); cv <- cv[!is.na(cv)]
+list(corridor = num(o$corridor == "corridor"), speed = num(o$corridor_speed), azimuth = num(o$corridor_azimuth),
+     circvar = num(o$corridor_circvar), nb = num(o$corridor_n_neighbours),
+     thr = c(num(stats::quantile(num(o$corridor_speed), 0.75, na.rm = TRUE)),
+             if (length(cv) >= 2) num(stats::quantile(cv, 0.25)) else NA_real_))""", "move2utils_corridor")
+
+
+# emd cases: the UDs of three fishers (the first 300 fixes of F1, F2 and M1: the example of emd()) at 100 m and on 30 cells,
+# and blobs on a lon / lat grid
+_EMD_UDS = """x <- x[!st_is_empty(x), ]
+ids <- c("F1", "F2", "M1")
+sub <- do.call(rbind, lapply(ids, function(i) x[mt_track_id(x) == i, ][1:300, ]))
+sub_p <- st_transform(sub, mt_aeqd_crs_fixed(sub))
+mk <- function(...) suppressWarnings(suppressMessages(mt_dbbmm_ud(sub_p, location_error = 25, window_size = 31, margin = 11,
+                                                                   ext_factor = 1.25, time_step = 5, ...)))
+stk <- mk(res = 100)
+stk_c <- mk(dim_size = 30)
+vals <- function(r) as.numeric(terra::values(r))
+geom <- function(r) list(dim = c(terra::nrow(r), terra::ncol(r), terra::nlyr(r)), xs = terra::xFromCol(r, seq_len(terra::ncol(r))),
+                         ys = terra::yFromRow(r, seq_len(terra::nrow(r))))
+e <- function(r, ...) as.numeric(suppressWarnings(emd(r, ...)))
+g <- geom(stk); gk <- geom(stk_c)
+same <- terra::rast(list(stk[[1]], stk[[1]]))
+same_c <- terra::rast(list(stk_c[[1]], stk_c[[1]]))
+list(ud = vals(stk), dim = g$dim, xs = g$xs, ys = g$ys, ud_c = vals(stk_c), dim_c = gk$dim, xs_c = gk$xs, ys_c = gk$ys,
+     sink = e(stk), mask09 = e(stk, mask_quantile = 0.9), mask05 = e(stk, mask_quantile = 0.5), mask1 = e(stk_c, mask_quantile = 1),
+     reg01 = e(stk, reg = 0.1), reg002 = e(stk, reg = 0.02, max_iter = 2000L), tol13 = e(stk, tol = 1e-13),
+     thr = e(stk, threshold = 1500), iter3 = e(stk, max_iter = 3L), same = e(same), sink_c = e(stk_c),
+     exact = e(stk_c, method = "exact"), exact_q = e(stk_c, method = "exact", mask_quantile = 0.9),
+     same_exact = e(same_c, method = "exact"))"""
+_EMD_LL = """r <- terra::rast(nrows = 18, ncols = 24, xmin = -48, xmax = -47, ymin = -16, ymax = -15.4, crs = "EPSG:4326")
+xy <- terra::xyFromCell(r, seq_len(terra::ncell(r)))
+blob <- function(cx, cy, sx, sy) exp(-((xy[, 1] - cx)^2 / (2 * sx^2) + (xy[, 2] - cy)^2 / (2 * sy^2)))
+v1 <- blob(-47.7, -15.8, 0.08, 0.05)
+v2 <- blob(-47.3, -15.6, 0.06, 0.08) + 0.3 * blob(-47.5, -15.9, 0.1, 0.04)
+v3 <- blob(-47.5, -15.7, 0.15, 0.12)
+v2[xy[, 1] > -47.1 & xy[, 2] > -15.5] <- NA
+v1 <- v1 / sum(v1); v2 <- v2 / sum(v2, na.rm = TRUE); v3 <- v3 / sum(v3)
+stk <- terra::rast(lapply(list(v1, v2, v3), function(v) terra::setValues(r, v)))
+names(stk) <- c("a", "b", "c")
+e <- function(...) as.numeric(suppressWarnings(emd(stk, ...)))
+list(ud = as.numeric(terra::values(stk)), dim = c(terra::nrow(stk), terra::ncol(stk), terra::nlyr(stk)),
+     xs = terra::xFromCol(stk, seq_len(terra::ncol(stk))), ys = terra::yFromRow(stk, seq_len(terra::nrow(stk))),
+     gc = e(gc = TRUE), gc_q = e(gc = TRUE, mask_quantile = 0.9), gc_thr = e(gc = TRUE, threshold = 20000),
+     gc_reg = e(gc = TRUE, reg = 0.02, max_iter = 1500L), deg = e(), deg_thr = e(threshold = 0.1))"""
+
+# sf's st_buffer of points (GEOS: 30 segments to the quadrant) and st_intersects of points with it: the vertices of 60 buffers and
+# the answer for points on and around each (vertices, edge midpoints, one ulp off, on the lattice, in the ring between the
+# polygon and the circle)
+_BUFFER = """set.seed(42)
+nb <- 60
+res <- list(cx = numeric(0), cy = numeric(0), r = numeric(0), vx = numeric(0), vy = numeric(0), px = numeric(0),
+            py = numeric(0), hit = numeric(0))
+for (b in seq_len(nb)) {
+  kind <- b %% 4
+  cx <- if (kind == 0) round(runif(1, -50, 50)) else if (kind == 1) runif(1, 1e5, 9e5) else if (kind == 2) round(runif(1, 0, 40)) * 0.5 else runif(1, -180, 180)
+  cy <- if (kind == 0) round(runif(1, -50, 50)) else if (kind == 1) runif(1, 7e6, 9e6) else if (kind == 2) round(runif(1, 0, 40)) * 0.5 else runif(1, -80, 80)
+  r <- if (kind == 0) sample(c(1, 2.5, 5, 10), 1) else if (kind == 1) runif(1, 0.5, 3000) else if (kind == 2) sample(c(0.5, 1.5, 2.5), 1) else 10^runif(1, -4, 1)
+  bf <- sf::st_buffer(sf::st_sfc(sf::st_point(c(cx, cy)), crs = 32723), r)
+  cc <- sf::st_coordinates(bf)[, 1:2]
+  ang <- runif(150, 0, 2 * pi); rad <- r * runif(150, 0.99, 1.01)
+  lat <- expand.grid(dx = seq(-3, 3, by = 0.5), dy = seq(-3, 3, by = 0.5))
+  pts <- rbind(cbind(cx + rad * cos(ang), cy + rad * sin(ang)), cc[1:120, ], (cc[1:120, ] + cc[c(2:120, 1), ]) / 2,
+               cbind(cc[1:60, 1] * (1 + 1e-16), cc[1:60, 2]), cbind(cc[61:120, 1], cc[61:120, 2] + abs(cc[61:120, 2]) * 2.3e-16),
+               cbind(cx + lat$dx * r / 2.5, cy + lat$dy * r / 2.5), cbind(cx + c(r, -r, 0, 0), cy + c(0, 0, r, -r)))
+  inter <- sf::st_intersects(bf, sf::st_as_sf(data.frame(x = pts[, 1], y = pts[, 2]), coords = c("x", "y"), crs = 32723))[[1]]
+  res$cx <- c(res$cx, cx); res$cy <- c(res$cy, cy); res$r <- c(res$r, r)
+  res$vx <- c(res$vx, cc[1:120, 1]); res$vy <- c(res$vy, cc[1:120, 2])
+  res$px <- c(res$px, pts[, 1]); res$py <- c(res$py, pts[, 2]); res$hit <- c(res$hit, as.numeric(seq_len(nrow(pts)) %in% inter))
+}
+res"""
+
+CASES.update({
+    "cor_buffer": Case("utm", _BUFFER, "move2utils_corridor"),
+    **{k: _corridor_case(*v) for k, v in CORRIDOR.items()},
+    "emd_fishers": Case("fishers", _EMD_UDS, "move2utils_corridor"),
+    "emd_lonlat": Case("fishers", _EMD_LL, "move2utils_corridor"),
+})

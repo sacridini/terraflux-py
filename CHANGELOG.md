@@ -42,6 +42,29 @@ in a new major version.
     Movebank file (the example of its manual too) it filters nothing; `mt_flag_speed_cap` loses the columns of a track
     with a single location to score (a result of length one is taken for a scalar attribute) and then fails to bind the
     tracks of a set that has one.
+- `tf.move`: corridors and the distance between utilisation distributions, from R's move2utils 0.4.6, bit for bit with it
+  where the arithmetic is R's (tests against `mt_corridor` and `emd` in R: the fishers, lattices whose midpoints fall on the
+  buffers' boundaries, tracks with zero-length steps, a track set in feet and one in longitude / latitude).
+  - `corridor(tracks, speed_threshold=None, circvar_threshold=None, min_segments=2)`: `mt_corridor` (LaPoint et al. 2013),
+    the segments that are fast with the directions of the segments around them in agreement (the circular variance of the
+    pseudo-azimuths); a copy of the tracks with `corridor`, `corridor_speed`, `corridor_azimuth`, `corridor_circvar` and
+    `corridor_n_neighbours`, the thresholds used in `attrs["corridor"]`; `corridor_lines` gives the corridor segments as
+    lines. The neighbours of a segment are the midpoints, of all the tracks, that GEOS finds in the buffer of its own midpoint
+    of half its length: sf's `st_buffer` is a polygon of 120 vertices, not a circle, and its vertices, and the test of a
+    point against it (the boundary counts), are reproduced as GEOS computes them, so that a midpoint between the polygon
+    and the circle falls on the same side as in R. C++ (`movecore`), the segments in parallel, the same result with any number of
+    threads.
+  - `ud_distance(ud, ud_b=None, method="sinkhorn", mask_quantile=0.999, reg=0.05, max_iter=500, tol=1e-9, gc=False,
+    threshold=None)`: move2utils' `emd`, the earth mover's distance between UDs on one grid (a `(band, y, x)` DataArray with a
+    band per track, a list or a dict): a number for two UDs, a table of the pairs for more. Sinkhorn's iterations (Cuturi 2013;
+    the cells inside the `mask_quantile` volume contour, Euclidean or haversine `gc` costs, the cost clipped at `threshold`),
+    with R's reference BLAS' order of sums, or `method="exact"`: Rubner's transportation solver, the C code of the R package
+    emdist 0.3-3 (MIT, `src/cpp/move/vendor/emdist`), bit for bit with `emdist::emd`.
+  - Where move2utils is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
+    `tools/move2utils_fixed.R`: `mt_corridor` gives `st_buffer` the radius in metres whatever the CRS's units (in a CRS in feet
+    the neighbourhoods come out 3.28 times too small) and projects longitude / latitude with `move2::mt_aeqd_crs`, whose
+    centre is moved about a kilometre by a datum typo (EPSG:4236). Its manual says `min_segments` is the number of qualifying
+    neighbours; the code counts all the neighbours, as here.
 
 ### Fixed
 - `tf.move.random_numbers` / `random_steps` (gamma): R's `rgamma()` kept its cached constants in statics and drew from the caller's generator through a global pointer, so draws on two threads at once (Terraflux runs two models, or its tests in parallel) used each other's generator or a null one and crashed. Both are `thread_local` now; the draws are the same.

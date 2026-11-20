@@ -50,3 +50,23 @@ mt_filter_gps_quality_fixed <- function(x, sat_min = 5, dop_max = 10, hacc_max =
 })
 
 mt_flag_speed_cap_fixed <- function(x, ...) .speedcap_fixed_env$mt_flag_speed_cap(x, ...)
+
+# mt_corridor: (1) in longitude / latitude it projects to move2::mt_aeqd_crs(x_kept), which centres the projection on the
+# centroid moved to EPSG:4236 (a typo for 4326) and so about a kilometre off (mt_aeqd_crs_fixed, tools/move2_fixed.R,
+# centres it where meant); (2) it takes the search radius, half the segment's length, from mt_distance(x, units = "m")
+# and gives the number to st_buffer() as if it were in the CRS's units: in a CRS in feet the neighbourhoods are 3.28
+# times too small (and in kilometres 1000 times too large); mt_corridor_fixed takes the radius in the CRS's own
+# units. The rest is move2utils' code.
+mt_corridor_fixed <- function(x, ...) {
+  src <- paste(deparse(move2utils::mt_corridor, width.cutoff = 500L), collapse = "\n")
+  from1 <- "move2::mt_aeqd_crs(x_kept)"
+  from2 <- "seg_radius_m <- seg_length_m/2"
+  to2 <- paste0("seg_radius_m <- if (isTRUE(sf::st_is_longlat(x_kept))) seg_length_m/2 else ",
+                "as.numeric(move2::mt_distance(x_kept))[is_seg]/2")
+  stopifnot(grepl(from1, src, fixed = TRUE), grepl(from2, src, fixed = TRUE))
+  src <- sub(from1, "mt_aeqd_crs_fixed(x_kept)", src, fixed = TRUE)
+  src <- sub(from2, to2, src, fixed = TRUE)
+  f <- eval(parse(text = src))
+  environment(f) <- asNamespace("move2utils")
+  f(x, ...)
+}

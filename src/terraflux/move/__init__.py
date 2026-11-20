@@ -35,6 +35,8 @@ Typical use::
 from ._along import along_summary, extract_covariates_along
 from ._clean import (VPhys, filter_gps_quality, filter_thin_distance, filter_thin_time, flag_speed, gps_quality,
                      thin_distance, thin_time, v_phys_estimate)
+from ._corridor import corridor, corridor_lines
+from ._emd import ud_distance
 from ._examples import example_data
 from ._filters import (filter_movebank_visible, filter_per_interval, filter_unique, movebank_visible, per_interval,
                        unique)
@@ -54,4 +56,5 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "interpolate", "load_tracks", "make_distribution", "movebank_visible", "msd", "nsd", "per_interval",
            "random_numbers", "random_steps", "resample", "segments", "set_columns", "simulate_brownian", "sinuosity",
            "speed", "steps", "straightness", "tac", "thin_distance", "thin_time", "time_lags", "time_of_day",
-           "tot_dist", "track_data", "track_lines", "turn_angle", "unique", "v_phys_estimate", "VPhys"]
+           "tot_dist", "track_data", "track_lines", "turn_angle", "unique", "v_phys_estimate", "VPhys",
+           "corridor", "corridor_lines", "ud_distance"]

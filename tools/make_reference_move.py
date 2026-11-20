@@ -60,6 +60,17 @@ def r_env() -> dict[str, str]:
     return env
 
 
+def save(path: Path, arrays: dict[str, np.ndarray]) -> None:
+    """np.savez_compressed, unless the file already holds these arrays (zip stamps the time: it would change the bytes)."""
+    if path.exists():
+        with np.load(path) as old:
+            if set(old.files) == set(arrays) and all(
+                    old[k].dtype == np.asarray(v).dtype and np.array_equal(old[k], v, equal_nan=old[k].dtype.kind == "f")
+                    for k, v in arrays.items()):
+                return
+    np.savez_compressed(path, **arrays)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--case", action="append", default=None)
@@ -69,7 +80,8 @@ def main() -> None:
     if rscript is None:
         sys.exit("Rscript not found: set TERRAFLUX_RSCRIPT")
     along = move_cases.along_track_sets()
-    sets = {**move_cases.track_sets(), **move_cases.m2u_track_sets(), **along}
+    sets = {**move_cases.track_sets(), **move_cases.m2u_track_sets(), **along,
+            **move_cases.corridor_track_sets()}
     inputs: dict[str, np.ndarray] = {}
     with tempfile.TemporaryDirectory(prefix="move_ref_") as tmp:
         tmp = Path(tmp)
@@ -99,13 +111,15 @@ def main() -> None:
         if args.case and npz.exists():
             with np.load(npz) as old:
                 mine = {**{k: old[k] for k in old.files if k.split("/", 1)[0] not in cases}, **mine}
-        np.savez_compressed(npz, **mine)
+        save(npz, mine)
         print(f"{group}: {len(mine)} arrays -> {npz.relative_to(ROOT)}")
     m2u = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.m2u_track_sets()}
     alg = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in along}
-    np.savez_compressed(OUT / "inputs.npz", **{k: v for k, v in inputs.items() if k not in m2u and k not in alg})
-    np.savez_compressed(OUT / "inputs_move2utils.npz", **m2u)
-    np.savez_compressed(OUT / "inputs_along.npz", **alg)
+    cor = {k: v for k, v in inputs.items() if k.split("/", 1)[0] in move_cases.corridor_track_sets()}
+    save(OUT / "inputs.npz", {k: v for k, v in inputs.items() if k not in m2u and k not in alg and k not in cor})
+    save(OUT / "inputs_move2utils.npz", m2u)
+    save(OUT / "inputs_along.npz", alg)
+    save(OUT / "inputs_corridor.npz", cor)
 
 
 if __name__ == "__main__":
