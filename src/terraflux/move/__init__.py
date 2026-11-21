@@ -20,7 +20,9 @@ passages among the neighbouring segments; :func:`corridor_lines`) and the earth 
 utilisation distributions (:func:`ud_distance`, Sinkhorn or exact). The dynamic Brownian bridge of move2utils
 (:func:`dbbmm_variance`, :func:`dbbmm_ud`: the motion variance by moving windows and the utilisation distribution, with
 :func:`ud_volume` for its contours), and amt's home ranges (:func:`hr_mcp`, :func:`hr_kde` with its bandwidths,
-:func:`hr_locoh`, :func:`hr_isopleths`, :func:`hr_overlap`; :func:`home_range` for short).
+:func:`hr_locoh`, :func:`hr_isopleths`, :func:`hr_overlap`; :func:`home_range` for short). Last, :func:`validate`
+(not in R): the use of the animals, as a UD, points or corridor segments, against a connectivity surface, after
+Zeller et al. (2018).
 
 Typical use::
 
@@ -57,6 +59,7 @@ from ._ssf import Distribution, extract_covariates, fit_distr, make_distribution
 from ._steps import (cum_dist, filter_min_n_burst, msd, nsd, resample, sinuosity, steps, straightness, tac,
                      time_of_day, tot_dist)
 from ._tracks import set_columns
+from ._validate import Validation, validate
 from ._ud import (WindowSuggestion, dbbmm_ud, dbbmm_variance, dbgb_ud, dbgb_variance, mask_segments, motion_variance, suggest_dbbmm_window,
                   ud_outer_probability, ud_volume)
 
@@ -74,5 +77,5 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "suggest_dbbmm_window", "ud_outer_probability", "ud_volume",
            "HomeRange", "Lscv", "LscvFit", "home_range", "hr_area", "hr_cud", "hr_isopleths", "hr_kde", "hr_kde_lscv",
            "hr_kde_pi", "hr_kde_ref", "hr_kde_ref_scaled", "hr_locoh", "hr_mcp", "hr_overlap", "hr_ud",
-           "intensity_use", "make_trast"]
+           "intensity_use", "make_trast", "Validation", "validate"]
 

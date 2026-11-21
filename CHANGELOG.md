@@ -7,6 +7,15 @@ in a new major version.
 ## [Unreleased]
 
 ### Added
+- `tf.move.validate(use, surface, kind="current", threshold=None, quantile=0.9, support=0.99, track=None, spacing=None)`:
+  does the use of the animals follow a connectivity surface (Zeller et al. 2018, doi:10.1111/ddi.12742)? Not in R, so
+  the definitions are ours and documented (only the paper's abstract was available). The use is a UD (a band per
+  track, read on the surface's grid or by nearest cell at its centres), points, or lines such as `corridor_lines` (cut
+  into pieces, each counting its length); the surface a current, a resistance or a binary least-cost corridor. A table per
+  track and pooled: Spearman's rank correlation between the use and the surface's score (average ranks as scipy and R;
+  positive always means better cells are used more), the share of the use inside the corridors (the surface above a
+  threshold or its top quantile), the share of the compared area they are, their ratio, the mean surface used and
+  available, and the coverage; a short note in words; the corridor raster. Sums in order: no dependence on threads.
 - `tf.move`: the values of a raster along each step, amt 0.3.1's `extract_covariates_along` bit for bit (cell by cell,
   in terra's order, on terra 1.9-50 with GDAL 3.9.3's ALL_TOUCHED line walk on the grid terra crops to the line; tests
   against amt in R on the fishers' steps, random steps, steps on cell edges and corners, near-vertical and horizontal,
