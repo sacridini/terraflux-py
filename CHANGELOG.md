@@ -79,11 +79,20 @@ in a new major version.
     equidistant CRS of `aeqd_crs`.
   - `dbbmm_ud(tracks, location_error=None, like=None, res=None, dim_size=None, ext_factor=0.5, time_step=None, ...)`:
     `mt_dbbmm_ud`, a raster with one band per track (or burst) summing to 1, on a common grid made as move2utils makes
-    it (`res`, `dim_size` or a template `like`; a grid that cannot hold the bridges' windows is enlarged with a warning,
+    it (`res`, `dim_size` or a template `like`; a grid that cannot hold the bridges' windows is enlarged, with a warning if `verbose=True` as in R,
     a template is never). With or without the variance columns of `dbbmm_variance`. The cells are computed in strips on
     several threads, every cell adding its time steps in their order: the same bits with any number of threads. The
     distribution is returned in the metric CRS it was computed in (with a note in `attrs`); `crs="input"` warps it back
     to the CRS of the tracks (bilinear, as move2utils does through terra; within a tolerance, not bit for bit).
+  - The directional bridge (dBGB): `dbgb_variance(tracks, location_error, window_size=31, margin=15, location_error_na)`
+    (`mt_dbgb_variance`: the variances along and across the direction to the next location, each axis with its own
+    break point by BIC; adds the columns `para_sd`, `orth_sd`, `n_estim`, `seg_interest` and `dbgb_location_error`, the
+    names of move2utils' slots) and `dbgb_ud(...)` (`mt_dbgb_ud`: the same grid, CRS, burst and `verbose` handling as
+    `dbbmm_ud`, windows of five standard deviations, only the core of each track). `motion_variance(tracks,
+    model="dbgb")` gives the squares; `mask_segments(..., model=)` masks either model. Bit for bit with move2utils
+    (acos, sin, cos and exp as R's C code gets them) except one cell of a 24 024-cell grid reaching 8 km from the
+    bridges, which is one unit in the last place off; the legacy `move`'s `dynBGBvariance` within the tolerances of
+    move2utils' own test. The tracks or bursts run side by side when there are as many as threads (the same bits).
   - `motion_variance`, `suggest_dbbmm_window` (the window and margin from the sampling), `mask_segments` (leave
     segments, such as the bridges across long gaps, out of the distribution), `ud_volume` (the cumulative probability
     of the cells from the largest down) and `ud_outer_probability` (the volume at locations).

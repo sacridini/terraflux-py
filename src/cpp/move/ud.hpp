@@ -24,6 +24,8 @@ using i64 = std::int64_t;
 // two), their times t (minutes, from the first), the location errors le (standard deviations), the segments
 // `interest`ing (1 byte per location: the bridge from i to i + 1), the time step and the window half-width in
 // standard deviations.
+enum class UdModel { Dbbmm = 0, Dbgb = 1 };
+
 struct UdInput {
     const double* x;
     const double* y;
@@ -35,6 +37,8 @@ struct UdInput {
     i64 n;
     double time_step;
     double ext;
+    UdModel model = UdModel::Dbbmm;   // Dbbmm: s1 is the variance, one circular bridge; Dbgb: s1, s2 the standard
+                                      // deviations along and across the direction to the next location
 };
 
 // ud_grid_probe for the dBBMM: the envelope of the windows (min x - w, max x + w, min y - w, max y + w, +/-Inf
@@ -45,6 +49,9 @@ struct UdProbe {
     double idx[4];
 };
 UdProbe ud_probe(const UdInput& in, const double* xgrid, i64 nx, const double* ygrid, i64 ny);
+
+// bgb_omp: the same for the directional bridge (in.model = Dbgb; `x`, `y`, `t` of the core locations, `t` as given).
+void dbgb_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygrid, i64 ny, int threads, double* ud);
 
 // dbbmm2_omp: the sum of the densities of the steps (times the cell area) in `ud` (nx * ny, R's layout), on
 // `threads` threads in strips of columns, every cell adding its steps in their order. Throws std::runtime_error

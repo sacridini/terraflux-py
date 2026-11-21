@@ -239,7 +239,7 @@ def test_dbbmm_ud_is_move2utils(ref, inputs, fishers, case):
         ud = tf.move.dbbmm_ud(v, **kw)
     elif "enlarge" in case:
         with pytest.warns(UserWarning, match="enlarged"):
-            ud = tf.move.dbbmm_ud(tr, **kw)
+            ud = tf.move.dbbmm_ud(tr, verbose=True, **kw)
     else:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)     # the track of ud_utm shorter than the window
@@ -620,7 +620,11 @@ def test_the_grid_grows_when_the_bridges_do_not_fit():
     box = (tr.geometry.x.min(), tr.geometry.x.max(), tr.geometry.y.min(), tr.geometry.y.max())
     for kw in (dict(res=50), dict(dim_size=50)):
         with pytest.warns(UserWarning, match="enlarged"):
-            ud = tf.move.dbbmm_ud(tr, 5.0, ext_factor=0, **kw)
+            ud = tf.move.dbbmm_ud(tr, 5.0, ext_factor=0, verbose=True, **kw)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")                                  # as in R, nothing is said by default
+            again = tf.move.dbbmm_ud(tr, 5.0, ext_factor=0, **kw)
+        np.testing.assert_array_equal(again.values, ud.values)
         xmin, xmax, ymin, ymax = ud.attrs["extent"]
         assert xmin < box[0] and xmax > box[1] and ymin < box[2] and ymax > box[3]          # beyond the track's box
         assert float(ud.sum()) == pytest.approx(1.0)

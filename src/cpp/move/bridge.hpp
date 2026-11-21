@@ -26,4 +26,18 @@ struct DbbmmVariance {
 DbbmmVariance dbbmm_variance(const double* x, const double* y, const double* time_lag, const double* loc_err, i64 n,
                              int window_size, int margin, int threads);
 
+struct DbgbVariance {
+    std::vector<double> para_sd;           // per location, the standard deviation along the bridge (RMS over windows)
+    std::vector<double> orth_sd;           // and across it; NaN where no window covers
+    std::vector<std::int32_t> n_estim;     // windows that cover each location
+};
+
+// time_mins: the times of the locations in minutes (the lags are taken per window from them); loc_err as above.
+// move2utils' bgb_var_break_track_c: the leave-one-out residuals of each window are split along and across the
+// direction from the expected position to the next location, and the variance of each axis is searched, with up
+// to one break point on each axis, by BIC (the four steps: none, one axis, the other, the second one given the
+// first). window_size and margin odd, window_size >= 2 * margin + 1, window_size <= n.
+DbgbVariance dbgb_variance(const double* x, const double* y, const double* time_mins, const double* loc_err, i64 n,
+                           int window_size, int margin, int threads);
+
 }  // namespace move

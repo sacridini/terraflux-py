@@ -29,9 +29,13 @@ from ._steps import BURST
 from ._tracks import check_order, columns, track_codes
 
 DBBMM = "terraflux.dbbmm"          # the key of the variance's settings in ``attrs``
+DBGB = "terraflux.dbgb"
 _VARIANCE_COLUMNS = ("motion_variance", "in_windows", "interest")
+_DBGB_COLUMNS = ("para_sd", "orth_sd", "n_estim", "seg_interest")
 _LOCATION_ERROR = "location_error"
-_EXT = 4.0                          # the window of a bridge step, in standard deviations
+_DBGB_LOCATION_ERROR = "dbgb_location_error"
+_EXT = 4.0                          # the window of a bridge step, in standard deviations (the dBGB: 5)
+_EXT_DBGB = 5.0
 _NA_HOW = {"median": 0, "mean": 1, "zero": 2, "approx": 3}
 _ARGOS = {"3": 250.0, "2": 500.0, "1": 1500.0, "0": 5000.0, "A": 5000.0, "B": 10000.0, "Z": np.nan}
 _INF = math.inf
@@ -55,6 +59,10 @@ class _Unit:
     in_windows: np.ndarray | None = None
     interest: np.ndarray | None = None
     breaks: list = field(default_factory=list)
+    para_sd: np.ndarray | None = None      # the directional bridge's slots, as R names them
+    orth_sd: np.ndarray | None = None
+    n_estim: np.ndarray | None = None
+    seg_interest: np.ndarray | None = None
 
 
 def _burst_column(tracks, burst) -> str | None:
@@ -219,7 +227,21 @@ def _units_from(tracks, x, y, secs, code, labels, tvals, bvals) -> list[_Unit]:
     return units
 
 
-def _fit_variance(units: list[_Unit], resolved, na_how: str, window_size: int, margin: int, threads: int) -> list[_Unit]:
+def _each(fn, items, threads: int, side_by_side: bool = True) -> list:
+    """``fn(item, threads)`` for each item. With at least as many items as threads they run side by side, one thread
+    each (the compiled code lets go of the GIL), which keeps all the threads busy on many short tracks or bursts;
+    otherwise one after the other, each on all the threads. Every item is computed on its own, so the result is the
+    same bits either way."""
+    if side_by_side and threads > 1 and len(items) >= threads:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(threads) as pool:
+            return list(pool.map(lambda it: fn(it, 1), items))
+    return [fn(it, threads) for it in items]
+
+
+def _fit_variance(units: list[_Unit], resolved, na_how: str, window_size: int, margin: int, threads: int,
+                  model: str = "dbbmm") -> list[_Unit]:
     """The variance of each unit with enough locations (the others are returned with no variance, as skipped)."""
     skipped = [u.label for u in units if len(u.x) < window_size]
     if skipped and len(units) == 1:
@@ -229,13 +251,21 @@ def _fit_variance(units: list[_Unit], resolved, na_how: str, window_size: int, m
             raise ValueError("No track had enough locations for the given window_size")
         warnings.warn(f"Tracks skipped (fewer locations than window_size): {', '.join(skipped)}", UserWarning,
                       stacklevel=3)
-    for u in units:
-        n = len(u.x)
-        if n < window_size:
-            continue
+    todo = [u for u in units if len(u.x) >= window_size]
+    for u in todo:
         u.loc_err = _error_of(resolved, u.start, u.stop, na_how)
+
+    def fit(u: _Unit, th: int) -> None:
+        n = len(u.x)
+        if model == "dbgb":
+            r = _core.move_dbgb_variance(u.x, u.y, u.time_mins, u.loc_err, window_size, margin, th)
+            ne = r["n_estim"]
+            u.para_sd, u.orth_sd = r["para_sd"], r["orth_sd"]
+            u.n_estim = np.where(ne > 0, ne.astype(np.float64), np.nan)
+            u.seg_interest = (ne > 0) & (ne == ne.max())
+            return
         lag = np.append(np.diff(u.time_mins), 0.0)
-        r = _core.move_dbbmm_variance(u.x, u.y, lag, u.loc_err, window_size, margin, threads)
+        r = _core.move_dbbmm_variance(u.x, u.y, lag, u.loc_err, window_size, margin, th)
         u.variance = r["variance"]
         ne = r["n_estim"]
         u.in_windows = np.where(ne > 0, ne.astype(np.float64), np.nan)
@@ -243,6 +273,8 @@ def _fit_variance(units: list[_Unit], resolved, na_how: str, window_size: int, m
         if (ne > 0).any():
             u.interest[ne == ne.max()] = True
         u.breaks = (r["break_pos"].astype(np.int64) - 1).tolist()      # 0-based positions in the track
+
+    _each(fit, todo, threads)
     return units
 
 
@@ -360,9 +392,86 @@ def _variance_table(tracks, px, py, code, labels, tvals, bvals, secs, location_e
     return out
 
 
-def motion_variance(tracks) -> np.ndarray:
+def dbgb_variance(tracks, location_error, window_size: int = 31, margin: int = 15, location_error_na: str = "median",
+                  *, time: str | None = None, track: str | None = None, burst="auto", n_threads: int | None = None):
+    """The variances of the directional Brownian bridge along and across the movement (move2utils'
+    ``mt_dbgb_variance``).
+
+    Like :func:`dbbmm_variance`, a window slides along each track and the leave-one-out residuals of its
+    locations are tested against the bridge of their neighbours; but each residual is split along the direction from
+    the expected position to the next location (the parallel part) and across it (the orthogonal part), and each
+    axis has a variance of its own and up to one break point of its own, found by the BIC in four steps (none, the
+    parallel axis alone, the orthogonal axis alone, the second given the first). The standard deviation of a
+    location is the root of the mean variance of the windows that cover it. Locations covered by every window are
+    the core of the later distribution (:func:`dbgb_ud`).
+
+    Parameters
+    ----------
+    tracks, location_error, window_size, location_error_na, time, track, burst, n_threads
+        As in :func:`dbbmm_variance`; ``margin`` is 15 here (odd, ``window_size >= 2 * margin + 1``).
+
+    Returns
+    -------
+    GeoDataFrame
+        A copy of ``tracks`` with the slots of move2utils' variance object as columns: ``para_sd`` and ``orth_sd``
+        (standard deviations, NaN where no window covers), ``n_estim`` (the windows covering, NaN where none),
+        ``seg_interest`` (True where every window covers: the segments of the distribution) and
+        ``dbgb_location_error`` (the errors used). ``attrs["terraflux.dbgb"]`` holds the settings and the CRS of the
+        computation, which :func:`dbgb_ud` uses. ``motion_variance(tracks, model="dbgb")`` gives their squares.
+
+    References
+    ----------
+    Kranstauber, B., Safi, K., Scharf, A. K. (2026). move2utils. bioRxiv doi:10.64898/2026.07.07.736908
+
+    Kranstauber, B., Kays, R., LaPoint, S. D., Wikelski, M., Safi, K. (2012). A dynamic Brownian bridge movement
+    model to estimate utilization distributions for heterogeneous animal movement. Journal of Animal Ecology 81,
+    738-746. doi:10.1111/j.1365-2656.2012.01955.x
+
+    Examples
+    --------
+    >>> import terraflux as tf
+    >>> tr = tf.move.simulate_brownian(range(120), sigma=2.0, tracks=2, seed=3)
+    >>> v = tf.move.dbgb_variance(tr, 5.0, window_size=31, margin=15)
+    >>> int(v["para_sd"].notna().sum()), int(v["seg_interest"].sum())
+    (62, 62)
+    """
+    window_size, margin = _check_window(window_size, margin)
+    na_how = _check_how(location_error_na)
+    threads = resolve(n_threads)
+    x, y, crs, lonlat, code, labels, tvals, bvals, secs = _prepare(tracks, time, track, burst, "estimating the variance")
+    work = aeqd_crs(tracks, "centroid") if lonlat else crs
+    px, py = _transform_xy(x, y, crs, work)
+    units = _units_from(tracks, px, py, secs, code, labels, tvals, bvals)
+    resolved = _resolve_error(location_error, tracks, len(tracks))
+    with limit(threads):
+        units = _fit_variance(units, resolved, na_how, window_size, margin, threads, "dbgb")
+    n = len(tracks)
+    cols = {"para_sd": np.full(n, np.nan), "orth_sd": np.full(n, np.nan), "n_estim": np.full(n, np.nan),
+            "seg_interest": np.zeros(n, bool), _DBGB_LOCATION_ERROR: np.full(n, np.nan)}
+    for u in units:
+        if u.para_sd is None:
+            continue
+        cols["para_sd"][u.start:u.stop] = u.para_sd
+        cols["orth_sd"][u.start:u.stop] = u.orth_sd
+        cols["n_estim"][u.start:u.stop] = u.n_estim
+        cols["seg_interest"][u.start:u.stop] = u.seg_interest
+        cols[_DBGB_LOCATION_ERROR][u.start:u.stop] = u.loc_err
+    out = tracks.copy()
+    out.attrs = dict(tracks.attrs)
+    for k, v in cols.items():
+        out[k] = v
+    out.attrs[DBGB] = {"window_size": window_size, "margin": margin, "location_error_na": na_how,
+                       "crs": None if work is None else work.to_wkt(),
+                       "orig_crs": None if tracks.crs is None else tracks.crs.to_wkt()}
+    return out
+
+
+
+def motion_variance(tracks, model: str | None = None):
     """The motion variance of each location (move2utils' ``mt_motion_variance``): the column ``motion_variance`` of
-    :func:`dbbmm_variance`, NaN at the margins of each track.
+    :func:`dbbmm_variance`, NaN at the margins of each track; or, of :func:`dbgb_variance` (``model="dbgb"``, or
+    when only its columns are there), a DataFrame with ``para`` and ``orth``, the squares of the standard
+    deviations (not the mean of the windows' variances).
 
     Examples
     --------
@@ -371,6 +480,13 @@ def motion_variance(tracks) -> np.ndarray:
     >>> tf.move.motion_variance(tf.move.dbbmm_variance(tr, 5.0, 31, 11)).shape
     (60,)
     """
+    if model not in (None, "dbbmm", "dbgb"):
+        raise ValueError('model: "dbbmm" or "dbgb"')
+    if model == "dbgb" or (model is None and "motion_variance" not in tracks.columns and "para_sd" in tracks.columns):
+        if "para_sd" not in tracks.columns:
+            raise ValueError("no para_sd column: run dbgb_variance first")
+        return pd.DataFrame({"para": tracks["para_sd"].to_numpy(np.float64) ** 2,
+                             "orth": tracks["orth_sd"].to_numpy(np.float64) ** 2}, index=tracks.index)
     if "motion_variance" not in tracks.columns:
         raise ValueError("no motion_variance column: run dbbmm_variance first")
     return tracks["motion_variance"].to_numpy(np.float64)
@@ -459,7 +575,8 @@ def suggest_dbbmm_window(tracks, target_hours: float = 4.0, *, time: str | None 
 
 # --------------------------------------------------------------------------------------------- masking
 
-def mask_segments(tracks, segments, *, time: str | None = None, track: str | None = None, burst="auto"):
+def mask_segments(tracks, segments, *, model: str | None = None, time: str | None = None, track: str | None = None,
+                  burst="auto"):
     """Leave segments out of the distribution (move2utils' ``mt_mask_segments``): ``interest`` is False for them.
 
     The segment ``i`` of a track is the bridge from its location ``i`` to ``i + 1`` (0-based; R counts from 1),
@@ -469,7 +586,10 @@ def mask_segments(tracks, segments, *, time: str | None = None, track: str | Non
     Parameters
     ----------
     tracks
-        Tracks with the columns of :func:`dbbmm_variance`.
+        Tracks with the columns of :func:`dbbmm_variance` (``interest``) or of :func:`dbgb_variance`
+        (``seg_interest``).
+    model
+        ``"dbbmm"`` or ``"dbgb"``: which of the two to mask, when the tracks have the columns of both.
     segments
         Whole numbers in ``0 .. n - 2`` of each track, applied to every track (a mistake for a track with fewer
         locations); a boolean array with one value per row of ``tracks`` (True: leave out the segment that starts
@@ -479,7 +599,7 @@ def mask_segments(tracks, segments, *, time: str | None = None, track: str | Non
     Returns
     -------
     GeoDataFrame
-        A copy of ``tracks`` with ``interest`` updated.
+        A copy of ``tracks`` with ``interest`` (``seg_interest`` for the dBGB) updated.
 
     Examples
     --------
@@ -489,11 +609,19 @@ def mask_segments(tracks, segments, *, time: str | None = None, track: str | Non
     >>> int(tf.move.mask_segments(v, [40, 41])["interest"].sum()) - int(v["interest"].sum())
     -2
     """
-    if "interest" not in tracks.columns:
-        raise ValueError("no interest column: run dbbmm_variance first")
+    if model not in (None, "dbbmm", "dbgb"):
+        raise ValueError('model: "dbbmm" or "dbgb"')
+    has = {"dbbmm": "interest" in tracks.columns, "dbgb": "seg_interest" in tracks.columns}
+    if model is None:
+        if has["dbbmm"] and has["dbgb"]:
+            raise ValueError('the tracks have the columns of both models: name one with model="dbbmm" or "dbgb"')
+        model = "dbgb" if has["dbgb"] else "dbbmm"
+    if not has[model]:
+        raise ValueError(f"no {'seg_interest' if model == 'dbgb' else 'interest'} column: run {model}_variance first")
+    field_ = "seg_interest" if model == "dbgb" else "interest"
     _, code, labels, _, _ = _unit_codes(tracks, time, track, burst)
     bounds = _bounds(code)
-    interest = tracks["interest"].to_numpy(bool).copy()
+    interest = tracks[field_].to_numpy(bool).copy()
 
     def cut(label, s, e, seg):
         n = e - s
@@ -528,7 +656,7 @@ def mask_segments(tracks, segments, *, time: str | None = None, track: str | Non
                 cut(labels[u], s, e, seg)
     out = tracks.copy()
     out.attrs = dict(tracks.attrs)
-    out["interest"] = interest
+    out[field_] = interest
     return out
 
 
@@ -611,19 +739,44 @@ class _Kernel:
     le: np.ndarray
     interest: np.ndarray
     time_step: float
+    s2: np.ndarray | None = None       # the directional bridge: s1, s2 the standard deviations along and across
+    ext: float = _EXT
 
 
-def _kernel_inputs(u: _Unit, le: np.ndarray, time_step) -> _Kernel:
+def _check_time_step(ts, derived: bool) -> float:
+    if not (np.isfinite(ts) and ts > 0):
+        raise ValueError("The default time_step is a fraction of the shortest time lag, which is not positive here "
+                         "(duplicate or unsorted times?): give time_step in minutes" if derived else
+                         "time_step must be a single positive number (minutes)")
+    return float(ts)
+
+
+def _kernel_inputs_dbgb(u: _Unit, le: np.ndarray, time_step) -> _Kernel:
+    """``.dbgb_kernel_inputs``: the core locations (covered by every window), their times as they are."""
+    ne = u.n_estim
+    core = ~np.isnan(ne) & (ne == np.nanmax(ne)) if not np.isnan(ne).all() else u.seg_interest.copy()
+    derived = time_step is None
+    ts = _check_time_step(float(np.diff(u.time_mins).min()) / 20.1 if derived else float(time_step), derived)
+    if core.sum() < 2:
+        raise ValueError(f"A UD needs at least two fixes of interest; got {int(core.sum())} in {u.label}")
+    keep = u.seg_interest[core]
+    if not keep[:-1].any():
+        raise ValueError("A UD needs at least one bridge of interest; every bridge is excluded "
+                         "(see seg_interest and mask_segments)")
+    c = np.ascontiguousarray
+    return _Kernel(u, c(u.x[core]), c(u.y[core]), c(np.nan_to_num(u.para_sd, nan=0.0)[core]), c(u.time_mins[core]),
+                   c(le[core]), c(keep.view(np.uint8)), ts, c(np.nan_to_num(u.orth_sd, nan=0.0)[core]), _EXT_DBGB)
+
+
+def _kernel_inputs(u: _Unit, le: np.ndarray, time_step, model: str = "dbbmm") -> _Kernel:
+    if model == "dbgb":
+        return _kernel_inputs_dbgb(u, le, time_step)
     n = len(u.x)
     if n < 2:
         raise ValueError(f"A UD needs at least two fixes; got {n} in {u.label}")
     lag = np.append(np.diff(u.time_mins), 0.0)
     derived = time_step is None
-    ts = float(lag[:-1].min()) / 15 if derived else float(time_step)
-    if not (np.isfinite(ts) and ts > 0):
-        raise ValueError("The default time_step is a fraction of the shortest time lag, which is not positive here "
-                         "(duplicate or unsorted times?): give time_step in minutes" if derived else
-                         "time_step must be a single positive number (minutes)")
+    ts = _check_time_step(float(lag[:-1].min()) / 15 if derived else float(time_step), derived)
     var = np.nan_to_num(u.variance, nan=0.0)
     return _Kernel(u, u.x, u.y, np.ascontiguousarray(var), np.ascontiguousarray(u.time_mins - u.time_mins.min()),
                    np.ascontiguousarray(le), np.ascontiguousarray(u.interest.view(np.uint8)), ts)
@@ -639,7 +792,10 @@ def _probe(k: _Kernel, g: Grid) -> _Probe:
     xs, ys = g.vectors()
     if len(xs) < 2 or len(ys) < 2:
         return _Probe((_INF, -_INF, _INF, -_INF), (len(xs) < 2, len(xs) < 2, len(ys) < 2, len(ys) < 2), False)
-    r = _core.move_ud_probe(k.x, k.y, k.s1, k.t, k.le, k.interest, xs, ys, k.time_step, _EXT)
+    if k.s2 is not None:
+        r = _core.move_dbgb_probe(k.x, k.y, k.s1, k.s2, k.t, k.le, k.interest, xs, ys, k.time_step, k.ext)
+    else:
+        r = _core.move_ud_probe(k.x, k.y, k.s1, k.t, k.le, k.interest, xs, ys, k.time_step, k.ext)
     idx = r[4:]
     sides = (bool(idx[0] < 0), bool(idx[1] > len(xs) - 1), bool(idx[2] > len(ys) - 1), bool(idx[3] < 0))
     return _Probe(tuple(r[:4]), sides, not any(sides))
@@ -659,7 +815,7 @@ def _check_cells(g: Grid, res, dim_size, max_cells):
                          ", or raise max_cells")
 
 
-def _auto_grid(px, py, res, dim_size, ext_factor, kernels, max_cells) -> tuple[Grid, bool]:
+def _auto_grid(px, py, res, dim_size, ext_factor, kernels, max_cells, verbose=False) -> tuple[Grid, bool]:
     """``.ud_auto_grid``: the grid of ``res`` or ``dim_size`` on the widened box, kept when every bridge window
     fits, else enlarged to the windows (the cell size grows with ``dim_size``, the cells are added with ``res``)."""
     g = _make_grid(px, py, res, None if res is not None else dim_size, ext_factor)
@@ -694,9 +850,10 @@ def _auto_grid(px, py, res, dim_size, ext_factor, kernels, max_cells) -> tuple[G
                                  "(max_cells): use a larger res, or give dim_size, which fixes the number of cells")
         g = _grid_from_range(need, cell)
         if all(_probe(k, g).safe for k in kernels):
-            warnings.warn(f"The grid was enlarged so that every bridge's window fits: {g.ncol} x {g.nrow} cells of "
-                          f"{g.xres:.4g} map units (the box of ext_factor={ext_factor:g} was too small)",
-                          UserWarning, stacklevel=4)
+            if verbose:
+                warnings.warn(f"Grid enlarged so that every bridge's kernel window fits: {g.ncol} x {g.nrow} cells "
+                              f"of {g.xres:.4g} map units (the box from ext_factor = {ext_factor:g} was too small).",
+                              UserWarning, stacklevel=5)
             return g, True
     raise RuntimeError("could not build a UD grid large enough for the kernel windows (please report this)")
 
@@ -806,7 +963,8 @@ _NOTE = ("computed and returned in the azimuthal equidistant CRS centred on the 
 def dbbmm_ud(tracks, location_error=None, *, like=None, res: float | None = None, dim_size: int | None = None,
              ext_factor: float = 0.5, ext: float | None = None, time_step: float | None = None, window_size: int = 31,
              margin: int = 11, location_error_na: str = "median", crs: str = "projected", max_cells: float = 1e8,
-             time: str | None = None, track: str | None = None, burst="auto", n_threads: int | None = None):
+             verbose: bool = False, time: str | None = None, track: str | None = None, burst="auto",
+             n_threads: int | None = None):
     """The utilization distribution of the dynamic Brownian bridge, one band per track (move2utils' ``mt_dbbmm_ud``).
 
     Each pair of consecutive locations is a Brownian bridge whose variance is the motion variance of the
@@ -848,6 +1006,9 @@ def dbbmm_ud(tracks, location_error=None, *, like=None, res: float | None = None
         machine, the sums agree to ~1e-3 with the original). With ``like`` the distribution is on its grid.
     max_cells
         The most cells a grid built from ``res`` or ``dim_size`` may have (move2utils' ``ud_max_cells``).
+    verbose
+        Say (a ``UserWarning``) when the grid was enlarged so that the bridges' windows fit, as move2utils' ``verbose``
+        does; by default it does not, as in R.
     time, track, burst, n_threads
         As in :func:`dbbmm_variance`. The cells are computed in parallel strips; every cell adds its steps in their
         order, so the result is the same with any number of threads.
@@ -884,13 +1045,71 @@ def dbbmm_ud(tracks, location_error=None, *, like=None, res: float | None = None
     >>> ud.dims, ud.shape[0], round(float(ud.isel(band=0).sum()), 12)
     (('band', 'y', 'x'), 2, 1.0)
     """
+    return _ud("dbbmm", tracks, location_error, like=like, res=res, dim_size=dim_size, ext_factor=ext_factor, ext=ext,
+               time_step=time_step, window_size=window_size, margin=margin, location_error_na=location_error_na,
+               crs=crs, max_cells=max_cells, verbose=verbose, time=time, track=track, burst=burst, n_threads=n_threads)
+
+
+def dbgb_ud(tracks, location_error=None, *, like=None, res: float | None = None, dim_size: int | None = None,
+            ext_factor: float = 0.5, ext: float | None = None, time_step: float | None = None, window_size: int = 31,
+            margin: int = 15, location_error_na: str = "median", crs: str = "projected", max_cells: float = 1e8,
+            verbose: bool = False, time: str | None = None, track: str | None = None, burst="auto",
+            n_threads: int | None = None):
+    """The utilization distribution of the directional Brownian bridge, one band per track (move2utils'
+    ``mt_dbgb_ud``).
+
+    As :func:`dbbmm_ud`, but each step of a bridge spreads a bivariate normal with two standard deviations, along
+    and across the direction from the bridge's position to the next location (:func:`dbgb_variance`), over the cells
+    within five of the larger one. Only the core of each track counts (the locations covered by every window of the
+    variance) and, in it, the bridges of ``seg_interest`` (:func:`mask_segments`).
+
+    Parameters
+    ----------
+    tracks
+        Tracks with or without the columns of :func:`dbgb_variance`: without them the variance is computed here with
+        ``window_size`` (31), ``margin`` (15), ``location_error`` and ``location_error_na``.
+    like, res, dim_size, ext_factor, ext, crs, max_cells, verbose, time, track, burst, n_threads
+        As in :func:`dbbmm_ud`.
+    time_step
+        The step of the integration over time, in minutes (default: a twentieth of the shortest time lag of the
+        track, ``min(diff(time)) / 20.1`` as move2utils has it).
+    location_error
+        As in :func:`dbbmm_ud` (given with the variance columns it replaces the errors they hold, for the core).
+
+    Returns
+    -------
+    xarray.DataArray
+        As :func:`dbbmm_ud`: ``(band, y, x)``, each band summing to 1.
+
+    References
+    ----------
+    Kranstauber, B., Safi, K., Scharf, A. K. (2026). move2utils. bioRxiv doi:10.64898/2026.07.07.736908
+
+    Examples
+    --------
+    >>> import terraflux as tf
+    >>> tr = tf.move.simulate_brownian(range(120), sigma=2.0, tracks=2, seed=3)
+    >>> ud = tf.move.dbgb_ud(tr, 5.0, dim_size=60)
+    >>> ud.dims, ud.shape[0], round(float(ud.isel(band=0).sum()), 12)
+    (('band', 'y', 'x'), 2, 1.0)
+    """
+    return _ud("dbgb", tracks, location_error, like=like, res=res, dim_size=dim_size, ext_factor=ext_factor, ext=ext,
+               time_step=time_step, window_size=window_size, margin=margin, location_error_na=location_error_na,
+               crs=crs, max_cells=max_cells, verbose=verbose, time=time, track=track, burst=burst, n_threads=n_threads)
+
+
+def _ud(model, tracks, location_error, *, like, res, dim_size, ext_factor, ext, time_step, window_size, margin,
+        location_error_na, crs, max_cells, verbose, time, track, burst, n_threads):
+    """The distribution of either model: the grid, the CRS and the bands are the same."""
+    dgb = model == "dbgb"
+    cols, key, le_col = (_DBGB_COLUMNS, DBGB, _DBGB_LOCATION_ERROR) if dgb else (_VARIANCE_COLUMNS, DBBMM, _LOCATION_ERROR)
     if crs not in ("projected", "input"):
         raise ValueError('crs: "projected" or "input"')
     res, dim_size, ext_factor = _grid_args(like, res, dim_size, ext_factor, ext)
     threads = resolve(n_threads)
     x, y, tcrs, _, code, labels, tvals, bvals, secs = _prepare(tracks, time, track, burst, "the distribution")
-    info = tracks.attrs.get(DBBMM)
-    has_cols = all(c in tracks.columns for c in _VARIANCE_COLUMNS)
+    info = tracks.attrs.get(key)
+    has_cols = all(c in tracks.columns for c in cols)
     tmpl = _template(like) if like is not None else None
     if has_cols and info is not None and info.get("crs") is not None:
         from pyproj import CRS
@@ -909,18 +1128,28 @@ def dbbmm_ud(tracks, location_error=None, *, like=None, res: float | None = None
     check_order(code, secs, strictly=True)
     if has_cols:
         units = _units_from(tracks, px, py, secs, code, labels, tvals, bvals)
-        if _LOCATION_ERROR not in tracks.columns:
-            raise ValueError("the tracks have the variance columns but no location_error column: run "
-                             "dbbmm_variance again")
-        mv = tracks["motion_variance"].to_numpy(np.float64)
-        le_all = tracks[_LOCATION_ERROR].to_numpy(np.float64)
-        interest = tracks["interest"].to_numpy(bool)
-        inw = tracks["in_windows"].to_numpy(np.float64)
+        if le_col not in tracks.columns:
+            raise ValueError(f"the tracks have the variance columns but no {le_col} column: run "
+                             f"{model}_variance again")
+        le_all = tracks[le_col].to_numpy(np.float64)
+        if dgb:
+            pa, orr = tracks["para_sd"].to_numpy(np.float64), tracks["orth_sd"].to_numpy(np.float64)
+            ne, si = tracks["n_estim"].to_numpy(np.float64), tracks["seg_interest"].to_numpy(bool)
+        else:
+            mv = tracks["motion_variance"].to_numpy(np.float64)
+            interest = tracks["interest"].to_numpy(bool)
+            inw = tracks["in_windows"].to_numpy(np.float64)
         keep = []
         for u in units:
-            u.variance, u.interest, u.in_windows = mv[u.start:u.stop], interest[u.start:u.stop], inw[u.start:u.stop]
-            u.loc_err = le_all[u.start:u.stop]
-            if np.isnan(u.loc_err).all() and np.isnan(u.variance).all():
+            sl = slice(u.start, u.stop)
+            u.loc_err = le_all[sl]
+            if dgb:
+                u.para_sd, u.orth_sd, u.n_estim, u.seg_interest = pa[sl], orr[sl], ne[sl], si[sl]
+                skipped = np.isnan(u.loc_err).all() and np.isnan(u.para_sd).all()
+            else:
+                u.variance, u.interest, u.in_windows = mv[sl], interest[sl], inw[sl]
+                skipped = np.isnan(u.loc_err).all() and np.isnan(u.variance).all()
+            if skipped:
                 continue                                    # a track the variance skipped
             keep.append(u)
         override = _expand_error(location_error, tracks, keep)
@@ -930,29 +1159,36 @@ def dbbmm_ud(tracks, location_error=None, *, like=None, res: float | None = None
         units = _units_from(tracks, px, py, secs, code, labels, tvals, bvals)
         resolved = _resolve_error(location_error, tracks, len(tracks))
         with limit(threads):
-            units = _fit_variance(units, resolved, na_how, window_size, margin, threads)
-        keep = [u for u in units if u.variance is not None]
+            units = _fit_variance(units, resolved, na_how, window_size, margin, threads, model)
+        keep = [u for u in units if u.loc_err is not None]
         override = {}
-    kernels = [_kernel_inputs(u, override.get(u.label, u.loc_err), time_step) for u in keep]
+    kernels = [_kernel_inputs(u, override.get(u.label, u.loc_err), time_step, model) for u in keep]
     if tmpl is not None:
         grid = tmpl[0]
         _check_template(grid, kernels)
     else:
         px_all = np.concatenate([u.x for u in keep])
         py_all = np.concatenate([u.y for u in keep])
-        grid, _ = _auto_grid(px_all, py_all, res, dim_size, ext_factor, kernels, float(max_cells))
+        grid, _ = _auto_grid(px_all, py_all, res, dim_size, ext_factor, kernels, float(max_cells), verbose)
     xs, ys = grid.vectors()
     stack = np.empty((len(kernels), grid.nrow, grid.ncol))
+    def run(ik, th):
+        i, k = ik
+        if dgb:
+            stack[i] = _core.move_dbgb_ud(k.x, k.y, k.s1, k.s2, k.t, k.le, k.interest, xs, ys, k.time_step, k.ext, th)
+        else:
+            stack[i] = _core.move_dbbmm_ud(k.x, k.y, k.s1, k.t, k.le, k.interest, xs, ys, k.time_step, k.ext, th)
+
     with limit(threads):
-        for i, k in enumerate(kernels):
-            stack[i] = _core.move_dbbmm_ud(k.x, k.y, k.s1, k.t, k.le, k.interest, xs, ys, k.time_step, _EXT, threads)
+        # side by side only on grids of up to 25 million cells: each one in flight holds two copies of its grid
+        _each(run, list(enumerate(kernels)), threads, side_by_side=grid.nrow * grid.ncol <= 25_000_000)
     names = [u.label for u in keep]
-    attrs = {"note": _NOTE, "ext": _EXT, "time_step": [k.time_step for k in kernels]}
+    attrs = {"note": _NOTE, "ext": _EXT_DBGB if dgb else _EXT, "time_step": [k.time_step for k in kernels]}
     if crs == "input" and tmpl is None and work is not None and tcrs is not None and work != tcrs:
         stack, grid = _to_input_crs(stack, grid, work, tcrs)
         attrs["note"] = "warped to the CRS of the tracks (bilinear, negative cells made 0, bands summed to 1 again)"
         work = tcrs
-    return _raster(stack, grid, names, [u.track for u in keep], [u.burst for u in keep], work, "dbbmm_ud", attrs)
+    return _raster(stack, grid, names, [u.track for u in keep], [u.burst for u in keep], work, f"{model}_ud", attrs)
 
 
 def _expand_error(location_error, tracks, units) -> dict:
@@ -1064,5 +1300,6 @@ def ud_outer_probability(points, ud, *, band=None) -> np.ndarray:
     return vals
 
 
-__all__ = ["Grid", "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "mask_segments", "motion_variance",
+__all__ = ["Grid", "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "dbgb_ud", "dbgb_variance", "mask_segments",
+           "motion_variance",
            "suggest_dbbmm_window", "ud_outer_probability", "ud_volume"]

@@ -110,3 +110,12 @@ dbbmm_ud_out <- function(u) {
   list(ud = as.numeric(terra::values(u)), dim = c(terra::nrow(u), terra::ncol(u), terra::nlyr(u)),
        ext = as.vector(terra::ext(u)))
 }
+
+dbgb_var_out <- function(o) {
+  vl <- if (inherits(o, "mt_dbgb_variance")) list(o) else o
+  td <- function(f) unlist(lapply(vl, function(v) f(v$track_data)))
+  list(para_sd = unlist(lapply(vl, `[[`, "para_sd")), orth_sd = unlist(lapply(vl, `[[`, "orth_sd")),
+       n_estim = unlist(lapply(vl, `[[`, "n_estim")), seg_interest = as.numeric(unlist(lapply(vl, `[[`, "seg_interest"))),
+       le = td(function(d) d$location_error), n = vapply(vl, function(v) as.numeric(v$track_data$n_locs), numeric(1)),
+       x = td(function(d) d$x), y = td(function(d) d$y))
+}

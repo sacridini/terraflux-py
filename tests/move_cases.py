@@ -1120,3 +1120,66 @@ list(mcp_ok = sapply(mc, function(m) as.numeric(!is.null(m))), mcp_area = unlist
      locoh_area = unlist(lapply(lc, function(m) na2(m$area, 2))), locoh_level = unlist(lapply(lc, function(m) na2(m$level, 2))))""",
                     "amt_hr"),
 })
+
+
+# the directional Brownian bridge (dBGB), in the same group and on the same sets
+UD_DBGB_VARIANCE = {
+    "gvar_fishers": ("fishers", _UD_NE, "mt_dbgb_variance(x, location_error = 25, window_size = 31, margin = 15)"),
+    "gvar_m1": ("fishers", _UD_NE + _UD_M1, "mt_dbgb_variance(x, location_error = 25, window_size = 31, margin = 15)"),
+    "gvar_m1_w21": ("fishers", _UD_NE + _UD_M1, "mt_dbgb_variance(x, 15, 21, 5)"),
+    "gvar_utm": ("ud_utm", "", "mt_dbgb_variance(x, location_error = 10, window_size = 21, margin = 7)"),
+    "gvar_noerr": ("ud_utm", "", "mt_dbgb_variance(x, NULL, 21, 7)"),
+    "gvar_ll": ("ud_ll", "", "mt_dbgb_variance(x, 5, 31, 15)"),
+    "gvar_burst": ("ud_burst", _UD_BURST, 'mt_dbgb_variance(x, "le", 21, 7, location_error_na = "approx")'),
+    "gvar_err_median": ("ud_err", "", 'mt_dbgb_variance(x, "le", 31, 15, location_error_na = "median")'),
+    "gvar_err_approx": ("ud_err", "", 'mt_dbgb_variance(x, "le", 31, 15, location_error_na = "approx")'),
+    "gvar_argos": ("ud_err", _UD_ARGOS, 'mt_dbgb_variance(x, "auto", 31, 15)'),
+}
+
+UD_DBGB = {
+    "gud_m1_res": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                   "mt_dbgb_ud(x, location_error = 25, res = 100, verbose = FALSE)"),
+    "gud_m1_dim": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                   "mt_dbgb_ud(x, location_error = 25, dim_size = 120, ext_factor = 0.3, window_size = 21, margin = 5, "
+                   "verbose = FALSE)"),
+    "gud_m1_enlarge_dim": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                           "mt_dbgb_ud(x, location_error = 25, dim_size = 60, ext_factor = 0, verbose = FALSE)"),
+    "gud_m1_enlarge_res": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                           "mt_dbgb_ud(x, location_error = 25, res = 200, ext_factor = 0, verbose = FALSE)"),
+    "gud_m1_step": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                    "mt_dbgb_ud(x, location_error = 25, res = 150, time_step = 3, verbose = FALSE)"),
+    "gud_m1_like": ("fishers", _UD_NE + _UD_M1 + _UD_PROJ,
+                    "{ bb <- sf::st_bbox(x)\n  r <- terra::rast(xmin = floor((bb[['xmin']] - 12000) / 200) * 200, "
+                    "xmax = ceiling((bb[['xmax']] + 12000) / 200) * 200, ymin = floor((bb[['ymin']] - 12000) / 200) * 200, "
+                    "ymax = ceiling((bb[['ymax']] + 12000) / 200) * 200, resolution = 200, crs = sf::st_crs(x)$wkt)\n"
+                    "  mt_dbgb_ud(x, raster = r, location_error = 25, verbose = FALSE) }"),
+    "gud_fishers500": ("fishers", _UD_NE + _UD_500 + _UD_PROJ,
+                       "mt_dbgb_ud(x, location_error = 25, dim_size = 150, verbose = FALSE)"),
+    "gud_utm": ("ud_utm", "", "mt_dbgb_ud(x, location_error = 10, dim_size = 90, window_size = 21, margin = 7, "
+                              "verbose = FALSE)"),
+    "gud_ll": ("ud_ll", _UD_PROJ, "mt_dbgb_ud(x, location_error = 5, dim_size = 80, verbose = FALSE)"),
+    "gud_argos": ("ud_err", _UD_ARGOS, 'mt_dbgb_ud(x, location_error = "auto", dim_size = 100, verbose = FALSE)'),
+    "gud_eobs": ("ud_err", "", 'mt_dbgb_ud(x, location_error = "auto", res = 40, verbose = FALSE)'),
+    "gud_burst": ("ud_burst", _UD_BURST, "mt_dbgb_ud(x, location_error = 5, window_size = 21, margin = 7, res = 40, "
+                                         "verbose = FALSE)"),
+    "gud_masked": ("ud_utm", 'x <- x[as.character(mt_track_id(x)) == "u1", ]\n'
+                             "v <- mt_dbgb_variance(x, 10, 21, 7)\nv <- mt_mask_segments(v, c(30:40, 90L, 150L))\n",
+                   "mt_dbgb_ud(v, res = 20, verbose = FALSE)"),
+}
+
+CASES.update({
+    **{k: _ud_case(v[0], v[1], f"o <- {v[2]}\ndbgb_var_out(o)") for k, v in UD_DBGB_VARIANCE.items()},
+    **{k: _ud_case(v[0], v[1], f"u <- {v[2]}\nc(dbbmm_ud_out(u), list(xy = if (exists('xy', inherits = FALSE)) as.numeric(xy) else NULL, "
+                               "seg_interest = if (exists('v', inherits = FALSE)) as.numeric(v$seg_interest) else NULL))")
+       for k, v in UD_DBGB.items()},
+    # acos as R's mingw-w64 computes it
+    "acos": _ud_case("ud_err", "", """a <- c(seq(-1, 1, length.out = 4001), cos(seq(0, pi, length.out = 3001)),
+       sqrt(0.5), -sqrt(0.5), 1 - 2^-(1:52), -1 + 2^-(1:52), runif(0), (1:3000) / 3001 * 2 - 1)
+list(x = a, y = acos(a), sa = sin(acos(a)), ca = cos(acos(a)))"""),
+    # the legacy move package: dynBGBvariance on leroy (move2utils' parity test)
+    "move_leroy_dbgb": _ud_case("fishers", _UD_NE + _UD_M1 + "x <- project_center(x, 'centroid')\n", """cc <- sf::st_coordinates(x)
+lm <- move::move(x = cc[, 1], y = cc[, 2], time = move2::mt_time(x), proj = sf::st_crs(x)$proj4string, animal = 'leroy')
+rv <- suppressWarnings(move::dynBGBvariance(lm, locErr = 25, margin = 11, windowSize = 31))
+o <- mt_dbgb_variance(x, 25, 31, 11)
+list(xy = as.numeric(cc), para = rv@paraSd, orth = rv@orthSd, my_para = o$para_sd, my_orth = o$orth_sd)"""),
+})

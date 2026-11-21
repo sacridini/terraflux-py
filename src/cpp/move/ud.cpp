@@ -11,6 +11,7 @@
 
 #include "lsm/extended.hpp"
 #include "lsm/rmath.hpp"
+#include "move/acos.hpp"
 
 namespace move {
 
@@ -22,6 +23,7 @@ constexpr double kPi = 3.14159265358979323846;  // M_PI
 // One time step of the bridge: its mean, its variance and the cells of its window (the indices of the kernels).
 struct Step {
     double mux, muy, sigma, w;
+    double sp, so, bx, by;   // the directional bridge: the two standard deviations, the next location
     int xs, xe, ys, ye;
 };
 
@@ -57,9 +59,23 @@ public:
             // pow(v, 2) is v * v
             const double a1 = 1 - alpha;
             const double e0 = in_.le[k_], e1 = in_.le[k_ + 1];
-            const double sigma = (xt[k_ + 1] - xt[k_]) * alpha * (1 - alpha) * in_.s1[k_] + (a1 * a1) * (e0 * e0) +
-                                 (alpha * alpha) * (e1 * e1);
-            const double sigma_ext = std::sqrt(sigma) * in_.ext;
+            const double dt = xt[k_ + 1] - xt[k_];
+            double sigma = 0, sigma_ext;
+            if (in_.model == UdModel::Dbbmm) {
+                sigma = dt * alpha * (1 - alpha) * in_.s1[k_] + (a1 * a1) * (e0 * e0) + (alpha * alpha) * (e1 * e1);
+                sigma_ext = std::sqrt(sigma) * in_.ext;
+            } else {
+                const double sp = std::sqrt(dt * alpha * (1 - alpha) * (in_.s1[k_] * in_.s1[k_]) + (a1 * a1) * (e0 * e0) +
+                                            (alpha * alpha) * (e1 * e1));
+                const double so = std::sqrt(dt * alpha * (1 - alpha) * (in_.s2[k_] * in_.s2[k_]) + (a1 * a1) * (e0 * e0) +
+                                            (alpha * alpha) * (e1 * e1));
+                s.sp = sp;
+                s.so = so;
+                s.bx = in_.x[k_ + 1];
+                s.by = in_.y[k_ + 1];
+                const double max_sigma = (std::isnan(sp) || std::isnan(so)) ? sp + so : ((sp < so) ? so : sp);   // fmax2
+                sigma_ext = max_sigma * in_.ext;
+            }
             s.mux = mux;
             s.muy = muy;
             s.sigma = sigma;
@@ -114,7 +130,9 @@ UdProbe ud_probe(const UdInput& in, const double* xgrid, i64 nx, const double* y
     return p;
 }
 
-void dbbmm_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygrid, i64 ny, int threads, double* ud) {
+namespace {
+
+void run_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygrid, i64 ny, int threads, double* ud) {
     check_inputs(in, nx, ny);
     const double x0 = xgrid[0];
     const double y0 = ygrid[0];
@@ -124,9 +142,11 @@ void dbbmm_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygri
     std::fill(ud, ud + nx * ny, 0.0);
 
     struct Dens {
-        double mux, muy, inv_2pi_sigma, inv_2sigma;
+        double mux, muy, inv_2pi_sigma, inv_2sigma;     // the directional bridge: 1 / (2 pi sp so), -0.5 / sp^2
+        double inv_so2, c, bx, by;                      // -0.5 / so^2, the distance to the next location, and it
         int xs, xe, ys, ye;
     };
+    const bool dbgb = in.model == UdModel::Dbgb;
     constexpr std::size_t kBlock = 1 << 17;
     std::vector<Dens> blk;
     blk.reserve(kBlock);
@@ -139,6 +159,39 @@ void dbbmm_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygri
 
     // the steps of d on the columns lo..hi
     auto add = [&](const Dens& d, i64 lo, i64 hi) {
+        if (dbgb) {
+            for (i64 ii = lo; ii <= hi; ++ii) {
+                const double gx = xgrid[ii];
+                const double bxx = gx - d.bx, axx = d.mux - gx;
+                const double bx2 = bxx * bxx, ax2 = axx * axx;
+                double* col = ud + ii * ny;
+                for (i64 jj = d.ys; jj <= d.ye; ++jj) {
+                    const double gy = ygrid[ny - jj - 1];
+                    const double byy = gy - d.by, ayy = d.muy - gy;
+                    const double B = std::sqrt(bx2 + byy * byy);
+                    const double A = std::sqrt(ax2 + ayy * ayy);
+                    double delta_para, delta_orth;
+                    if (A == 0.0) {
+                        delta_para = 0.0;
+                        delta_orth = 0.0;
+                    } else if (d.c == 0.0) {
+                        const double sq = std::sqrt(0.5);
+                        delta_orth = A * lsm::r_sin(r_acos(sq));
+                        delta_para = A * lsm::r_cos(r_acos(sq));
+                    } else {
+                        double costheta = (B * B - A * A - d.c * d.c) / (2.0 * A * d.c);
+                        if (costheta > 1.0) costheta = 1.0;
+                        if (costheta < -1.0) costheta = -1.0;
+                        const double theta = r_acos(costheta);
+                        delta_orth = A * lsm::r_sin(theta);
+                        delta_para = A * lsm::r_cos(theta);
+                    }
+                    col[jj] += d.inv_2pi_sigma * lsm::r_exp(d.inv_2sigma * delta_para * delta_para +
+                                                            d.inv_so2 * delta_orth * delta_orth) * cell_area;
+                }
+            }
+            return;
+        }
         for (i64 ii = lo; ii <= hi; ++ii) {
             const double dx = xgrid[ii] - d.mux;
             const double dx2 = dx * dx;
@@ -165,7 +218,14 @@ void dbbmm_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygri
                 throw std::runtime_error("Lower y grid not large enough, consider extending the raster in that direction or enlarging the ext argument");
             if (s.ys < 0)
                 throw std::runtime_error("Higher y grid not large enough, consider extending the raster in that direction or enlarging the ext argument");
-            blk.push_back({s.mux, s.muy, 1.0 / (2.0 * kPi * s.sigma), -1.0 / (2.0 * s.sigma), s.xs, s.xe, s.ys, s.ye});
+            if (dbgb) {
+                const double cx = s.mux - s.bx, cy = s.muy - s.by;
+                blk.push_back({s.mux, s.muy, 1.0 / (2.0 * kPi * s.sp * s.so), -0.5 / (s.sp * s.sp), -0.5 / (s.so * s.so),
+                               std::sqrt(cx * cx + cy * cy), s.bx, s.by, s.xs, s.xe, s.ys, s.ye});
+            } else {
+                blk.push_back({s.mux, s.muy, 1.0 / (2.0 * kPi * s.sigma), -1.0 / (2.0 * s.sigma), 0.0, 0.0, 0.0, 0.0,
+                               s.xs, s.xe, s.ys, s.ye});
+            }
         }
         if (blk.empty()) break;
         if (threads > 1 && n_strips > 1 && blk.size() >= 8) {
@@ -194,6 +254,20 @@ void dbbmm_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygri
             for (const Dens& d : blk) add(d, d.xs, d.xe);
         }
     }
+}
+
+}  // namespace
+
+void dbbmm_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygrid, i64 ny, int threads, double* ud) {
+    UdInput q = in;
+    q.model = UdModel::Dbbmm;
+    run_ud(q, xgrid, nx, ygrid, ny, threads, ud);
+}
+
+void dbgb_ud(const UdInput& in, const double* xgrid, i64 nx, const double* ygrid, i64 ny, int threads, double* ud) {
+    UdInput q = in;
+    q.model = UdModel::Dbgb;
+    run_ud(q, xgrid, nx, ygrid, ny, threads, ud);
 }
 
 double ud_normalise(double* v, i64 n) {

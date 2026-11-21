@@ -57,7 +57,7 @@ from ._ssf import Distribution, extract_covariates, fit_distr, make_distribution
 from ._steps import (cum_dist, filter_min_n_burst, msd, nsd, resample, sinuosity, steps, straightness, tac,
                      time_of_day, tot_dist)
 from ._tracks import set_columns
-from ._ud import (WindowSuggestion, dbbmm_ud, dbbmm_variance, mask_segments, motion_variance, suggest_dbbmm_window,
+from ._ud import (WindowSuggestion, dbbmm_ud, dbbmm_variance, dbgb_ud, dbgb_variance, mask_segments, motion_variance, suggest_dbbmm_window,
                   ud_outer_probability, ud_volume)
 
 __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "distance", "Distribution", "example_data",
@@ -69,7 +69,8 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "speed", "steps", "straightness", "tac", "thin_distance", "thin_time", "time_lags", "time_of_day",
            "tot_dist", "track_data", "track_lines", "turn_angle", "unique", "v_phys_estimate", "VPhys",
            "corridor", "corridor_lines", "ud_distance",
-           "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "mask_segments", "motion_variance",
+           "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "dbgb_ud", "dbgb_variance",
+           "mask_segments", "motion_variance",
            "suggest_dbbmm_window", "ud_outer_probability", "ud_volume",
            "HomeRange", "Lscv", "LscvFit", "home_range", "hr_area", "hr_cud", "hr_isopleths", "hr_kde", "hr_kde_lscv",
            "hr_kde_pi", "hr_kde_ref", "hr_kde_ref_scaled", "hr_locoh", "hr_mcp", "hr_overlap", "hr_ud",
