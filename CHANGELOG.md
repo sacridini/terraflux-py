@@ -6,6 +6,8 @@ in a new major version.
 
 ## [Unreleased]
 
+## [1.61.0] - 2026-11-21
+
 ### Added
 - `tf.move`: the simple part of cleaning a track, from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026, bioRxiv
   doi:10.64898/2026.07.07.736908), bit for bit with it (tests against its functions in R, on move2's fishers, on its
