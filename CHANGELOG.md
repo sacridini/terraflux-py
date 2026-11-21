@@ -1,30 +1,12 @@
 # Changelog
 
-All notable changes to Landschaft are documented here. The project follows
+All notable changes to terraflux-py (Landschaft until 1.59.0) are documented here. The project follows
 [Semantic Versioning](https://semver.org/): from 1.0 on, the public API changes incompatibly only
 in a new major version.
 
 ## [Unreleased]
 
 ### Added
-- `tf.move.validate(use, surface, kind="current", threshold=None, quantile=0.9, support=0.99, track=None, spacing=None)`:
-  does the use of the animals follow a connectivity surface (Zeller et al. 2018, doi:10.1111/ddi.12742)? Not in R, so
-  the definitions are ours and documented (only the paper's abstract was available). The use is a UD (a band per
-  track, read on the surface's grid or by nearest cell at its centres), points, or lines such as `corridor_lines` (cut
-  into pieces, each counting its length); the surface a current, a resistance or a binary least-cost corridor. A table per
-  track and pooled: Spearman's rank correlation between the use and the surface's score (average ranks as scipy and R;
-  positive always means better cells are used more), the share of the use inside the corridors (the surface above a
-  threshold or its top quantile), the share of the compared area they are, their ratio, the mean surface used and
-  available, and the coverage; a short note in words; the corridor raster. Sums in order: no dependence on threads.
-- `tf.move`: the values of a raster along each step, amt 0.3.1's `extract_covariates_along` bit for bit (cell by cell,
-  in terra's order, on terra 1.9-50 with GDAL 3.9.3's ALL_TOUCHED line walk on the grid terra crops to the line; tests
-  against amt in R on the fishers' steps, random steps, steps on cell edges and corners, near-vertical and horizontal,
-  zero-length, partly and wholly outside, NaN cells, a raster whose origin is not a multiple of its cell size, and
-  coordinates with more than 15 digits).
-  - `extract_covariates_along(steps, covariates)`: a list with one array per step (a DataFrame for several layers).
-  - `along_summary(steps, covariates, stats=...)`: not in amt. Columns `<layer>_along_<stat>`: `mean`, `min`, `max`
-    of the cells a step crosses, and `ascent`, `descent`, `delta` with the cells in order along the step, which tell a
-    step that climbs a hill from one that follows a contour line. Parallel over steps; the same result for any thread count.
 - `tf.move`: the simple part of cleaning a track, from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026, bioRxiv
   doi:10.64898/2026.07.07.736908), bit for bit with it (tests against its functions in R, on move2's fishers, on its
   synthetic track with known outliers and on small sets of the edge cases). The cascade of outlier detectors, the
@@ -51,33 +33,47 @@ in a new major version.
     Movebank file (the example of its manual too) it filters nothing; `mt_flag_speed_cap` loses the columns of a track
     with a single location to score (a result of length one is taken for a scalar attribute) and then fails to bind the
     tracks of a set that has one.
-- `tf.move`: corridors and the distance between utilisation distributions, from R's move2utils 0.4.6, bit for bit with it
-  where the arithmetic is R's (tests against `mt_corridor` and `emd` in R: the fishers, lattices whose midpoints fall on the
-  buffers' boundaries, tracks with zero-length steps, a track set in feet and one in longitude / latitude).
-  - `corridor(tracks, speed_threshold=None, circvar_threshold=None, min_segments=2)`: `mt_corridor` (LaPoint et al. 2013),
-    the segments that are fast with the directions of the segments around them in agreement (the circular variance of the
-    pseudo-azimuths); a copy of the tracks with `corridor`, `corridor_speed`, `corridor_azimuth`, `corridor_circvar` and
-    `corridor_n_neighbours`, the thresholds used in `attrs["corridor"]`; `corridor_lines` gives the corridor segments as
-    lines. The neighbours of a segment are the midpoints, of all the tracks, that GEOS finds in the buffer of its own midpoint
-    of half its length: sf's `st_buffer` is a polygon of 120 vertices, not a circle, and its vertices, and the test of a
-    point against it (the boundary counts), are reproduced as GEOS computes them, so that a midpoint between the polygon
-    and the circle falls on the same side as in R. C++ (`movecore`), the segments in parallel, the same result with any number of
-    threads.
-  - `ud_distance(ud, ud_b=None, method="sinkhorn", mask_quantile=0.999, reg=0.05, max_iter=500, tol=1e-9, gc=False,
-    threshold=None)`: move2utils' `emd`, the earth mover's distance between UDs on one grid (a `(band, y, x)` DataArray with a
-    band per track, a list or a dict): a number for two UDs, a table of the pairs for more. Sinkhorn's iterations (Cuturi 2013;
-    the cells inside the `mask_quantile` volume contour, Euclidean or haversine `gc` costs, the cost clipped at `threshold`),
-    with R's reference BLAS' order of sums, or `method="exact"`: Rubner's transportation solver, the C code of the R package
-    emdist 0.3-3 (MIT, `src/cpp/move/vendor/emdist`), bit for bit with `emdist::emd`.
-  - Where move2utils is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
-    `tools/move2utils_fixed.R`: `mt_corridor` gives `st_buffer` the radius in metres whatever the CRS's units (in a CRS in feet
-    the neighbourhoods come out 3.28 times too small) and projects longitude / latitude with `move2::mt_aeqd_crs`, whose
-    centre is moved about a kilometre by a datum typo (EPSG:4236). Its manual says `min_segments` is the number of qualifying
-    neighbours; the code counts all the neighbours, as here.
-- `tf.move`: the dynamic Brownian bridge movement model (dBBMM) from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026),
+- `tf.move`: the values of a raster along each step, amt 0.3.1's `extract_covariates_along` bit for bit (cell by cell,
+  in terra's order, on terra 1.9-50 with GDAL 3.9.3's ALL_TOUCHED line walk on the grid terra crops to the line; tests
+  against amt in R on the fishers' steps, random steps, steps on cell edges and corners, near-vertical and horizontal,
+  zero-length, partly and wholly outside, NaN cells, a raster whose origin is not a multiple of its cell size, and
+  coordinates with more than 15 digits).
+  - `extract_covariates_along(steps, covariates)`: a list with one array per step (a DataFrame for several layers).
+  - `along_summary(steps, covariates, stats=...)`: not in amt. Columns `<layer>_along_<stat>`: `mean`, `min`, `max`
+    of the cells a step crosses, and `ascent`, `descent`, `delta` with the cells in order along the step, which tell a
+    step that climbs a hill from one that follows a contour line. Parallel over steps; the same result for any thread count.
+- `tf.move`: the home ranges of R's amt 0.3.1 (Signer, Fieberg & Avgar 2019, doi:10.1002/ece3.4823), the same numbers
+  (tests against amt in R on random-walk sets, on move2's fishers in UTM and on tracks of the edge cases). amt works
+  one track at a time: here the functions take a table of tracks and give a row (or a band) per track. Not here: `hr_akde`
+  and `hr_od` (they need ctmm), `hr_overlap_feature` and `hr_to_sf`.
+  - `hr_mcp(tracks, levels=0.95)`: minimum convex polygons (`chull`, the quantile of the squared distance to the mean
+    location), `hr_kde(tracks, h, trast, levels)`: kernel density estimates (KernSmooth's `bkde2D`, with R's own fft ported
+    to C++, on the template raster), `hr_locoh(tracks, n, type="k"|"a"|"r", levels)`: local convex hulls (Getz et al.
+    2007). They give a `HomeRange` with `polygons` (`track`, `level`, `what`, `area`, `geometry`) and, for the kernel
+    estimate, `ud`, a `(track, y, x)` DataArray; `home_range(tracks, method="mcp"|"kde"|"locoh")` is the shortcut.
+  - The bandwidths: `hr_kde_ref` (rescale `none`, `unitvar`, `xvar`), `hr_kde_ref_scaled` (the bisection for a number of
+    polygons), `hr_kde_pi` (KernSmooth's `dpik`, levels 0 to 5, scale estimates and kernels) and `hr_kde_lscv`
+    (least-squares cross-validation, `global` or `local` minimum, the bandwidths in parallel).
+  - `hr_isopleths`, `hr_area`, `hr_ud` and `hr_cud`: the isopleths of a kernel estimate are R's `contourLines` (what
+    `terra::as.contour` calls) of the cumulative distribution, closed and united by GEOS as in `sf`; they also take a
+    raster. `hr_overlap` (`hr`, `phr`, `vi`, `ba`, `udoi`, `hd`; `conditional`; two estimates, or `consecutive` / `all` /
+    `one_to_all` among many), `intensity_use` and `make_trast` (terra's rule for the cells of a template).
+  - Where amt is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
+    `tools/amt_fixed.R`: `hr_mcp` (and `intensity_use`) refuse a track without a CRS (`st_as_sfc(crs = NA)`), and
+    `hr_kde_pi` and `hr_kde_lscv` with `rescale = "unitvar"` fail on `sd(x[, 1])` of a tibble. The tracks must be
+    projected: amt's areas of a track in longitude / latitude come from `s2` on a plane computed in degrees, here an
+    error that asks for the projection. A template made for all the tracks (one grid for the bands of `ud`) is the
+    default of several tracks; for one, amt's. C++ (`movecore`): the same result with any number of threads. The
+    areas are GDAL's (what `sf::st_area` calls on a projected CRS, not GEOS's), as the tests found out. The LoCoH areas
+    agree with amt's to 1e-8 only: GEOS 3.13's buffer of the hulls (1e-5) has other vertices than 3.12's (the references').
+- `tf.move`: the dynamic Brownian bridges, the Brownian bridge movement model (dBBMM) and the directional bivariate
+  Gaussian bridge (dBGB), from R's move2utils 0.4.6 (Kranstauber, Safi & Scharf 2026),
   on the C kernels of the `move` package that it keeps (Kranstauber et al. 2012), bit for bit with move2utils (tests
   against it in R on move2's fishers, its projected, longitude / latitude, Argos, missing-error and burst cases, and by
-  tolerance against the legacy `move` on `leroy`). The distribution of dBGB, the directional bridge, is the next step.
+  tolerance against the legacy `move` on `leroy`). Times, on one thread and on 8 against R's: the dBBMM's variance of all
+  the fishers takes 21.9 s and 3.1 s (R: 24.1 s), the UD of M1 on a grid of 100 m 1.14 s and 0.20 s (R: 1.47 s), a track of 100,000
+  locations 64.4 s and 9.6 s for the variance (R: 62.0 s) and 41.5 s and 8.2 s for a UD of 1669 x 2000 cells (R: 45.9 s);
+  the dBGB's variance of all the fishers 12.8 s and 5.0 s (R: 12.9 s), and the UD of M1 on 100 m 19.5 s and 4.0 s (R: 15.7 s).
   - `dbbmm_variance(tracks, location_error, window_size=31, margin=11, location_error_na="median")`: `mt_dbbmm_variance`,
     the motion variance along each track by a moving window with a BIC test of one break point per window; adds the
     columns `motion_variance`, `in_windows`, `interest` (and `location_error`, the errors used) to a copy of the tracks,
@@ -112,30 +108,39 @@ in a new major version.
     for bit from R's projected coordinates); its `location_error = "auto"` and column names do not find Movebank's
     `eobs:horizontal-accuracy-estimate`; the loop that reaches `xEnd == nX` in its kernel reads one cell past the
     grid, which tf.move refuses as a window that does not fit.
-- `tf.move`: the home ranges of R's amt 0.3.1 (Signer, Fieberg & Avgar 2019, doi:10.1002/ece3.4823), the same numbers
-  (tests against amt in R on random-walk sets, on move2's fishers in UTM and on tracks of the edge cases). amt works
-  one track at a time: here the functions take a table of tracks and give a row (or a band) per track. Not here: `hr_akde`
-  and `hr_od` (they need ctmm), `hr_overlap_feature` and `hr_to_sf`.
-  - `hr_mcp(tracks, levels=0.95)`: minimum convex polygons (`chull`, the quantile of the squared distance to the mean
-    location), `hr_kde(tracks, h, trast, levels)`: kernel density estimates (KernSmooth's `bkde2D`, with R's own fft ported
-    to C++, on the template raster), `hr_locoh(tracks, n, type="k"|"a"|"r", levels)`: local convex hulls (Getz et al.
-    2007). They give a `HomeRange` with `polygons` (`track`, `level`, `what`, `area`, `geometry`) and, for the kernel
-    estimate, `ud`, a `(track, y, x)` DataArray; `home_range(tracks, method="mcp"|"kde"|"locoh")` is the shortcut.
-  - The bandwidths: `hr_kde_ref` (rescale `none`, `unitvar`, `xvar`), `hr_kde_ref_scaled` (the bisection for a number of
-    polygons), `hr_kde_pi` (KernSmooth's `dpik`, levels 0 to 5, scale estimates and kernels) and `hr_kde_lscv`
-    (least-squares cross-validation, `global` or `local` minimum, the bandwidths in parallel).
-  - `hr_isopleths`, `hr_area`, `hr_ud` and `hr_cud`: the isopleths of a kernel estimate are R's `contourLines` (what
-    `terra::as.contour` calls) of the cumulative distribution, closed and united by GEOS as in `sf`; they also take a
-    raster. `hr_overlap` (`hr`, `phr`, `vi`, `ba`, `udoi`, `hd`; `conditional`; two estimates, or `consecutive` / `all` /
-    `one_to_all` among many), `intensity_use` and `make_trast` (terra's rule for the cells of a template).
-  - Where amt is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
-    `tools/amt_fixed.R`: `hr_mcp` (and `intensity_use`) refuse a track without a CRS (`st_as_sfc(crs = NA)`), and
-    `hr_kde_pi` and `hr_kde_lscv` with `rescale = "unitvar"` fail on `sd(x[, 1])` of a tibble. The tracks must be
-    projected: amt's areas of a track in longitude / latitude come from `s2` on a plane computed in degrees, here an
-    error that asks for the projection. A template made for all the tracks (one grid for the bands of `ud`) is the
-    default of several tracks; for one, amt's. C++ (`movecore`): the same result with any number of threads. The
-    areas are GDAL's (what `sf::st_area` calls on a projected CRS, not GEOS's), as the tests found out. The LoCoH areas
-    agree with amt's to 1e-8 only: GEOS 3.13's buffer of the hulls (1e-5) has other vertices than 3.12's (the references').
+- `tf.move`: corridors and the distance between utilisation distributions, from R's move2utils 0.4.6, bit for bit with it
+  where the arithmetic is R's (tests against `mt_corridor` and `emd` in R: the fishers, lattices whose midpoints fall on the
+  buffers' boundaries, tracks with zero-length steps, a track set in feet and one in longitude / latitude). `corridor` on the fishers takes 0.36 s on one thread and 0.16 s on 4
+  (R was not timed).
+  - `corridor(tracks, speed_threshold=None, circvar_threshold=None, min_segments=2)`: `mt_corridor` (LaPoint et al. 2013),
+    the segments that are fast with the directions of the segments around them in agreement (the circular variance of the
+    pseudo-azimuths); a copy of the tracks with `corridor`, `corridor_speed`, `corridor_azimuth`, `corridor_circvar` and
+    `corridor_n_neighbours`, the thresholds used in `attrs["corridor"]`; `corridor_lines` gives the corridor segments as
+    lines. The neighbours of a segment are the midpoints, of all the tracks, that GEOS finds in the buffer of its own midpoint
+    of half its length: sf's `st_buffer` is a polygon of 120 vertices, not a circle, and its vertices, and the test of a
+    point against it (the boundary counts), are reproduced as GEOS computes them, so that a midpoint between the polygon
+    and the circle falls on the same side as in R. C++ (`movecore`), the segments in parallel, the same result with any number of
+    threads.
+  - `ud_distance(ud, ud_b=None, method="sinkhorn", mask_quantile=0.999, reg=0.05, max_iter=500, tol=1e-9, gc=False,
+    threshold=None)`: move2utils' `emd`, the earth mover's distance between UDs on one grid (a `(band, y, x)` DataArray with a
+    band per track, a list or a dict): a number for two UDs, a table of the pairs for more. Sinkhorn's iterations (Cuturi 2013;
+    the cells inside the `mask_quantile` volume contour, Euclidean or haversine `gc` costs, the cost clipped at `threshold`),
+    with R's reference BLAS' order of sums, or `method="exact"`: Rubner's transportation solver, the C code of the R package
+    emdist 0.3-3 (MIT, `src/cpp/move/vendor/emdist`), bit for bit with `emdist::emd`.
+  - Where move2utils is wrong, tf.move does the right thing, and the tests compare it with the code corrected in
+    `tools/move2utils_fixed.R`: `mt_corridor` gives `st_buffer` the radius in metres whatever the CRS's units (in a CRS in feet
+    the neighbourhoods come out 3.28 times too small) and projects longitude / latitude with `move2::mt_aeqd_crs`, whose
+    centre is moved about a kilometre by a datum typo (EPSG:4236). Its manual says `min_segments` is the number of qualifying
+    neighbours; the code counts all the neighbours, as here.
+- `tf.move.validate(use, surface, kind="current", threshold=None, quantile=0.9, support=0.99, track=None, spacing=None)`:
+  does the use of the animals follow a connectivity surface (Zeller et al. 2018, doi:10.1111/ddi.12742)? Not in R, so
+  the definitions are ours and documented (only the paper's abstract was available). The use is a UD (a band per
+  track, read on the surface's grid or by nearest cell at its centres), points, or lines such as `corridor_lines` (cut
+  into pieces, each counting its length); the surface a current, a resistance or a binary least-cost corridor. A table per
+  track and pooled: Spearman's rank correlation between the use and the surface's score (average ranks as scipy and R;
+  positive always means better cells are used more), the share of the use inside the corridors (the surface above a
+  threshold or its top quantile), the share of the compared area they are, their ratio, the mean surface used and
+  available, and the coverage; a short note in words; the corridor raster. Sums in order: no dependence on threads.
 
 ### Fixed
 - `tf.move.random_numbers` / `random_steps` (gamma): R's `rgamma()` kept its cached constants in statics and drew from the caller's generator through a global pointer, so draws on two threads at once (Terraflux runs two models, or its tests in parallel) used each other's generator or a null one and crashed. Both are `thread_local` now; the draws are the same.
