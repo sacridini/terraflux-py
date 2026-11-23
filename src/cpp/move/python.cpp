@@ -43,6 +43,7 @@ namespace move {
 
 void register_python_corridor(py::module_& m);  // python_corridor.cpp
 void register_python_hr(py::module_& m);  // python_hr.cpp
+void register_python_relief(py::module_& m);  // python_relief.cpp
 
 void register_python(py::module_& m) {
     m.def(
@@ -464,6 +465,7 @@ void register_python(py::module_& m) {
     register_python_corridor(m);
     register_python_ud(m);
     register_python_hr(m);
+    register_python_relief(m);
 }
 
 }  // namespace move

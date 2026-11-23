@@ -54,6 +54,7 @@ from ._homerange import (HomeRange, Lscv, LscvFit, home_range, hr_area, hr_cud, 
                          make_trast)
 from ._measures import azimuth, distance, speed, time_lags, turn_angle
 from ._read import as_tracks, load_tracks
+from ._relief import surface_distance
 from ._simulate import simulate_brownian
 from ._ssf import Distribution, extract_covariates, fit_distr, make_distribution, random_numbers, random_steps
 from ._steps import (cum_dist, filter_min_n_burst, msd, nsd, resample, sinuosity, steps, straightness, tac,
@@ -77,5 +78,5 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "suggest_dbbmm_window", "ud_outer_probability", "ud_volume",
            "HomeRange", "Lscv", "LscvFit", "home_range", "hr_area", "hr_cud", "hr_isopleths", "hr_kde", "hr_kde_lscv",
            "hr_kde_pi", "hr_kde_ref", "hr_kde_ref_scaled", "hr_locoh", "hr_mcp", "hr_overlap", "hr_ud",
-           "intensity_use", "make_trast", "Validation", "validate"]
+           "intensity_use", "make_trast", "Validation", "validate", "surface_distance"]
 

@@ -17,6 +17,13 @@ in a new major version.
   Rcpp's 80-bit mean. C++ (`costcore`), the rows in parallel, the same result with any number of threads. Where R is
   silent it raises: `neigh` other than 4 or 8 (R gives an all-NA raster), a mass or speed that is not positive, a CRS in
   degrees, cells that are not square (sizes in x and y within 0.01).
+- `tf.move.surface_distance(steps, dem, *, spacing=None, x1="x1_", y1="y1_", x2="x2_", y2="y2_", name="sl_surface_",
+  n_threads=None)`: the length of each step measured on the relief (not in amt or move2; the planar `sl_` underestimates
+  the distance on steep ground, Signer et al. 2019). Points along the segment every `spacing` (default: a quarter of the
+  smaller cell side; the last stretch ends exactly at the end), their heights bilinear between the cell centres (the edge
+  cell's value in the outer half cell), the sum of the 3D chords. NaN outside the DEM or next to a NaN cell; an error for
+  steps or a DEM in degrees or in different CRS. C++ (`movecore`, `relief.cpp`), steps in parallel, the same result with
+  any number of threads.
 
 ## [1.61.0] - 2026-11-21
 
