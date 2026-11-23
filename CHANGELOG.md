@@ -64,6 +64,12 @@ in a new major version.
   one row in `x1` work); the references are made with the corrected R function (`tools/amt_fixed.R`). C++ (`movecore`,
   `clogit.cpp`) for the fit and R's `pgamma` and `pnorm` (nmath, vendored whole) for the p-values.
 
+### Fixed
+- `tf.cost.rsp_distance` and the other randomised shortest paths no longer unmask the SSE exceptions of an OpenMP
+  thread: the flush-to-zero around the factorisation restored, on a thread that had not saved one, a control word of 0,
+  and the next inexact operation on that thread could end the process (`STATUS_FLOAT_INEXACT_RESULT` on Windows, seen
+  when several analyses ran side by side). Present since 0.80.0.
+
 ## [1.61.0] - 2026-11-21
 
 ### Added
