@@ -11,6 +11,8 @@
 # fit_distr(x, "exp"): fitdistrplus' BFGS fails for rates below 1e-3 (its
 # numerical gradient steps the rate below 0); here the maximum likelihood rate,
 # 1 / mean(x), from which amt's BFGS starts.
+# redistribution_kernel() / simulate_path() (continuous space; the cases of tests/move_sim_cases.py): see
+# redistribution_kernel_fixed() and simulate_path_fixed() at the end of this file.
 # The rest is amt's code.
 
 local({
@@ -248,4 +250,128 @@ log_rss_boot_fixed <- function(data, formula, x1, x2, ci_level, n_boot, mle) {
   q_upr <- apply(arr, 1, quantile, p_upr)
   boot_mean <- apply(arr, 1, mean)
   list(log_rss = mle, lwr = mle + (q_lwr - boot_mean), upr = mle + (q_upr - boot_mean))
+}
+
+
+# Simulation from a fitted iSSF (the cases of tests/move_sim_cases.py, group "amt_sim"). amt 0.3.1's
+# redistribution_kernel() and simulate_path() in continuous space have these errors, corrected in
+# redistribution_kernel_fixed() and simulate_path_fixed(), which are amt's code otherwise (random_steps_simple(),
+# extract_covariates(), ssf_weights(), sample.int()):
+# (1) the default `fun` only extracts the covariates: log_sl_ and cos_ta_ are missing and model.matrix fails ("object
+# 'cos_ta_' not found"); here they are made (sim_fun); (2) the test of the study area counts every candidate, so
+# `tolerance.outside = 0` (the default) ends the simulation as soon as one in n.control candidates is outside, though a
+# candidate with a missing covariate has no weight and is never drawn; here only the candidates with a weight above 0
+# count; (3) simulate_path() makes the start of the next step with the time of the step before (xy$t_[i], not
+# xy$t_[i + 1]) and without dt (back to the default of an hour); here the time and dt of the start; (4) the arguments
+# are collected with as.list(environment()), which evaluates max.dist = get_max_dist(x): qhnorm, which does not exist,
+# makes any model with a half-normal step length fail; here max.dist is not evaluated (continuous space does not use
+# it).
+sim_fun <- function(xy, map) {
+  xy <- amt::extract_covariates(xy, map, where = "both")
+  xy$cos_ta_ <- cos(xy$ta_)
+  xy$log_sl_ <- log(xy$sl_)
+  xy
+}
+
+sim_map_a <- function() {
+  r <- terra::rast(nrows = 100, ncols = 100, xmin = 0, xmax = 1000, ymin = 0, ymax = 1000)
+  rr <- rep(1:100, each = 100)
+  cc <- rep(1:100, times = 100)
+  terra::values(r) <- sin(cc / 5) + cos(rr / 7)
+  names(r) <- "cov"
+  r
+}
+
+redistribution_kernel_fixed <- function(x, start, map, n.control = 1e+06, n.sample = 1, tolerance.outside = 0) {
+  arguments <- as.list(environment())
+  xy <- amt:::random_steps_simple(start, sl_model = x$sl_, ta_model = x$ta_, n.control = n.control)
+  xy$t1_ <- start$t_
+  xy$t2_ <- start$t_ + start$dt
+  xy <- sim_fun(xy, map)
+  w <- amt:::ssf_weights(xy, x, compensate.movement = FALSE)
+  bb.map <- as.vector(terra::ext(map))
+  outside <- xy$x2_ < bb.map["xmin"] | xy$x2_ > bb.map["xmax"] | xy$y2_ < bb.map["ymin"] | xy$y2_ > bb.map["ymax"]
+  fraction.outside <- mean(outside & w > 0)
+  if (fraction.outside > tolerance.outside) {
+    warning("candidates outside the study area. Terminating simulations here.")
+    return(NULL)
+  }
+  r <- dplyr::select(xy[sample.int(nrow(xy), size = n.sample, prob = w), ], x_ = x2_, y_ = y2_, t2_)
+  res <- list(args = arguments, redistribution.kernel = r)
+  class(res) <- c("redistribution_kernel", "list")
+  res
+}
+
+simulate_path_fixed <- function(x, n.steps = 100, start = x$args$start, ...) {
+  mod <- x$args
+  dt <- start$dt
+  xy <- tibble::tibble(x_ = rep(NA_real_, n.steps + 1), y_ = NA_real_, t_ = start$t_ + dt * (0:n.steps), dt = dt)
+  xy$x_[1] <- start$x_
+  xy$y_[1] <- start$y_
+  for (i in 1:n.steps) {
+    rk <- redistribution_kernel_fixed(x = mod$x, start = start, map = mod$map, n.control = mod$n.control,
+                                      n.sample = 1, tolerance.outside = mod$tolerance.outside)
+    if (is.null(rk)) {
+      warning(paste0("Simulation stopped after ", i - 1, " time steps, because the animal stepped out of the landscape."))
+      return(xy)
+    }
+    rk <- rk$redistribution.kernel
+    new.ta <- atan2(rk$y_[1] - start$y_[1], rk$x_[1] - start$x_[1])
+    xy$x_[i + 1] <- rk$x_[1]
+    xy$y_[i + 1] <- rk$y_[1]
+    start <- amt::make_start(as.numeric(xy[i + 1, c("x_", "y_")]), new.ta, time = xy$t_[i + 1], dt = dt,
+                             crs = attr(x$args$start, "crs"))
+  }
+  xy
+}
+
+# one path of both versions as numbers: the original amt (with its `fun` made here, and a max.dist when given) and
+# the corrected one, from the same seed (the kernel first, as R's generator goes on from it); `tag` prefixes the names
+sim_out <- function(m, st, map, n.control, tol, n.steps, seed, tag, max.dist = NULL, original = TRUE) {
+  op <- options(warn = -1)
+  on.exit(options(op))
+  o <- list()
+  if (original) {
+    set.seed(seed)
+    k <- if (is.null(max.dist)) {
+      amt::redistribution_kernel(m, start = st, map = map, fun = sim_fun, n.control = n.control, tolerance.outside = tol)
+    } else {
+      amt::redistribution_kernel(m, start = st, map = map, fun = sim_fun, max.dist = max.dist, n.control = n.control,
+                                 tolerance.outside = tol)
+    }
+    o$orig_null <- as.numeric(is.null(k))
+    if (!is.null(k)) {
+      o$orig_first <- c(k$redistribution.kernel$x_, k$redistribution.kernel$y_)
+      o$orig_unif <- runif(1)
+      set.seed(seed)
+      k <- if (is.null(max.dist)) {
+        amt::redistribution_kernel(m, start = st, map = map, fun = sim_fun, n.control = n.control, tolerance.outside = tol)
+      } else {
+        amt::redistribution_kernel(m, start = st, map = map, fun = sim_fun, max.dist = max.dist, n.control = n.control,
+                                   tolerance.outside = tol)
+      }
+      s <- suppressWarnings(amt::simulate_path(k, n.steps = n.steps))
+      o$orig_x <- s$x_
+      o$orig_y <- s$y_
+      o$orig_t <- as.numeric(s$t_)
+      o$orig_dt <- as.numeric(s$dt, "seconds")
+      o$orig_unif2 <- runif(1)
+    }
+  }
+  set.seed(seed)
+  k <- redistribution_kernel_fixed(m, st, map, n.control = n.control, tolerance.outside = tol)
+  o$fixed_null <- as.numeric(is.null(k))
+  if (!is.null(k)) {
+    o$fixed_first <- c(k$redistribution.kernel$x_, k$redistribution.kernel$y_)
+    o$fixed_unif <- runif(1)
+    set.seed(seed)
+    k <- redistribution_kernel_fixed(m, st, map, n.control = n.control, tolerance.outside = tol)
+    s <- suppressWarnings(simulate_path_fixed(k, n.steps = n.steps))
+    o$fixed_x <- s$x_
+    o$fixed_y <- s$y_
+    o$fixed_t <- as.numeric(s$t_)
+    o$fixed_unif2 <- runif(1)
+  }
+  names(o) <- paste0(tag, names(o))
+  o
 }

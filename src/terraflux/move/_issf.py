@@ -20,6 +20,8 @@ import numpy as np
 import pandas as pd
 
 from .. import _core
+from ._ssf import Distribution, make_distribution
+from ._tracks import ATTRS
 
 _EPS = 1e-9
 _TOLER_CHOL = 2.0 ** -39   # .Machine$double.eps^.75
@@ -436,6 +438,14 @@ class ISSF:
         The values the columns were centred on (0 for a column of only -1, 0 and 1), which the log-RSS needs.
     formula : str
     converged : bool
+    sl_distr, ta_distr : Distribution or None
+        The distributions of the step lengths and turn angles the random steps were drawn from (the ones
+        :func:`random_steps` left in the data; None when the tracks had several), which :func:`redistribution_kernel`
+        draws its candidate steps from.
+    steps : pandas.DataFrame or None
+        The table of steps the fit used (:func:`issf` keeps it).
+    report : str or None
+        A short text on the fit (:func:`issf`).
     """
     coef: pd.Series
     vcov: pd.DataFrame
@@ -452,6 +462,10 @@ class ISSF:
     _terms: _Terms = field(default=None, repr=False)
     _data: pd.DataFrame | None = field(default=None, repr=False)
     _strata: np.ndarray | None = field(default=None, repr=False)
+    sl_distr: Distribution | None = None
+    ta_distr: Distribution | None = None
+    steps: pd.DataFrame | None = field(default=None, repr=False)
+    report: str | None = None
 
     @property
     def edf(self) -> int:
@@ -570,7 +584,23 @@ def fit_issf(data, formula: str, *, strata=None, model: bool = True) -> ISSF:
         raise ValueError("No strata is provided, please make sure the formula includes a strata: strata(step_id_)")
     if not isinstance(data, pd.DataFrame):
         data = pd.DataFrame(data)
-    return _fit(data, sp, strata, model)
+    fit = _fit(data, sp, strata, model)
+    fit.sl_distr, fit.ta_distr = _step_distributions(data)
+    return fit
+
+
+def _step_distributions(data) -> tuple:
+    """The distributions :func:`random_steps` left in the table's ``attrs``: one for all tracks, or None."""
+    info = data.attrs.get(ATTRS) or {}
+    out = []
+    for key in ("sl_distr", "ta_distr"):
+        d = info.get(key)
+        if isinstance(d, dict):
+            d = list(d.values())
+        elif isinstance(d, Distribution):
+            d = [d]
+        out.append(d[0] if d and all(x == d[0] for x in d) else None)
+    return tuple(out)
 
 
 def _fit(data: pd.DataFrame, sp: _Spec, strata, model: bool) -> ISSF:
@@ -673,6 +703,97 @@ def _columns_of(node) -> set:
 
 
 fit_ssf = fit_clogit = fit_issf
+
+
+def _recipe(terms: _Terms) -> tuple[list, list]:
+    """The columns of the model matrix as products: their names and, for each, its factors as (variable, level) pairs
+    (level -1 for a number), in the order and with the names of :meth:`_Terms.design`."""
+    sp = terms.spec
+    in_model = set(sp.terms)
+    names, cols = [], []
+    for t in sp.terms:
+        if sp.strata is not None and t == (sp.strata,):
+            continue
+        part: list[tuple[str, list]] = [("", [])]
+        for i in t:
+            v = sp.variables[i]
+            if v.kind == "num":
+                vcols = [(v.label, (i, -1))]
+            else:
+                margin = tuple(j for j in t if j != i)
+                first = 1 if (not margin or margin in in_model) else 0
+                if len(v.levels) - first < 1:
+                    raise ValueError(f"{v.label}: a factor with fewer than 2 levels has no contrasts")
+                vcols = [(v.label + v.labels[k], (i, k)) for k in range(first, len(v.levels))]
+            part = [((pn + ":" + vn) if pn else vn, pf + [vf]) for vn, vf in vcols for pn, pf in part]
+        for nm, fac in part:
+            names.append(nm)
+            cols.append(fac)
+    return names, cols
+
+
+def make_issf_model(coefs, sl: Distribution | None = None, ta: Distribution | None = None) -> ISSF:
+    """A step selection model from coefficients, to simulate from (amt's ``make_issf_model``).
+
+    Parameters
+    ----------
+    coefs
+        The coefficients by the names of the terms: a dict or a Series, ``{"forest_end": 1.5, "sl_": -0.002,
+        "cos_ta_": 0.4}``. The names are R's terms (``log(sl_)``, ``forest_end:sl_``, ``I(elev^2)``...); the
+        covariates are those of :func:`extract_covariates` (``name_end`` and ``name_start``, or ``name`` for the end of
+        the step) and the movement terms ``sl_``, ``ta_``, ``log_sl_``, ``cos_ta_``. An interaction can be given in
+        either order (``a:b`` or ``b:a``), as amt reads it.
+    sl, ta
+        The distributions the candidate steps are drawn from (default amt's: exponential lengths with rate 1,
+        uniform turn angles).
+
+    Returns
+    -------
+    ISSF
+        With the coefficients and the distributions; the rest of the fit (covariance, log-likelihood...) is NaN.
+
+    Examples
+    --------
+    >>> import terraflux as tf
+    >>> m = tf.move.make_issf_model({"forest_end": 1.5, "sl_": -0.002}, tf.move.make_distribution("gamma", shape=2, scale=50),
+    ...                             tf.move.make_distribution("vonmises", kappa=2))
+    >>> m.coef.index.tolist()
+    ['forest_end', 'sl_']
+    """
+    series = pd.Series(coefs, dtype=np.float64) if not isinstance(coefs, pd.Series) else coefs.astype(np.float64)
+    if len(series) == 0 or not series.index.is_unique:
+        raise ValueError("coefs: named numbers, one for each term")
+    if not np.isfinite(series.to_numpy()).all():
+        raise ValueError("coefs: finite numbers")
+    given = [str(k) for k in series.index]
+    text = "case_ ~ " + " + ".join(given) + " + strata(step_id_)"
+    sp = _parse_formula(text)
+    for v in sp.variables:
+        if v.ast[0] == "call" and v.ast[1] == "factor":
+            raise ValueError("coefs: a factor term needs the levels of a fit (use fit_issf)")
+    terms = _Terms(sp, [])
+    names, _ = _recipe(terms)
+    values = dict(zip(given, series.to_numpy()))
+    ordered = []
+    for nm in names:
+        if nm in values:
+            ordered.append(values.pop(nm))
+        else:
+            alt = ":".join(reversed(nm.split(":")))   # amt's ssf_weights reads a:b as b:a too
+            if alt in values:
+                ordered.append(values.pop(alt))
+            else:
+                raise ValueError(f"coefs: no coefficient for the term {nm!r}")
+    if values:
+        raise ValueError(f"coefs: the terms {sorted(values)} repeat a term of the formula")
+    terms.columns = names
+    p = len(names)
+    nan = float("nan")
+    return ISSF(coef=pd.Series(ordered, index=names, name="coef"), vcov=pd.DataFrame(np.full((p, p), nan), index=names, columns=names),
+                loglik=(nan, nan), iter=0, n=0, nevent=0, wald=nan, score=nan, means=pd.Series(np.zeros(p), index=names),
+                formula=text, converged=True, _terms=terms,
+                sl_distr=sl if sl is not None else make_distribution("exp"),
+                ta_distr=ta if ta is not None else make_distribution("unif"))
 
 
 # -------------------------------------------------------------------------------------------------- log-RSS

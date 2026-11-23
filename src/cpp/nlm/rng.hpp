@@ -28,6 +28,12 @@ public:
     explicit RRng(std::int32_t seed = 0) { set_seed(seed); }
     void set_seed(std::int32_t seed);
 
+    // The generator's state as 625 words (the 624 of the Mersenne-Twister, then mti), to carry it between calls
+    // (R's .Random.seed without its kind code): a generator set from it goes on with the same numbers.
+    static constexpr int kStateWords = 625;
+    void get_state(std::uint32_t* out) const;
+    void set_state(const std::uint32_t* in);
+
     // unif_rand(): (0, 1), never 0 or 1.
     double unif_rand() { return fixup(genrand()); }
     // norm_rand() by inversion.

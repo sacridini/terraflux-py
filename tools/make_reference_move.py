@@ -13,7 +13,8 @@ functions) and stores the inputs in ``tests/data/reference/move/inputs.npz``
 ``inputs_move2utils.npz``; the steps of extract_covariates_along, in ``inputs_along.npz``; those of amt's
 home ranges in ``inputs_hr.npz``; those of the step selection cases, in ``inputs_issf.npz``) and the results in
 ``tests/data/reference/move/<group>.npz`` (``move2.npz``, ``amt.npz``,
-``move2utils.npz``, ``amt_along.npz``, ``amt_hr.npz``, ``amt_issf.npz``; keys ``<case>/<key>``).
+``move2utils.npz``, ``amt_along.npz``, ``amt_hr.npz``, ``amt_issf.npz``, ``amt_sim.npz``; keys ``<case>/<key>``; the
+simulation cases' inputs, the keys ``in_*``, go to ``inputs_sim.npz``).
 ``--case`` regenerates only the named cases (the others are kept).
 The along sets are drawn with tf.move.random_steps, so terraflux must be importable.
 
@@ -110,6 +111,8 @@ def main() -> None:
         manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
         arrays = {f"{m['case']}/{m['key']}": np.fromfile(out / m["file"], "<f8") for m in manifest}
     OUT.mkdir(parents=True, exist_ok=True)
+    # the simulation cases give their inputs (the maps and tracks R used) as the keys ``in_*``
+    sim_in = {k: arrays.pop(k) for k in list(arrays) if k.split("/", 1)[1].startswith("in_")}
     for group in sorted({c.group for c in cases.values()}):
         mine = {k: v for k, v in arrays.items() if cases[k.split("/", 1)[0]].group == group}
         npz = OUT / f"{group}.npz"
@@ -133,6 +136,12 @@ def main() -> None:
     save(OUT / "inputs_move2utils_ud.npz", ud)
     save(OUT / "inputs_hr.npz", hr)
     save(OUT / "inputs_issf.npz", issf)
+    sim_npz = OUT / "inputs_sim.npz"
+    if sim_in:
+        if args.case and sim_npz.exists():
+            with np.load(sim_npz) as old:
+                sim_in = {**{k: old[k] for k in old.files if k.split("/", 1)[0] not in cases}, **sim_in}
+        save(sim_npz, sim_in)
 
 
 if __name__ == "__main__":

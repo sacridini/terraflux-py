@@ -332,6 +332,7 @@ add_library(movecore STATIC
     src/cpp/move/homerange.cpp
     src/cpp/move/relief.cpp
     src/cpp/move/rnmath.cpp
+    src/cpp/move/simulate.cpp
     src/cpp/move/track.cpp
     src/cpp/move/vendor/emdist/emd_rubner.cpp
     src/cpp/move/ud.cpp
@@ -523,7 +524,8 @@ if(TERRAFLUX_PYTHON)
                         src/cpp/move/python_ud.cpp
                         src/cpp/move/python_hr.cpp
                         src/cpp/move/python_relief.cpp
-                        src/cpp/move/python_issf.cpp)
+                        src/cpp/move/python_issf.cpp
+                        src/cpp/move/python_simulate.cpp)
     target_link_libraries(_core PRIVATE eigen_headers)
     target_link_libraries(_core PRIVATE gtbcore lsmcore conncore circuitcore nlmcore biocore costcore surfcore priocore
                           iocore sdmcore simcore optcore restcore hydrocore servcore swatcore statscore movecore)

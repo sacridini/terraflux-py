@@ -28,6 +28,7 @@ read_f64 <- function(path, n) readBin(path, "double", n = n, size = 8, endian = 
 
 make_set <- function(name) {
   if (name == "fishers") return(mt_read(mt_example()))
+  if (name == "sim") return(NULL)   # the simulation cases make their own data (tests/move_sim_cases.py)
   if (name == "m2u_synthetic") return(mt_read(file.path(dirname(tools), "tests", "data", "move", "m2u_synthetic.csv.gz")))
   s <- job$sets[[name]]
   n <- s$n

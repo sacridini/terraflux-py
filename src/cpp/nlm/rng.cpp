@@ -75,6 +75,17 @@ double RRng::fixup(double x) {
     return x;
 }
 
+void RRng::get_state(std::uint32_t* out) const {
+    std::memcpy(out, mt_, sizeof(mt_));
+    out[kN] = static_cast<std::uint32_t>(mti_);
+}
+
+void RRng::set_state(const std::uint32_t* in) {
+    std::memcpy(mt_, in, sizeof(mt_));
+    if (in[kN] > static_cast<std::uint32_t>(kN)) throw std::invalid_argument("RRng state: mti out of range");
+    mti_ = static_cast<int>(in[kN]);
+}
+
 double RRng::genrand() {
     if (mti_ >= kN) {
         twist(mt_);

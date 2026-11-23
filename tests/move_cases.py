@@ -1189,3 +1189,8 @@ list(xy = as.numeric(cc), para = rv@paraSd, orth = rv@orthSd, my_para = o$para_s
 from move_issf_cases import make_cases as _issf_cases  # noqa: E402
 
 CASES.update(_issf_cases(Case))
+
+# simulation from a step selection model (group "amt_sim"): tests/move_sim_cases.py
+from move_sim_cases import make_cases as _sim_cases  # noqa: E402
+
+CASES.update(_sim_cases(Case))

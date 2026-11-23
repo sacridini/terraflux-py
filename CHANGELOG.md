@@ -7,6 +7,32 @@ in a new major version.
 ## [Unreleased]
 
 ### Added
+- Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
+  `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
+  ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
+  landscape="continuous", seed=None)`, `tf.move.simulate_path(kernel, n_steps=100, *, start=None)`, `make_start` and
+  `make_issf_model(coefs, sl, ta)` (amt's, for a model made by hand). The candidates (all the lengths, then all the
+  angles), the covariates at their ends and starts (terra's `cellFromXY`), the model matrix of the formula, R's `%*%`
+  (the BLAS, or long double sums when a value is NaN), `exp(w - mean(w))` and `sample.int(n, 1, prob = w)` are R's, and
+  the kernel leaves R's generator (the 625 words of its Mersenne-Twister) where the path goes on, as in R: the paths are
+  bit for bit amt's (R 4.4.2) on a synthetic map and on the fisher Leroy's iSSF, and bit for bit with amt's code with its
+  errors corrected (`tools/amt_fixed.R`) where they matter. The core is C++ (`movecore`, `simulate.cpp`): the formula as
+  a compact description (programs of reverse Polish operations, factor levels, columns as products), no Python in the
+  loop. Corrected: `log_sl_` and `cos_ta_` need no `fun` (amt's default fails without them), `tolerance_outside` counts
+  the candidates that could be drawn (amt stops at one candidate outside the map in a million, though a candidate with
+  no covariate has no weight), a half-normal step length works (amt asks for `qhnorm`, which does not exist), the time
+  and `dt` of the start are kept along the path. `landscape="discrete"` raises `NotImplementedError`. `fit_issf` keeps the
+  distributions `random_steps` left in the data (`ISSF.sl_distr`, `ta_distr`).
+- `tf.move.resistance(model, covariates, *, transform="negexp", c=8.0, r_max=100.0, scale="minmax")`: a resistance surface
+  from the habitat terms of an iSSF (the relative selection `exp(sum(b x))` of each cell; the terms of movement and of
+  the start of the step are left out with a warning), as a negative exponential (Keeley et al. 2016), linear, inverse
+  or log conversion, ready for `tf.cost.transition` and `tf.circuit`. The conversions are this module's (the papers'
+  formulas were not checked in the full text).
+- `tf.move.path_density(paths, like, *, by=None, include_start=False)`: the share of the simulated positions in each cell of
+  a raster (the steady-state use of Signer et al. 2024, without smoothing), summing to 1, one band per path with `by`.
+- `tf.move.issf(tracks, covariates, *, interval=None, tolerance=None, n_control=10, formula=None, where="end",
+  seed=None)`: the tutorial's sequence (`resample`, `steps`, `random_steps`, `extract_covariates`, `fit_issf`) in one call,
+  with the strata made by track and step (`stratum_`), the table used in `ISSF.steps` and a `report`.
 - `tf.cost.energy_landscape(dem, mass, *, unit="joule", neigh=8, model="animal", v=None, output="energy",
   n_threads=None)`: the energy cost of walking over a terrain, R enerscape 1.2.0's `enerscape` (Pontzer 2016 as
   corrected in 1.1.0; Berti et al. 2022) and, with `model="human"`, its `humanscape` (Looney et al. 2019, speed `v`,
