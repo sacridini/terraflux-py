@@ -6,6 +6,8 @@ in a new major version.
 
 ## [Unreleased]
 
+## [1.62.0] - 2026-11-23
+
 ### Added
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
