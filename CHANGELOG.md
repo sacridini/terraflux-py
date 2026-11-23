@@ -6,8 +6,6 @@ in a new major version.
 
 ## [Unreleased]
 
-## [1.62.0] - 2026-11-23
-
 ### Added
 - `tf.vector`, vector analysis as in PostGIS with its names: the predicates `within`, `contains`, `intersects`,
   `touches`, `crosses`, `overlaps`, `covers`, `covered_by`, `contains_properly`, `equals`, `disjoint` and
@@ -50,6 +48,10 @@ in a new major version.
   measures, pieces of a maximum length, the nearest line and the measure along it, the shortest line to the nearest
   feature, points snapped to a layer within a distance); the measure arithmetic is fixed (hypot lengths, a sequential
   cumulative sum, linear interpolation, exact end points), multi-part lines part by part.
+
+## [1.62.0] - 2026-11-23
+
+### Added
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
