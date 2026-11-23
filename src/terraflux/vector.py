@@ -717,7 +717,11 @@ def clip(a, mask, out=None):
     ga, gm = _load(a, mask)
     m_geoms = _geoms(gm)
     _dimension(m_geoms, "the mask", (2,))
-    cut = shapely.intersection(_geoms(ga), shapely.union_all(m_geoms))
+    a_geoms = _geoms(ga)
+    raw = shapely.intersection(a_geoms, shapely.union_all(m_geoms))
+    # each piece of the kind of its feature (a collection's parts of that kind, as the app)
+    dims = shapely.get_dimensions(a_geoms)
+    cut = np.array([None if g is None else _of_kind(g, int(d)) for g, d in zip(raw, dims)], dtype=object)
     keep = _present(cut)
     result = ga[keep].copy()
     result[ga.geometry.name] = cut[keep]
