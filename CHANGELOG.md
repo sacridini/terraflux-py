@@ -6,6 +6,8 @@ in a new major version.
 
 ## [Unreleased]
 
+## [1.63.0] - 2026-11-23
+
 ### Added
 - `tf.vector`, vector analysis as in PostGIS with its names: the predicates `within`, `contains`, `intersects`,
   `touches`, `crosses`, `overlaps`, `covers`, `covered_by`, `contains_properly`, `equals`, `disjoint` and
