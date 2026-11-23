@@ -187,3 +187,65 @@ hr_mcp_fixed <- function(x, levels = 0.95, keep.data = TRUE, ...) {
 intensity_use_fixed <- function(x, ...) {
   amt::cum_dist(x) / amt::hr_area(hr_mcp_fixed(x, levels = 1))$area^0.5
 }
+
+
+# Step selection (the cases of tests/move_issf_cases.py): the numbers of a fit_issf() model and of log_rss().
+# log_rss(ci = "boot") of amt 0.3.1 has three errors, corrected in log_rss_boot_fixed(): (1) resample_coxph() draws strata
+# with replacement, but a stratum drawn twice keeps its step_id_, so the two merge into one stratum with two cases (the
+# exact partial likelihood of tied deaths, not a bootstrap of the strata); here each draw is a stratum of its own
+# (the ids 1, 2, ...); (2) the model frame it resamples holds log(sl_) as a column, and refitting the formula on it fails
+# with "object 'sl_' not found" for any transformation; here the rows of the data are resampled; (3) with one row
+# in x1, replicate(simplify = "array") gives a vector and apply() fails. The rest is amt's: the strata are the
+# unique ones of the data with no missing value, sample() draws as many as there are cases, a replicate whose refit
+# fails is drawn again (49 tries), the interval is mle + (quantile - mean) of the replicates.
+issf_out <- function(m, prefix = "") {
+  s <- summary(m)$coefficients
+  ae <- extractAIC(m)
+  o <- list(coef = unname(m$coefficients), var = as.vector(m$var), loglik = m$loglik, score = m$score,
+            wald = m$wald.test, iter = m$iter, n = m$n, nevent = m$nevent, means = unname(m$means),
+            exp = unname(s[, 2]), se = unname(s[, 3]), z = unname(s[, 4]), p = unname(s[, 5]),
+            ci95 = as.vector(confint(m)), ci90 = as.vector(confint(m, level = 0.9)), aic = ae[2], edf = ae[1])
+  names(o) <- paste0(prefix, names(o))
+  o
+}
+
+lr_out <- function(r, prefix = "") {
+  o <- list(log_rss = r$df$log_rss, lwr = r$df$lwr, upr = r$df$upr)
+  names(o) <- paste0(prefix, names(o))
+  o
+}
+
+log_rss_boot_fixed <- function(data, formula, x1, x2, ci_level, n_boot, mle) {
+  mf <- model.frame(formula, data)
+  dat <- data[as.integer(rownames(mf)), , drop = FALSE]
+  tl <- attr(terms(formula, specials = "strata"), "term.labels")
+  sname <- sub("^strata\\((.+)\\)$", "\\1", grep("^strata\\(.+\\)$", tl, value = TRUE))
+  response <- as.character(formula[[2]])
+  sid <- dat[[sname]]
+  ids <- unique(sid)
+  n_obs <- sum(dat[[response]])
+  rows <- lapply(ids, function(i) which(sid == i))
+  one <- function() {
+    i <- 1
+    res <- NULL
+    while (is.null(res)) {
+      draw <- sample.int(length(ids), n_obs, replace = TRUE)
+      newdat <- dat[unlist(rows[draw]), , drop = FALSE]
+      newdat[[sname]] <- rep(seq_along(draw), lengths(rows[draw]))
+      res <- tryCatch({
+        m <- suppressWarnings(amt::fit_issf(newdat, formula, model = TRUE))
+        amt::log_rss(m, x1, x2, ci = NA)$df$log_rss
+      }, error = function(e) NULL)
+      i <- i + 1
+      if (i == 50) stop("Bootstrapping failed.")
+    }
+    res
+  }
+  arr <- matrix(vapply(seq_len(n_boot), function(b) one(), numeric(nrow(x1))), nrow = nrow(x1))
+  p_lwr <- (1 - ci_level) / 2
+  p_upr <- 1 - p_lwr
+  q_lwr <- apply(arr, 1, quantile, p_lwr)
+  q_upr <- apply(arr, 1, quantile, p_upr)
+  boot_mean <- apply(arr, 1, mean)
+  list(log_rss = mle, lwr = mle + (q_lwr - boot_mean), upr = mle + (q_upr - boot_mean))
+}

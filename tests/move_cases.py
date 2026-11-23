@@ -1183,3 +1183,9 @@ rv <- suppressWarnings(move::dynBGBvariance(lm, locErr = 25, margin = 11, window
 o <- mt_dbgb_variance(x, 25, 31, 11)
 list(xy = as.numeric(cc), para = rv@paraSd, orth = rv@orthSd, my_para = o$para_sd, my_orth = o$orth_sd)"""),
 })
+
+
+# step selection (group "amt_issf"): the tables and cases are in move_issf_cases.py
+from move_issf_cases import make_cases as _issf_cases  # noqa: E402
+
+CASES.update(_issf_cases(Case))

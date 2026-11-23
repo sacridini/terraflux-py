@@ -116,6 +116,14 @@ double dpois_raw(double, double, int);
 double cospi(double);
 double sinpi(double);
 double tanpi(double);
+double pnorm5(double, double, double, int, int);
+void pnorm_both(double, double*, double*, int, int);
+#define pnorm pnorm5
+double dnorm4(double, double, double, int);
+#define dnorm dnorm4
+double pgamma(double, double, double, int, int);
+double logspace_add(double, double);
+double logspace_sub(double, double);
 double norm_rand(void);
 double unif_rand(void);
 double exp_rand(void);

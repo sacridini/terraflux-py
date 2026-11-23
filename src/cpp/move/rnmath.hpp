@@ -19,6 +19,8 @@ double r_lgammafn(double x);
 double r_gammafn(double x);
 // besselI(x, nu, expon.scaled = TRUE) for 0 <= nu <= 100 (NaN otherwise)
 double r_bessel_i_scaled(double x, double nu);
+// pchisq(x, df, lower.tail, log.p = FALSE): R's pgamma(x, df / 2, 2), whole (pnorm.c and pgamma.c)
+double r_pchisq(double x, double df, bool lower_tail);
 // rgamma(1, shape, scale) drawn from `rng`: Ahrens & Dieter's GD (1982) for
 // shape >= 1 and GS (1974) below, as R's rgamma.c
 double r_rgamma(nlm::RRng& rng, double shape, double scale);

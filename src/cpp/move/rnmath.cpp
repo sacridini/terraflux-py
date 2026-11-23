@@ -157,7 +157,9 @@ double exp_rand(void) { return current_rng->exp_rand(); }
 #include "vendor/rmath-4.4.2/cospi.c"
 #include "vendor/rmath-4.4.2/gamma.c"
 #include "vendor/rmath-4.4.2/lgamma.c"
-#include "vendor/rmath-4.4.2/pgamma_part.c"
+#include "vendor/rmath-4.4.2/pnorm.c"
+#include "vendor/rmath-4.4.2/dnorm.c"
+#include "vendor/rmath-4.4.2/pgamma.c"
 #include "vendor/rmath-4.4.2/stirlerr.c"
 #include "vendor/rmath-4.4.2/bd0.c"
 #include "vendor/rmath-4.4.2/dpois.c"
@@ -185,6 +187,12 @@ double r_bessel_i_scaled(double x, double nu) {
     if (!(nu >= 0) || nu > 100) return std::numeric_limits<double>::quiet_NaN();
     double bi[102];
     return rnmath::bessel_i_ex(x, nu, 2.0, bi);
+}
+
+double r_pchisq(double x, double df, bool lower_tail) {
+    // pchisq(x, df, lower.tail): pgamma(x, df / 2, 2)
+    if (std::isnan(x) || std::isnan(df)) return x + df;
+    return rnmath::pgamma(x, df / 2., 2., lower_tail ? 1 : 0, 0);
 }
 
 double r_rgamma(nlm::RRng& rng, double shape, double scale) {

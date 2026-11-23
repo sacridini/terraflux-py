@@ -24,6 +24,19 @@ in a new major version.
   cell's value in the outer half cell), the sum of the 3D chords. NaN outside the DEM or next to a NaN cell; an error for
   steps or a DEM in degrees or in different CRS. C++ (`movecore`, `relief.cpp`), steps in parallel, the same result with
   any number of threads.
+- `tf.move.fit_issf(data, formula, *, strata=None, model=True)` (and `fit_ssf`, `fit_clogit`, the same function as in
+  amt) and `tf.move.log_rss(fit, x1, x2, *, ci=None, ci_level=0.95, n_boot=1000, seed=None)`: step selection functions
+  as amt 0.3.1 fits them, `survival::clogit(method = "exact")` (Therneau's `coxexact`, survival 3.7-0), bit for bit with
+  R 4.4.2: the coefficients (`NaN` for a collinear column, as R's NA), their covariance, the log-likelihoods, the number
+  of iterations, the Wald and score tests, the table of `summary` (`exp(coef)`, standard errors, z and the p-value
+  `pchisq(z^2, 1, lower.tail = FALSE)`), `confint`, the AIC and amt's `log_rss` (R's `predict.coxph` centred on the
+  fit's means, with `ci="se"` from the covariance, or `"boot"` with R's `sample` draws and `quantile`). The formula is R's
+  in a string (`"case_ ~ x + log(sl_) + cos(ta_) + x:log(sl_) + I(x^2) + landuse + strata(step_id_)"`: columns, `log`, `exp`,
+  `sqrt`, `sin`, `cos`, `log1p`, `abs`, `I()`, `factor()`, `:` and `*`, treatment contrasts, R's order and names of the
+  columns, rows with a missing value left out). The concordance is not computed. The bootstrap of `log_rss` has amt's
+  three errors corrected (a stratum drawn twice no longer merges into one with two cases, `log(sl_)` in the formula and
+  one row in `x1` work); the references are made with the corrected R function (`tools/amt_fixed.R`). C++ (`movecore`,
+  `clogit.cpp`) for the fit and R's `pgamma` and `pnorm` (nmath, vendored whole) for the p-values.
 
 ## [1.61.0] - 2026-11-21
 

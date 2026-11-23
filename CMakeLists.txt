@@ -322,6 +322,7 @@ add_library(movecore STATIC
     src/cpp/move/amt.cpp
     src/cpp/move/bridge.cpp
     src/cpp/move/clean.cpp
+    src/cpp/move/clogit.cpp
     src/cpp/move/corridor.cpp
     src/cpp/move/distr.cpp
     src/cpp/move/emd.cpp
@@ -521,7 +522,8 @@ if(TERRAFLUX_PYTHON)
                         src/cpp/move/python_corridor.cpp
                         src/cpp/move/python_ud.cpp
                         src/cpp/move/python_hr.cpp
-                        src/cpp/move/python_relief.cpp)
+                        src/cpp/move/python_relief.cpp
+                        src/cpp/move/python_issf.cpp)
     target_link_libraries(_core PRIVATE eigen_headers)
     target_link_libraries(_core PRIVATE gtbcore lsmcore conncore circuitcore nlmcore biocore costcore surfcore priocore
                           iocore sdmcore simcore optcore restcore hydrocore servcore swatcore statscore movecore)

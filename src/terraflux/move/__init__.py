@@ -49,6 +49,7 @@ from ._examples import example_data
 from ._filters import (filter_movebank_visible, filter_per_interval, filter_unique, movebank_visible, per_interval,
                        unique)
 from ._geometry import aeqd_crs, interpolate, segments, track_data, track_lines
+from ._issf import ISSF, fit_clogit, fit_issf, fit_ssf, log_rss
 from ._homerange import (HomeRange, Lscv, LscvFit, home_range, hr_area, hr_cud, hr_isopleths, hr_kde, hr_kde_lscv,
                          hr_kde_pi, hr_kde_ref, hr_kde_ref_scaled, hr_locoh, hr_mcp, hr_overlap, hr_ud, intensity_use,
                          make_trast)
@@ -76,6 +77,7 @@ __all__ = ["aeqd_crs", "along_summary", "as_tracks", "azimuth", "cum_dist", "dis
            "WindowSuggestion", "dbbmm_ud", "dbbmm_variance", "dbgb_ud", "dbgb_variance",
            "mask_segments", "motion_variance",
            "suggest_dbbmm_window", "ud_outer_probability", "ud_volume",
+           "ISSF", "fit_clogit", "fit_issf", "fit_ssf", "log_rss",
            "HomeRange", "Lscv", "LscvFit", "home_range", "hr_area", "hr_cud", "hr_isopleths", "hr_kde", "hr_kde_lscv",
            "hr_kde_pi", "hr_kde_ref", "hr_kde_ref_scaled", "hr_locoh", "hr_mcp", "hr_overlap", "hr_ud",
            "intensity_use", "make_trast", "Validation", "validate", "surface_distance"]

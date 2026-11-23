@@ -12,6 +12,7 @@ suppressPackageStartupMessages({
   library(sf)
   library(move2)
   library(move2utils)
+  library(survival)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -30,6 +31,12 @@ make_set <- function(name) {
   if (name == "m2u_synthetic") return(mt_read(file.path(dirname(tools), "tests", "data", "move", "m2u_synthetic.csv.gz")))
   s <- job$sets[[name]]
   n <- s$n
+  if (startsWith(name, "issf")) {   # a table of steps: x holds step_id_, track the text of the strata (step_txt)
+    d <- data.frame(step_id_ = read_f64(file.path(s$dir, "x.bin"), n), step_txt = unlist(s$track),
+                    stringsAsFactors = FALSE)
+    for (e in unlist(s$extra)) d[[e]] <- read_f64(file.path(s$dir, paste0(e, ".bin")), n)
+    return(d)
+  }
   df <- data.frame(
     x = read_f64(file.path(s$dir, "x.bin"), n),
     y = read_f64(file.path(s$dir, "y.bin"), n),
