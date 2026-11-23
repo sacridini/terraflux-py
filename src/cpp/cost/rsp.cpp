@@ -214,19 +214,34 @@ RspGraph rsp_graph(const Layout& t, const RspOptions& o, const std::vector<i64>&
 // f() with flush-to-zero / denormals-are-zero on every OpenMP thread: the
 // factors of I - W decay into subnormal numbers, whose arithmetic is two
 // orders of magnitude slower (values below 1e-308 do not matter here). Each
-// thread's control word is restored afterwards.
+// thread's control word is restored afterwards: a thread restores only the
+// word it saved itself, and one that did not take part in the first region
+// (OpenMP need not give the second region the same threads) only clears the
+// two flush bits. Restoring a word never saved (0) unmasked every SSE
+// exception, and the next inexact operation on that thread ended the process.
 template <class F>
 bool factorize_flushing(F&& f) {
 #if defined(_M_X64) || defined(__x86_64__) || defined(__SSE2__)
     static thread_local unsigned int saved = 0;
+    static thread_local bool flushed = false;
 #pragma omp parallel
     {
-        saved = _mm_getcsr();
+        if (!flushed) {
+            saved = _mm_getcsr();
+            flushed = true;
+        }
         _mm_setcsr(saved | 0x8040u);
     }
     const bool ok = f();
 #pragma omp parallel
-    { _mm_setcsr(saved); }
+    {
+        if (flushed) {
+            _mm_setcsr(saved);
+            flushed = false;
+        } else {
+            _mm_setcsr(_mm_getcsr() & ~0x8040u);
+        }
+    }
     return ok;
 #else
     return f();
