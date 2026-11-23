@@ -32,8 +32,24 @@ import numpy as np
 from ._vector import _as_geodataframe, _gpd, to_crs, write_vector
 from ._vector_cluster import cluster, delaunay, voronoi
 from ._vector_cover import coverage_simplify, coverage_validate, smooth
-from ._vector_lines import closest_point, locate, points_along, shortest_line, split_lines, substring
-from ._vector_shapes import boundary, centroid, envelope, explode, hull, make_valid, measures, simplify
+from ._vector_lines import (
+    closest_point,
+    locate,
+    points_along,
+    shortest_line,
+    split_lines,
+    substring,
+)
+from ._vector_shapes import (
+    boundary,
+    centroid,
+    envelope,
+    explode,
+    hull,
+    make_valid,
+    measures,
+    simplify,
+)
 
 __all__ = [
     "PREDICATES",
