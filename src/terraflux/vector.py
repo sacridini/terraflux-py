@@ -11,6 +11,7 @@ One function per operation, named as in PostGIS / GDAL::
     closest = tf.vector.nearest(houses, hospitals)                # the nearest hospital and its distance
     pieces = tf.vector.overlay(soils, parcels, "intersection")    # a polygon where a soil and a parcel meet
     owners = tf.vector.dissolve(parcels, by="owner")              # one feature per owner
+    ranges = tf.vector.hull(sightings, by="animal")               # a convex hull per animal
 
 Conventions, for every function:
 
@@ -29,9 +30,18 @@ from __future__ import annotations
 import numpy as np
 
 from ._vector import _as_geodataframe, _gpd, to_crs, write_vector
+from ._vector_shapes import boundary, centroid, envelope, explode, hull, make_valid, measures, simplify
 
 __all__ = [
     "PREDICATES",
+    "boundary",
+    "centroid",
+    "envelope",
+    "explode",
+    "hull",
+    "make_valid",
+    "measures",
+    "simplify",
     "buffer",
     "clip",
     "contains",

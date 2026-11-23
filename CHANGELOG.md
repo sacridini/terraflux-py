@@ -26,6 +26,12 @@ in a new major version.
   kind, as `geopandas.overlay(keep_geom_type=True)`), `b` is polygons; plus `clip(a, mask)`, `dissolve(a, by=None)`
   (one feature per value with `count`) and `buffer(a, distance, segments=16, dissolve=False)`. Tested against
   geopandas' `overlay`, `clip`, `dissolve` and `buffer`.
+- `tf.vector` geometry operations: `centroid` (or a point guaranteed inside, `inside=True`), `hull` (convex or
+  concave, per feature, per group with `by`, or of everything with `dissolve`, with a `count` column), `simplify`,
+  `envelope`, `make_valid`, `explode` (multi-part to single parts), `boundary` and `measures` (area, perimeter,
+  length and centroid x/y as the app's `vector.geometry`, the area in m² on the WGS84 ellipsoid with `geodesic=True`):
+  PostGIS's ST_Centroid, ST_PointOnSurface, ST_ConvexHull, ST_ConcaveHull, ST_Simplify, ST_Envelope, ST_MakeValid,
+  ST_Dump and ST_Boundary.
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
