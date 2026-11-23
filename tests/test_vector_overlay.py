@@ -311,3 +311,17 @@ def test_multipolygon_inputs():
     got = tf.vector.intersection(a, b)
     assert len(got) == 1 and got.area.iloc[0] == pytest.approx(4)
     assert got.geometry.iloc[0].geom_type == "MultiPolygon"
+
+
+def test_a_piece_that_also_touches_along_an_edge_keeps_its_area():
+    """Two polygons overlapping and also touching along an edge: GEOS gives two polygons and a line; both stay."""
+    a = gpd.GeoDataFrame({"id": [1]}, geometry=[box(0, 0, 4, 4)], crs="EPSG:32723")
+    # a U whose arms overlap a's left and right sides and whose base touches a's bottom edge between them
+    u = Polygon([(-1, -1), (5, -1), (5, 4), (3, 4), (3, 0), (1, 0), (1, 4), (-1, 4)])
+    b = gpd.GeoDataFrame({"k": [7]}, geometry=[u], crs="EPSG:32723")
+    for how in ("intersection", "identity", "union"):
+        got = tf.vector.overlay(a, b, how)
+        piece = got[got["k"].notna() & got["id"].notna()]
+        assert len(piece) == 1, how
+        assert piece.geometry.iloc[0].geom_type == "MultiPolygon"
+        assert piece.geometry.iloc[0].area == pytest.approx(8.0, abs=1e-12)

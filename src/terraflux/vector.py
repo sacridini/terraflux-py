@@ -531,14 +531,13 @@ def _dimension(geoms, what, allowed) -> int:
 
 
 def _of_kind(g, dim):
-    """The part of a geometry of a dimension (None when it has none). Polygons: only a (Multi)Polygon, as the app."""
+    """The part of a geometry of a dimension (None when it has none): of a collection, its parts of that dimension
+    (two polygons that overlap and also touch along an edge give a polygon and a line: the polygon is kept)."""
     import shapely
 
     if g is None or g.is_empty:
         return None
-    if dim == 2:
-        return g if g.geom_type in _POLYGONAL else None
-    simple, multi = (("Point", "MultiPoint"), ("LineString", "MultiLineString"))[dim]
+    simple, multi = (("Point", "MultiPoint"), ("LineString", "MultiLineString"), ("Polygon", "MultiPolygon"))[dim]
     if g.geom_type in (simple, multi):
         return g
     parts = [p for p in shapely.get_parts(g) if not p.is_empty and shapely.get_dimensions(p) == dim]
@@ -547,7 +546,7 @@ def _of_kind(g, dim):
         return None
     if len(parts) == 1:
         return parts[0]
-    return shapely.multipoints(parts) if dim == 0 else shapely.multilinestrings(parts)
+    return (shapely.multipoints, shapely.multilinestrings, shapely.multipolygons)[dim](parts)
 
 
 def _less(g, others, dim):
