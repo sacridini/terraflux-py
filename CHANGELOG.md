@@ -44,6 +44,12 @@ in a new major version.
   DBSCAN on the distance between geometries of any kind, `ST_ClusterDBSCAN`, or `ST_ClusterWithin` with
   `min_points=1`; inclusive distance, a deterministic breadth-first expansion, border features in the first cluster
   that reaches them, noise -1, clusters numbered by their lowest member).
+- `tf.vector.points_along`, `substring`, `split_lines`, `locate`, `shortest_line` and `closest_point`: linear
+  referencing and closest points as PostGIS's `ST_LineInterpolatePoints`, `ST_LineSubstring`, `ST_LineLocatePoint`,
+  `ST_ShortestLine` and `ST_ClosestPoint` (points at a spacing or in a number with their `measure`, cuts between
+  measures, pieces of a maximum length, the nearest line and the measure along it, the shortest line to the nearest
+  feature, points snapped to a layer within a distance); the measure arithmetic is fixed (hypot lengths, a sequential
+  cumulative sum, linear interpolation, exact end points), multi-part lines part by part.
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
