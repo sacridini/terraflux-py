@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Vector analysis as in PostGIS: spatial predicates, selection by location, spatial joins and nearest feature.
+"""Vector analysis as in PostGIS: predicates, selection by location, joins, nearest feature, overlay and buffers.
 
 One function per operation, named as in PostGIS / GDAL::
 
@@ -9,6 +9,8 @@ One function per operation, named as in PostGIS / GDAL::
     near = tf.vector.dwithin(roads, schools, 500)                 # roads within 500 m of a school
     joined = tf.vector.join(points, parks, "within", how="first")  # the park's attributes on each point
     closest = tf.vector.nearest(houses, hospitals)                # the nearest hospital and its distance
+    pieces = tf.vector.overlay(soils, parcels, "intersection")    # a polygon where a soil and a parcel meet
+    owners = tf.vector.dissolve(parcels, by="owner")              # one feature per owner
 
 Conventions, for every function:
 
@@ -30,23 +32,32 @@ from ._vector import _as_geodataframe, _gpd, to_crs, write_vector
 
 __all__ = [
     "PREDICATES",
+    "buffer",
+    "clip",
     "contains",
     "contains_properly",
     "count",
     "covered_by",
     "covers",
     "crosses",
+    "difference",
     "disjoint",
+    "dissolve",
     "distance",
     "dwithin",
     "equals",
+    "identity",
+    "intersection",
     "intersects",
     "join",
     "nearest",
     "overlaps",
+    "overlay",
     "relate",
     "select",
+    "symmetric_difference",
     "touches",
+    "union",
     "within",
 ]
 
@@ -454,4 +465,278 @@ def nearest(a, b, max_distance=None, distance_col="distance", suffix="_2", out=N
     part[dcol] = dist
     full = pd.concat([pd.DataFrame(ga), part], axis=1)
     result = gpd.GeoDataFrame(full, geometry=ga.geometry.name, crs=ga.crs)
+    return _write(result, out)
+
+
+# ---------------------------------------------------------------------------------------------------- overlay
+
+_HOWS = ("intersection", "union", "difference", "symmetric_difference", "identity")
+_POLYGONAL = ("Polygon", "MultiPolygon")
+_DIM_NAMES = {0: "points", 1: "lines", 2: "polygons"}
+
+
+def _dimension(geoms, what, allowed) -> int:
+    """The one dimension (0 points, 1 lines, 2 polygons) of the non-empty geometries (2 when there are none)."""
+    import shapely
+
+    live = geoms[_present(geoms)]
+    dims = {int(d) for d in np.unique(shapely.get_dimensions(live))} if len(live) else {2}
+    if len(dims) != 1:
+        raise ValueError(f"{what} mixes points, lines and polygons; it needs one kind")
+    dim = dims.pop()
+    if dim not in allowed:
+        raise ValueError(f"{what} is {_DIM_NAMES[dim]}, it needs {' or '.join(_DIM_NAMES[d] for d in allowed)}")
+    return dim
+
+
+def _of_kind(g, dim):
+    """The part of a geometry of a dimension (None when it has none). Polygons: only a (Multi)Polygon, as the app."""
+    import shapely
+
+    if g is None or g.is_empty:
+        return None
+    if dim == 2:
+        return g if g.geom_type in _POLYGONAL else None
+    simple, multi = (("Point", "MultiPoint"), ("LineString", "MultiLineString"))[dim]
+    if g.geom_type in (simple, multi):
+        return g
+    parts = [p for p in shapely.get_parts(g) if not p.is_empty and shapely.get_dimensions(p) == dim]
+    parts = [q for p in parts for q in shapely.get_parts(p)]
+    if not parts:
+        return None
+    if len(parts) == 1:
+        return parts[0]
+    return shapely.multipoints(parts) if dim == 0 else shapely.multilinestrings(parts)
+
+
+def _less(g, others, dim):
+    """g less the union of others (g itself when there are none; None when nothing of its kind is left)."""
+    import shapely
+
+    if len(others) == 0:
+        return g
+    return _of_kind(shapely.difference(g, shapely.union_all(others)), dim)
+
+
+def _groups(key, n):
+    """For each of 0..n-1, the positions where key (sorted ascending) equals it."""
+    bounds = np.searchsorted(key, np.arange(n + 1))
+    return [np.arange(bounds[k], bounds[k + 1]) for k in range(n)]
+
+
+def _pieces(ga, gb, how):
+    """The geometries of the overlay and, for each, the feature of a and of b it came from (-1: none)."""
+    import shapely
+
+    a_geoms, b_geoms = _geoms(ga), _geoms(gb)
+    first = (0, 1, 2) if how in ("intersection", "difference", "identity") else (2,)
+    dim = _dimension(a_geoms, "the first layer", first)
+    _dimension(b_geoms, "the second layer", (2,))
+    ia, ib = _pairs(a_geoms, b_geoms, "intersects")
+    geoms, from_a, from_b = [], [], []
+
+    def add(g, i, j):
+        geoms.append(g)
+        from_a.append(i)
+        from_b.append(j)
+
+    if how in ("intersection", "union", "identity"):
+        cut = shapely.intersection(a_geoms[ia], b_geoms[ib]) if len(ia) else np.zeros(0, dtype=object)
+        for c, i, j in zip(cut, ia, ib):
+            g = _of_kind(c, dim)
+            if g is not None:
+                add(g, int(i), int(j))
+    if how != "intersection":
+        for i, m in enumerate(_groups(ia, len(a_geoms))):
+            g = _less(a_geoms[i], b_geoms[ib[m]], dim)
+            if g is not None:
+                add(g, i, -1)
+    if how in ("union", "symmetric_difference"):
+        order = np.argsort(ib, kind="stable")
+        for j, m in enumerate(_groups(ib[order], len(b_geoms))):
+            g = _less(b_geoms[j], a_geoms[ia[order][m]], 2)
+            if g is not None:
+                add(g, -1, j)
+    return geoms, np.asarray(from_a, dtype=np.int64), np.asarray(from_b, dtype=np.int64)
+
+
+def overlay(a, b, how="intersection", suffix="_2", out=None):
+    """Two layers overlaid: the pieces where their features meet, and the parts of one that the other does not cover.
+
+    ``how``:
+
+    - ``"intersection"``: a piece where a feature of ``a`` and one of ``b`` meet, with the attributes of both, in the
+      order of ``a`` then ``b``. A column of ``b`` that ``a`` already has gets ``suffix``.
+    - ``"union"``: those pieces, then each feature of ``a`` less the ``b`` it meets, then each feature of ``b`` less
+      the ``a`` it meets. A remainder has only its own attributes (the other layer's are NaN / None).
+    - ``"difference"``: each feature of ``a`` less the union of the ``b`` it meets, with the attributes of ``a`` only
+      (a feature with nothing left is dropped).
+    - ``"symmetric_difference"``: the remainders of ``a`` then those of ``b`` (the union without the pieces).
+    - ``"identity"``: the intersection pieces, then the remainders of ``a`` (``b``'s attributes missing on them).
+
+    ``b`` must be polygons. ``a`` may also be lines or points for ``intersection``, ``difference`` and ``identity``:
+    the pieces keep its kind (the parts of a line inside a polygon, the points inside), as ``geopandas.overlay`` with
+    ``keep_geom_type=True``; ``union`` and ``symmetric_difference`` need polygons in both. A piece that is not of the
+    kind of ``a`` (two polygons that only share an edge) is dropped.
+
+    The order is that of the app (the pieces by pair, then the remainders), not geopandas'. PostGIS:
+    ``ST_Intersection``, ``ST_Difference``, ``ST_SymDifference`` and ``ST_Union`` over the pairs that ``ST_Intersects``;
+    QGIS: "Intersection", "Difference", "Symmetrical difference", "Union", "Identity".
+
+    >>> tf.vector.overlay(soils, parcels, "union")          # doctest: +SKIP
+    """
+    if how not in _HOWS:
+        raise ValueError(f"unknown how {how!r}; use one of {', '.join(_HOWS)}")
+    import pandas as pd
+
+    gpd = _gpd()
+    ga, gb = _load(a, b)
+    geoms, from_a, from_b = _pieces(ga, gb, how)
+    adf = pd.DataFrame(ga.drop(columns=ga.geometry.name))
+    if how == "difference":
+        part = _take(adf, from_a)
+    else:
+        bdf = pd.DataFrame(gb.drop(columns=gb.geometry.name))
+        bdf = bdf.rename(columns=_rename(list(bdf.columns), adf.columns, suffix))
+        part = pd.concat([_take(adf, from_a), _take(bdf, from_b)], axis=1)
+    name = ga.geometry.name
+    part[name] = gpd.GeoSeries(geoms, crs=ga.crs, index=part.index)
+    result = gpd.GeoDataFrame(part, geometry=name, crs=ga.crs)
+    return _write(result, out)
+
+
+def intersection(a, b, suffix="_2", out=None):
+    """The pieces where the features of ``a`` and ``b`` meet, with both attributes: ``overlay(a, b, "intersection")``.
+
+    PostGIS: ``ST_Intersection(a.geom, b.geom)`` over the pairs that ``ST_Intersects``; QGIS: "Intersection".
+
+    >>> tf.vector.intersection(soils, parcels)          # doctest: +SKIP
+    """
+    return overlay(a, b, "intersection", suffix, out)
+
+
+def difference(a, b, suffix="_2", out=None):
+    """Each feature of ``a`` less the ``b`` it meets, attributes of ``a``: ``overlay(a, b, "difference")``.
+
+    PostGIS: ``ST_Difference(a.geom, ST_Union(b.geom))``; QGIS: "Difference".
+
+    >>> tf.vector.difference(parcels, water)          # doctest: +SKIP
+    """
+    return overlay(a, b, "difference", suffix, out)
+
+
+def symmetric_difference(a, b, suffix="_2", out=None):
+    """What is in ``a`` or in ``b`` but not both: ``overlay(a, b, "symmetric_difference")``.
+
+    PostGIS: ``ST_SymDifference``; QGIS: "Symmetrical difference".
+
+    >>> tf.vector.symmetric_difference(before, after)          # doctest: +SKIP
+    """
+    return overlay(a, b, "symmetric_difference", suffix, out)
+
+
+def identity(a, b, suffix="_2", out=None):
+    """All of ``a``, cut where ``b`` meets it, with ``b``'s attributes there: ``overlay(a, b, "identity")``.
+
+    QGIS: "Identity"; GeoPandas: ``overlay(how="identity")``.
+
+    >>> tf.vector.identity(parcels, flood_zones)          # doctest: +SKIP
+    """
+    return overlay(a, b, "identity", suffix, out)
+
+
+def union(a, b=None, suffix="_2", out=None):
+    """With two layers, their overlay union; with one, all its features merged into one (``dissolve(a)``).
+
+    PostGIS: ``ST_Union(a.geom, b.geom)`` per pair, and the aggregate ``ST_Union(geom)`` for one layer;
+    QGIS: "Union" and "Dissolve".
+
+    >>> tf.vector.union(parcels)                    # doctest: +SKIP
+    >>> tf.vector.union(soils, parcels)             # doctest: +SKIP
+    """
+    if b is None:
+        return dissolve(a, out=out)
+    return overlay(a, b, "union", suffix, out)
+
+
+# ------------------------------------------------------------------------------- clip, dissolve, buffer
+
+
+def clip(a, mask, out=None):
+    """Each feature of ``a`` cut to the area of ``mask`` (the union of its polygons); those outside it are left out.
+
+    The attributes are kept, the order is that of ``a``. ``mask`` is polygons (any form ``b`` takes), reprojected to
+    the CRS of ``a``.
+
+    PostGIS: ``ST_Intersection(a.geom, ST_Union(mask.geom))`` where not empty; QGIS: "Clip"; GeoPandas: ``clip``.
+
+    >>> tf.vector.clip(roads, county)          # doctest: +SKIP
+    """
+    import shapely
+
+    ga, gm = _load(a, mask)
+    m_geoms = _geoms(gm)
+    _dimension(m_geoms, "the mask", (2,))
+    cut = shapely.intersection(_geoms(ga), shapely.union_all(m_geoms))
+    keep = _present(cut)
+    result = ga[keep].copy()
+    result[ga.geometry.name] = cut[keep]
+    return _write(result.reset_index(drop=True), out)
+
+
+def dissolve(a, by=None, out=None):
+    """The features merged: all into one, or one per value of the column ``by``, with its value and ``count``.
+
+    The groups come in the order of their first feature; a missing value is a group of its own. The result has the
+    column ``by`` (if given) and ``count`` (how many features were merged), and the geometry of the union.
+
+    PostGIS: ``SELECT by, count(*), ST_Union(geom) FROM a GROUP BY by``; QGIS: "Dissolve"; GeoPandas: ``dissolve``.
+
+    >>> tf.vector.dissolve(parcels, by="owner")          # doctest: +SKIP
+    """
+    import pandas as pd
+    import shapely
+
+    gpd = _gpd()
+    ga = _as_geodataframe(a).reset_index(drop=True)
+    if by:
+        if by not in ga.columns:
+            raise KeyError(f"the features have no attribute {by!r}")
+        codes = pd.factorize(ga[by], use_na_sentinel=False)[0]
+    else:
+        codes = np.zeros(len(ga), dtype=int)
+    members = [np.flatnonzero(codes == k) for k in range(codes.max() + 1 if len(codes) else 0)]
+    data = {}
+    if by:
+        data[by] = ga[by].to_numpy()[np.array([m[0] for m in members], dtype=int)]
+    data["count"] = np.array([len(m) for m in members], dtype=np.int64)
+    geoms = _geoms(ga)
+    merged = [shapely.union_all(geoms[m]) for m in members]
+    result = gpd.GeoDataFrame(data, geometry=gpd.GeoSeries(merged, crs=ga.crs), crs=ga.crs)
+    return _write(result, out)
+
+
+def buffer(a, distance, segments=16, dissolve=False, out=None):
+    """The area within ``distance`` of every feature (``segments`` per quarter circle), its attributes kept.
+
+    A negative distance shrinks polygons (and may empty them; the empty buffer is kept). With ``dissolve=True`` all
+    the buffers are merged into one feature without attributes.
+
+    PostGIS: ``ST_Buffer(geom, distance, 'quad_segs=16')`` (and ``ST_Union`` for ``dissolve``); QGIS: "Buffer".
+
+    >>> tf.vector.buffer(wells, 250, dissolve=True)          # doctest: +SKIP
+    """
+    import shapely
+
+    gpd = _gpd()
+    segments = int(segments)
+    if segments < 1 or not np.isfinite(distance):
+        raise ValueError("a finite distance and segments >= 1")
+    ga = _as_geodataframe(a).reset_index(drop=True)
+    geoms = shapely.buffer(_geoms(ga), float(distance), quad_segs=segments)
+    if dissolve:
+        result = gpd.GeoDataFrame(geometry=gpd.GeoSeries([shapely.union_all(geoms)], crs=ga.crs), crs=ga.crs)
+    else:
+        result = ga.copy()
+        result[ga.geometry.name] = geoms
     return _write(result, out)

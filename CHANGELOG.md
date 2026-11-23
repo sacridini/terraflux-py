@@ -19,6 +19,13 @@ in a new major version.
   `sjoin_nearest`; ties go to the lowest index). `a` and `b` are paths, GeoDataFrames or GeoSeries (`b` also a shapely
   geometry or a list); `b` is reprojected to the CRS of `a`; empty geometries never satisfy a predicate; `out=` writes
   the result. Tested against geopandas' `sjoin` and `sjoin_nearest`.
+- `tf.vector` overlay family, with the app's semantics: `overlay(a, b, how="intersection"|"union"|"difference"|
+  "symmetric_difference"|"identity", suffix="_2")` and the shortcuts `intersection`, `difference`,
+  `symmetric_difference`, `identity` and `union(a, b=None)` (with one layer, everything merged as PostGIS's
+  aggregate `ST_Union`); `a` may be lines or points for intersection, difference and identity (the pieces keep its
+  kind, as `geopandas.overlay(keep_geom_type=True)`), `b` is polygons; plus `clip(a, mask)`, `dissolve(a, by=None)`
+  (one feature per value with `count`) and `buffer(a, distance, segments=16, dissolve=False)`. Tested against
+  geopandas' `overlay`, `clip`, `dissolve` and `buffer`.
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
