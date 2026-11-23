@@ -38,6 +38,12 @@ in a new major version.
   sharing their edges, with `preserve_boundary`; ST_CoverageSimplify) and `tf.vector.coverage_validate` (a `valid`
   column and the invalid edges, with `gap_width`; ST_CoverageInvalidEdges); the two coverage functions need shapely
   2.1 (GEOS 3.12).
+- `tf.vector.voronoi` (one polygon per point, `ST_VoronoiPolygons`, in the order and with the attributes of the
+  points, duplicates sharing a cell, optionally clipped to polygons), `tf.vector.delaunay` (the triangles or, with
+  `edges=True`, the edges of all the vertices, `ST_DelaunayTriangles`) and `tf.vector.cluster` (a `cluster` column:
+  DBSCAN on the distance between geometries of any kind, `ST_ClusterDBSCAN`, or `ST_ClusterWithin` with
+  `min_points=1`; inclusive distance, a deterministic breadth-first expansion, border features in the first cluster
+  that reaches them, noise -1, clusters numbered by their lowest member).
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
