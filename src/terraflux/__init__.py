@@ -111,6 +111,7 @@ from . import move, stats
 from .move import load_tracks
 from . import surface
 from . import hydro
+from . import vector
 from . import uncertainty
 from .lsm import (
     Landscape,
@@ -237,6 +238,7 @@ __all__ = [
     "load_tracks",
     "surface",
     "hydro",
+    "vector",
     "uncertainty",
     "batch",
     "clustering_fac",

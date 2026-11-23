@@ -9,6 +9,16 @@ in a new major version.
 ## [1.62.0] - 2026-11-23
 
 ### Added
+- `tf.vector`, vector analysis as in PostGIS with its names: the predicates `within`, `contains`, `intersects`,
+  `touches`, `crosses`, `overlaps`, `covers`, `covered_by`, `contains_properly`, `equals`, `disjoint` and
+  `dwithin(a, b, distance)` (the features of `a` for which the predicate holds with at least one feature of `b`;
+  `disjoint` keeps those that meet none), `select(a, b, predicate, distance, invert)` (the general form), `relate`
+  (a bool array), `count` (how many features of `b` per feature of `a`) and `distance` (to the nearest), `join(a, b,
+  predicate, how="first"|"all"|"summary", fields, suffix, distance)` (as `geopandas.sjoin` / "Join attributes by
+  location": the first match by index, every pair, or count/sum/mean of fields) and `nearest(a, b, max_distance)` (as
+  `sjoin_nearest`; ties go to the lowest index). `a` and `b` are paths, GeoDataFrames or GeoSeries (`b` also a shapely
+  geometry or a list); `b` is reprojected to the CRS of `a`; empty geometries never satisfy a predicate; `out=` writes
+  the result. Tested against geopandas' `sjoin` and `sjoin_nearest`.
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,
