@@ -21,7 +21,7 @@ import xarray as xr
 from shapely import Point
 
 import terraflux as tf
-from conftest import X87_EXACT
+from conftest import BITWISE, X87_EXACT
 from move_cases import UD_DIST, UD_VARIANCE
 
 REF = Path(__file__).parent / "data" / "reference" / "move"
@@ -86,8 +86,9 @@ def libm(got, want, err="", rtol=1e-9):
 
 
 # Measured off the references' CPU: the variance of the likelihood's optimum moves by up to 3.7e-8 of itself on AMD
-# x86 (Windows and Linux CI) and 2.7e-7 on ARM64; the distributions by 2.7e-10 and 3.7e-9.
-VARIANCE_RTOL = 1e-6
+# x86 (Windows and Linux CI) and 2.7e-7 on ARM64 (a standard deviation of the dBGB by 1.1e-6 there, on Linux and
+# macOS alike); the distributions by 2.7e-10 and 3.7e-9.
+VARIANCE_RTOL = 1e-6 if BITWISE else 1e-5
 UD_RTOL = 1e-7
 
 

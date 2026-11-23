@@ -548,8 +548,9 @@ def test_overlap_is_amt(ref, sets):
         same(ov(mm, "hr", which="one_to_all")["overlap"], w("hr_one"), "one to all")
         for ty in ("phr", "vi", "ba", "udoi", "hd"):
             # phr is the share of one polygon in another: a cell of the isopleth that the last bits of the density move
-            # across its threshold (ARM64, no x87: 0.4299 for 0.4146 in one pair, the rest within 5e-8) moves it
-            rtol = 0.05 if ty == "phr" else 1e-9
+            # across its threshold (ARM64, no x87: 0.4299 for 0.4146 in one pair, the rest within 5e-8) moves it; the
+            # other indices are sums over the cells, 1.5e-9 off there (ba)
+            rtol = 0.05 if ty == "phr" else 1e-7
             same(ov(kk, ty)["overlap"], w(ty), ty, rtol)
             same(ov(kk, ty, True)["overlap"], w("c" + ty), "conditional " + ty, rtol)
         same(ov(kk, "vi", which="consecutive")["overlap"], w("cons"), "vi consecutive")
