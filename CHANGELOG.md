@@ -32,6 +32,12 @@ in a new major version.
   length and centroid x/y as the app's `vector.geometry`, the area in m² on the WGS84 ellipsoid with `geodesic=True`):
   PostGIS's ST_Centroid, ST_PointOnSurface, ST_ConvexHull, ST_ConcaveHull, ST_Simplify, ST_Envelope, ST_MakeValid,
   ST_Dump and ST_Boundary.
+- `tf.vector.smooth` (Chaikin's corner cutting, 1 to 10 iterations, line ends kept by default, polygon rings
+  smoothed all around; PostGIS's ST_ChaikinSmoothing, QGIS's Smooth: the steps of polygons made from a raster),
+  `tf.vector.coverage_simplify` (the Visvalingam-Whyatt simplification of a polygon coverage that keeps neighbours
+  sharing their edges, with `preserve_boundary`; ST_CoverageSimplify) and `tf.vector.coverage_validate` (a `valid`
+  column and the invalid edges, with `gap_width`; ST_CoverageInvalidEdges); the two coverage functions need shapely
+  2.1 (GEOS 3.12).
 - Simulation from a fitted integrated step selection function (Signer et al. 2024), amt 0.3.1's continuous-space
   `redistribution_kernel` and `simulate_path`: `tf.move.redistribution_kernel(model, start, covariates, *, sl_distr=None,
   ta_distr=None, max_dist=None, n_control=1_000_000, n_sample=1, normalize=True, tolerance_outside=0.0,

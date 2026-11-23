@@ -30,6 +30,7 @@ from __future__ import annotations
 import numpy as np
 
 from ._vector import _as_geodataframe, _gpd, to_crs, write_vector
+from ._vector_cover import coverage_simplify, coverage_validate, smooth
 from ._vector_shapes import boundary, centroid, envelope, explode, hull, make_valid, measures, simplify
 
 __all__ = [
@@ -42,11 +43,14 @@ __all__ = [
     "make_valid",
     "measures",
     "simplify",
+    "smooth",
     "buffer",
     "clip",
     "contains",
     "contains_properly",
     "count",
+    "coverage_simplify",
+    "coverage_validate",
     "covered_by",
     "covers",
     "crosses",
