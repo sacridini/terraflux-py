@@ -21,7 +21,7 @@ import xarray as xr
 from shapely import Point
 
 import terraflux as tf
-from conftest import BITWISE
+from conftest import X87_EXACT
 from move_cases import UD_DIST, UD_VARIANCE
 
 REF = Path(__file__).parent / "data" / "reference" / "move"
@@ -75,13 +75,20 @@ def same(got, want, err=""):
     np.testing.assert_array_equal(np.asarray(got, float), np.asarray(want, float), err_msg=err)
 
 
-def libm(got, want, err=""):
-    """Bit for bit where the references were made (R's x87 exp and log); a few units in the last place elsewhere."""
-    if BITWISE:
+def libm(got, want, err="", rtol=1e-9):
+    """Bit for bit where the references were made (an Intel CPU's x87 functions, see ``conftest.X87_EXACT``); elsewhere
+    within ``rtol`` (1e-9 where only the last bits of a sum move)."""
+    if X87_EXACT:
         same(got, want, err)
     else:
-        np.testing.assert_allclose(np.asarray(got, float), np.asarray(want, float), rtol=1e-9, atol=1e-12,
+        np.testing.assert_allclose(np.asarray(got, float), np.asarray(want, float), rtol=rtol, atol=1e-12,
                                    equal_nan=True, err_msg=err)
+
+
+# Measured off the references' CPU: the variance of the likelihood's optimum moves by up to 3.7e-8 of itself on AMD
+# x86 (Windows and Linux CI) and 2.7e-7 on ARM64; the distributions by 2.7e-10 and 3.7e-9.
+VARIANCE_RTOL = 1e-6
+UD_RTOL = 1e-7
 
 
 def with_projected(tr, xy, crs):
@@ -126,7 +133,7 @@ def check_variance(out, ref, case):
     """`out` (the tracks with their variance) is what move2utils gave, bit for bit, for the tracks it did not skip."""
     kept = out["location_error"].notna().to_numpy()                   # the tracks R did not skip are the ones with errors
     assert kept.sum() == ref[f"{case}/n"].sum()
-    libm(out["motion_variance"][kept], ref[f"{case}/variance"], "variance")
+    libm(out["motion_variance"][kept], ref[f"{case}/variance"], "variance", VARIANCE_RTOL)
     same(out["in_windows"][kept], ref[f"{case}/in_windows"], "in_windows")
     same(out["interest"][kept], ref[f"{case}/interest"], "interest")
     libm(out["location_error"][kept], ref[f"{case}/le"], "location error")
@@ -246,7 +253,7 @@ def test_dbbmm_ud_is_move2utils(ref, inputs, fishers, case):
             ud = tf.move.dbbmm_ud(tr, **kw)
     assert ud.shape == (nl, nr, nc)
     assert ud.attrs["extent"] == tuple(ext)
-    libm(ud.values.reshape(nl, -1), ref[f"{case}/ud"].reshape(nl, -1), "the distribution")
+    libm(ud.values.reshape(nl, -1), ref[f"{case}/ud"].reshape(nl, -1), "the distribution", UD_RTOL)
     np.testing.assert_allclose(ud.values.reshape(nl, -1).sum(axis=1), 1.0, rtol=1e-12)
     assert ud.dims == ("band", "y", "x")
     if case == "ud_burst":
@@ -275,13 +282,13 @@ def test_volume_and_outer_probability_are_move2utils(ref, inputs, fishers):
     data, prep, _, kw = UD_CALLS["ud_m1_res"]
     tr, _ = projected_tracks(ref, "ud_m1_res", make_tracks(inputs, fishers, data, prep))
     ud = tf.move.dbbmm_ud(tr, **kw)
-    same(tf.move.ud_volume(ud).values.reshape(-1), ref["ud_volume/vol"], "volume")
+    libm(tf.move.ud_volume(ud).values.reshape(-1), ref["ud_volume/vol"], "volume")
     xy = np.c_[tr.geometry.x.to_numpy(), tr.geometry.y.to_numpy()]
     pts = np.vstack([xy[::7], [0.0, 0.0]])
     out = tf.move.ud_outer_probability(pts, ud)
-    same(out, ref["ud_volume/outer"], "outer probability")
+    libm(out, ref["ud_volume/outer"], "outer probability")
     assert not np.isnan(out).any()                                     # the centre of the projection is in the raster
-    same(tf.move.ud_outer_probability(tr.iloc[:40], ud), ref["ud_volume/outer_sf"], "outer probability of points")
+    libm(tf.move.ud_outer_probability(tr.iloc[:40], ud), ref["ud_volume/outer_sf"], "outer probability of points")
 
 
 def test_volume_of_cells_that_tie_is_move2utils(ref):

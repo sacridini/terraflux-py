@@ -170,7 +170,7 @@ def test_no_solution_stops_with_a_warning():
     model, land = _toy(max_deviation=0.0, mean_deviation=0.0, max_loops=50)
     with pytest.warns(UserWarning, match="no solution in step 1") as rec:
         sim = model.run(land, seed=1)
-    assert rec[0].filename == __file__
+    assert [r.filename for r in rec if "no solution in step 1" in str(r.message)][0] == __file__
     assert sim.maps.shape[0] == 1 and not sim.steps["converged"].any()
 
 

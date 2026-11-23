@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import sys
 import warnings
 from pathlib import Path
@@ -38,6 +39,14 @@ UCRT_LIBM = sys.platform == "win32"
 # products give other last bits through another build's dgemm, so off Windows those
 # values allow a few units in the last place.
 WINDOWS_BLAS = sys.platform == "win32"
+
+# The x87 functions themselves (fsin, fcos, fpatan, fyl2x, f2xm1) are microcoded, and the references of move2utils / amt
+# were made on an Intel CPU on Windows: the likelihoods and the distributions of tf.move carry the last bits of those
+# functions through an optimiser and long sums, so they are R's bits only there. On the CI runners (AMD x86 on
+# Windows and Linux: the same numbers on both, not the references') they differ by up to 3.7e-8 of a variance
+# and 2.7e-10 of a distribution, and without the x87 unit (ARM64) by up to 2.7e-7 and 3.7e-9: those comparisons
+# allow the tolerances measured there (tests/test_move_ud.py, test_move_dbgb.py, test_move_corridor.py).
+X87_EXACT = BITWISE and UCRT_LIBM and "GenuineIntel" in platform.processor()
 
 # Off Windows, results that go through the C library's exp, pow, log10 or atan in a
 # chain of float32 rasters (the InVEST models, D-infinity) can differ from references

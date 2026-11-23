@@ -15,9 +15,9 @@ import pandas as pd
 import pytest
 
 import terraflux as tf
-from conftest import BITWISE, UCRT_LIBM
+from conftest import UCRT_LIBM, X87_EXACT
 from move_cases import UD_DBGB, UD_DBGB_VARIANCE
-from test_move_ud import libm, make_like, make_tracks, projected_tracks, same, with_projected
+from test_move_ud import UD_RTOL, VARIANCE_RTOL, libm, make_like, make_tracks, projected_tracks, same, with_projected
 
 REF = Path(__file__).parent / "data" / "reference" / "move"
 DATA = Path(__file__).parent / "data" / "move"
@@ -77,8 +77,8 @@ def test_every_variance_case_is_tested():
 def check_variance(out, ref, case):
     kept = out["dbgb_location_error"].notna().to_numpy()
     assert kept.sum() == ref[f"{case}/n"].sum()
-    libm(out["para_sd"][kept], ref[f"{case}/para_sd"], "para_sd")
-    libm(out["orth_sd"][kept], ref[f"{case}/orth_sd"], "orth_sd")
+    libm(out["para_sd"][kept], ref[f"{case}/para_sd"], "para_sd", VARIANCE_RTOL)
+    libm(out["orth_sd"][kept], ref[f"{case}/orth_sd"], "orth_sd", VARIANCE_RTOL)
     same(out["n_estim"][kept], ref[f"{case}/n_estim"], "n_estim")
     same(out["seg_interest"][kept], ref[f"{case}/seg_interest"], "seg_interest")
     libm(out["dbgb_location_error"][kept], ref[f"{case}/le"], "location error")
@@ -126,8 +126,8 @@ def test_the_variance_agrees_with_the_legacy_move_package(ref, inputs, fishers):
         d = np.abs(got[~np.isnan(got)] - want[~np.isnan(want)])
         assert np.quantile(d, 0.9) < 1e-2 and np.median(d) < 1e-3
     # and what R itself gave for this: move2utils' own object
-    same(v["para_sd"], ref["move_leroy_dbgb/my_para"], key)
-    same(v["orth_sd"], ref["move_leroy_dbgb/my_orth"], key)
+    libm(v["para_sd"], ref["move_leroy_dbgb/my_para"], "para_sd", VARIANCE_RTOL)
+    libm(v["orth_sd"], ref["move_leroy_dbgb/my_orth"], "orth_sd", VARIANCE_RTOL)
 
 
 # ------------------------------------------------------------------------------------ the distribution
@@ -183,14 +183,14 @@ def test_dbgb_ud_is_move2utils(ref, inputs, fishers, case):
     assert ud.shape == (nl, nr, nc)
     assert ud.attrs["extent"] == tuple(ext)
     got, want = ud.values.reshape(nl, -1), ref[f"{case}/ud"].reshape(nl, -1)
-    if case == "gud_m1_like" and BITWISE:
+    if case == "gud_m1_like" and X87_EXACT:
         # this grid reaches cells 8 km from the bridges, where a sum of 256 terms of 1e-22 rests on the last bit of
         # each: one cell of 24 024 comes out one unit in the last place from R's (its sin(), not exp or acos, which
         # are R's bit for bit; see the report), every other one is R's bit for bit
         assert np.count_nonzero(got != want) <= 1
         np.testing.assert_allclose(got, want, rtol=3e-16, atol=0)
     else:
-        libm(got, want, "the distribution")
+        libm(got, want, "the distribution", UD_RTOL)
     np.testing.assert_allclose(ud.values.reshape(nl, -1).sum(axis=1), 1.0, rtol=1e-12)
     assert ud.name == "dbgb_ud" and ud.attrs["ext"] == 5.0
     if case == "gud_burst":

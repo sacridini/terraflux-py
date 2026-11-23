@@ -356,7 +356,8 @@ def test_resistance_leaves_out_what_a_cell_does_not_have():
     m = tf.move.make_issf_model({"forest_end": 2.0, "log_sl_": 0.3, "forest_end:cos_ta_": 0.2, "slope_start": 0.5})
     with pytest.warns(UserWarning) as w:
         r = tf.move.resistance(m, cov)
-    text = str(w[0].message)
+    # not the first warning: other libraries' (rioxarray with affine 3: PendingDeprecationWarning) come first on some installs
+    text = " ".join(str(x.message) for x in w if issubclass(x.category, UserWarning) and "log_sl_" in str(x.message))
     assert "log_sl_" in text and "forest_end:cos_ta_" in text and "slope_start" in text
     only = tf.move.resistance(tf.move.make_issf_model({"forest_end": 2.0}), cov)
     np.testing.assert_array_equal(r.values, only.values)

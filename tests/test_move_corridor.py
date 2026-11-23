@@ -10,7 +10,6 @@ The Sinkhorn distance is compared to a relative 1e-12 (R's reference BLAS sums i
 are, in fact, the same bits where the references were made), the exact one bit for bit.
 """
 
-import platform
 import warnings
 from pathlib import Path
 
@@ -23,12 +22,12 @@ from shapely import Point
 
 import terraflux as tf
 from terraflux import _core
-from conftest import BITWISE, UCRT_LIBM
+from conftest import BITWISE, X87_EXACT
 from move_cases import CORRIDOR
 
 REF = Path(__file__).parent / "data" / "reference" / "move"
 DATA = Path(__file__).parent / "data" / "move"
-EXACT = UCRT_LIBM and BITWISE and "GenuineIntel" in platform.processor()
+EXACT = X87_EXACT
 
 
 @pytest.fixture(scope="module")
@@ -132,7 +131,9 @@ def test_corridor_is_move2utils(case, ref, tracks):
     strict = BITWISE and (EXACT or not lonlat)
     # R divides by the lag in the unit its difftime picks (minutes...) and converts the speed to m/s: a few ulps off
     # d / lag in seconds; its POSIXct seconds in a double (the fishers have fractions of a second) move a lag by 1e-7
-    speed_rtol = 1e-7 if data == "fishers" else 1e-14
+    # (longitude / latitude without the x87 unit: the geodesics' sines and cosines come from the system library, 1.8e-8
+    # of the speed at most on ARM64)
+    speed_rtol = 1e-7 if data == "fishers" or (lonlat and not BITWISE) else 1e-14
     for key, value in got.items():
         want = ref[f"{case}/{key}"]
         assert len(value) == len(want)
@@ -146,8 +147,8 @@ def test_corridor_is_move2utils(case, ref, tracks):
             same(value, want, f"{case} {key}")
         elif key in ("azimuth", "circvar"):
             np.testing.assert_allclose(value, want, rtol=1e-9, atol=1e-12, equal_nan=True, err_msg=f"{case} {key}")
-        else:   # a midpoint at the border of a buffer can go either way in the last bits
-            assert np.mean(value == want) > 0.999, f"{case} {key}"
+        else:   # a midpoint at the border of a buffer can go either way in the last bits (NaN is NaN)
+            assert np.mean((value == want) | (np.isnan(value) & np.isnan(want))) > 0.999, f"{case} {key}"
     if not args:     # the quantile thresholds R resolved
         used = out.attrs["corridor"]
         want = ref[f"{case}/thr"]
