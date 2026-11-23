@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "cost/energy.hpp"
 #include "cost/geodesic.hpp"
 #include "cost/randomwalk.hpp"
 #include "cost/rsp.hpp"
@@ -203,6 +204,26 @@ void register_python(py::module_& m) {
         },
         py::arg("lon1"), py::arg("lat1"), py::arg("lon2"), py::arg("lat2"),
         "Geodesic distances on WGS84 as the R package raster computes them (metres).");
+
+    m.def(
+        "cost_energy_landscape",
+        [](const CArray<double>& dem, double mass, double res, int neigh, bool human, double speed, bool kcal,
+           int threads) {
+            if (dem.ndim() != 2) throw std::invalid_argument("dem: a 2-D array");
+            if (neigh != 4 && neigh != 8) throw std::invalid_argument("neigh must be 4 or 8");
+            const i64 ny = dem.shape(0), nx = dem.shape(1);
+            py::array_t<double> out({ny, nx});
+            double* o = out.mutable_data();
+            const double* x = dem.data();
+            {
+                py::gil_scoped_release release;
+                energy_landscape(x, ny, nx, mass, res, neigh, human, speed, kcal, threads, o);
+            }
+            return out;
+        },
+        py::arg("dem"), py::arg("mass"), py::arg("res"), py::arg("neigh"), py::arg("human"), py::arg("speed"),
+        py::arg("kcal"), py::arg("threads"),
+        "Energy landscape of a DEM as the R package enerscape 1.2.0 computes it (J or kcal).");
 
     m.def(
         "cost_rmath",

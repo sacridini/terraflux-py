@@ -6,6 +6,18 @@ in a new major version.
 
 ## [Unreleased]
 
+### Added
+- `tf.cost.energy_landscape(dem, mass, *, unit="joule", neigh=8, model="animal", v=None, output="energy",
+  n_threads=None)`: the energy cost of walking over a terrain, R enerscape 1.2.0's `enerscape` (Pontzer 2016 as
+  corrected in 1.1.0; Berti et al. 2022) and, with `model="human"`, its `humanscape` (Looney et al. 2019, speed `v`,
+  1.39 m/s by default). The mean over the 4 or 8 neighbours of the cost of walking onto each cell, a resistance surface
+  for least-cost paths and circuits; `output="conductance"` (1 / energy, an extension) or `"both"` (a `Dataset`).
+  Bit for bit with enerscape (tests against its compiled code, on a small DEM and on its Monte Sirente DEM): the
+  package's truncated pi, mingw-w64's `sin` (the x87 `fsin`: the UCRT's differs in the last bit on 8% of the cells) and
+  Rcpp's 80-bit mean. C++ (`costcore`), the rows in parallel, the same result with any number of threads. Where R is
+  silent it raises: `neigh` other than 4 or 8 (R gives an all-NA raster), a mass or speed that is not positive, a CRS in
+  degrees, cells that are not square (sizes in x and y within 0.01).
+
 ## [1.61.0] - 2026-11-21
 
 ### Added

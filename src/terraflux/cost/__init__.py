@@ -17,6 +17,7 @@ Typical use::
     conductance = tf.cost.geo_correction(speed)      # Tobler's hiking function
 """
 
+from ._energy import energy_landscape
 from ._examples import example_data
 from ._lcp import acc_cost, cost_distance, shortest_path
 from ._pathinc import areas, barriers, nonoverlap, overlap, path_inc
@@ -30,6 +31,7 @@ __all__ = [
     "barriers",
     "commute_distance",
     "cost_distance",
+    "energy_landscape",
     "example_data",
     "geo_correction",
     "nonoverlap",

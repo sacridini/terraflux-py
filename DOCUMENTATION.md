@@ -2180,6 +2180,19 @@ out = tf.cost.path_inc(tr, origin, locations, functions=[lambda a, b: abs(a - b)
   full matrix with the reduced matrix's positions (wrong when cells without
   connections precede others): the references use grids without missing cells.
 
+Energy landscapes (enerscape):
+
+```python
+en = tf.cost.energy_landscape(dem, 50, unit="kcal")                 # a 50 kg animal: Pontzer (2016), mean over 8 neighbours
+h = tf.cost.energy_landscape(dem, 70, model="human", v=1.2, neigh=4)  # Looney et al. (2019)
+both = tf.cost.energy_landscape(dem, 50, output="both")              # Dataset: energy and conductance = 1 / energy
+```
+
+- R enerscape 1.2.0, bit for bit (`tools/enerscape_reference.R`, `tests/test_cost_energy.py`): the truncated
+  `pi = 3.1415926535`, mingw-w64's x87 `sin`, Rcpp's 80-bit mean. The border cells and those with a missing height in
+  their neighbourhood are NaN. Unlike R, it raises on `neigh` other than 4 or 8, a CRS in degrees and cells that are
+  not square. The result is a resistance surface for `tf.cost.transition` (`1 / en`) and `tf.circuit`.
+
 Reference: `tools/make_reference_cost.py` (gdistance 1.6.5, raster 3.6-31,
 Matrix 1.7-1, igraph 2.1.3, R 4.4.2; cases in `tests/cost_cases.py`), tests in
 `tests/test_cost_transition.py`, `tests/test_cost_lcp.py`,
