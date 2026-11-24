@@ -31,7 +31,7 @@ import numpy as np
 
 from ._vector import _as_geodataframe, _gpd, to_crs, write_vector
 from ._vector_cluster import cluster, delaunay, voronoi
-from ._vector_cover import coverage_simplify, coverage_validate, smooth
+from ._vector_cover import coverage_node, coverage_simplify, coverage_validate, smooth
 from ._vector_lines import (
     closest_point,
     locate,
@@ -62,6 +62,7 @@ __all__ = [
     "contains",
     "contains_properly",
     "count",
+    "coverage_node",
     "coverage_simplify",
     "coverage_validate",
     "covered_by",

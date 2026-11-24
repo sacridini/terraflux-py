@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Smoothing and polygon coverages of :mod:`terraflux.vector`: Chaikin corner cutting, coverage simplification and
-coverage validation.
+"""Smoothing and polygon coverages of :mod:`terraflux.vector`: Chaikin corner cutting, the shared vertices of a
+coverage, coverage simplification and coverage validation.
 
 ``a`` is a path, a GeoDataFrame or a GeoSeries; the result is a GeoDataFrame in the CRS of ``a`` with its attributes,
 the index reset. ``out`` (a path) also writes it with :func:`terraflux.write_vector`.
@@ -12,7 +12,7 @@ import numpy as np
 
 from ._vector import _as_geodataframe, _gpd, write_vector
 
-__all__ = ["coverage_simplify", "coverage_validate", "smooth"]
+__all__ = ["coverage_node", "coverage_simplify", "coverage_validate", "smooth"]
 
 
 def _one(a):
@@ -169,3 +169,107 @@ def coverage_validate(a, gap_width=0.0, out=None):
     edges = np.array([shapely.LineString() if e is None else e for e in edges], dtype=object)
     gdf["valid"] = shapely.is_empty(edges)
     return _replace(gdf, edges, out)
+
+
+def coverage_node(a, tolerance=0.0, out=None):
+    """The polygons with the vertices they share with their neighbours: every vertex of another feature that lies
+    on an edge of a polygon is added to that edge.
+
+    The polygons of :func:`terraflux.vector.polygonize`-like tools (GDAL's polygonize, ``rasterio.features.shapes``)
+    have only their own corners: where the junction of two patches meets the straight edge of a third, that edge has
+    no vertex, and GEOS does not take the layer for a coverage (:func:`coverage_validate` flags those edges, and
+    :func:`coverage_simplify` cannot keep the neighbours together). This adds the missing vertices, so that shared
+    edges match vertex for vertex. Nothing else changes: the features, their order, their attributes, the start and
+    orientation of every ring and every vertex already there; a column ``added`` tells how many vertices each feature
+    gained. It does not remove overlaps or close gaps.
+
+    A vertex ``v`` of another feature is added to the segment ``p -> q`` when it lies on it, strictly between its
+    ends: the distance from ``v`` to the line through ``p`` and ``q`` is at most ``tolerance`` (``|cross| <=
+    tolerance * |q - p|``, exactly 0 by default, which suits coordinates on a grid), its projection falls strictly
+    inside the segment, and it is farther than ``tolerance`` from both ends. The added vertices are the neighbour's
+    coordinates, in their order along the segment (repeated ones once). A small ``tolerance`` (in the units of the
+    CRS) helps with coordinates that went through a reprojection; it moves an edge by at most that much.
+
+    ``a`` must be polygons or multipolygons; empty and missing geometries are kept. The vertices of a feature are not
+    added to its own edges (parts of one multipolygon that share edges stay as they are).
+
+    Like PostGIS's ``ST_Snap(geom, neighbour, tolerance)`` restricted to adding vertices (no vertex moves); QGIS
+    *Snap geometries to layer* with *Prefer closest point, insert extra vertices where required*.
+
+    >>> cover = tf.vector.coverage_node("patches.gpkg")             # doctest: +SKIP
+    >>> tf.vector.coverage_simplify(cover, 60)                      # doctest: +SKIP
+    """
+    import shapely
+
+    if isinstance(tolerance, bool) or not np.isfinite(tolerance) or tolerance < 0:
+        raise ValueError(f"tolerance must be a finite number >= 0, not {tolerance!r}")
+    tol = float(tolerance)
+    gdf = _one(a)
+    g = _polygons(gdf, "coverage_node")
+    n = len(g)
+    added = np.zeros(n, dtype=np.int64)
+    parts, part_feature = shapely.get_parts(g, return_index=True)
+    rings, ring_part = shapely.get_rings(parts, return_index=True)
+    xy, coord_ring = shapely.get_coordinates(rings, return_index=True)
+    if len(xy) == 0:
+        gdf["added"] = added
+        return _write(gdf, out)
+    coord_feature = part_feature[ring_part[coord_ring]]
+    # the segments: a coordinate followed by one of the same ring; the vertices: every coordinate but a ring's last
+    last = np.r_[coord_ring[1:] != coord_ring[:-1], True]
+    seg = np.flatnonzero(~last)
+    vert = seg
+    p, q = xy[seg], xy[seg + 1]
+    lo = np.minimum(p, q) - tol
+    hi = np.maximum(p, q) + tol
+    tree = shapely.STRtree(shapely.points(xy[vert]))
+    iseg, ivert = tree.query(shapely.box(lo[:, 0], lo[:, 1], hi[:, 0], hi[:, 1]))
+    iv = vert[ivert]
+    other = coord_feature[seg[iseg]] != coord_feature[iv]
+    iseg, iv = iseg[other], iv[other]
+    px, py = p[iseg, 0], p[iseg, 1]
+    qx, qy = q[iseg, 0], q[iseg, 1]
+    vx, vy = xy[iv, 0], xy[iv, 1]
+    dx, dy = qx - px, qy - py
+    wx, wy = vx - px, vy - py
+    ux, uy = vx - qx, vy - qy
+    cross = dx * wy - dy * wx
+    dot = dx * wx + dy * wy
+    len2 = dx * dx + dy * dy
+    on = (
+        (np.abs(cross) <= tol * np.sqrt(len2))
+        & (dot > 0)
+        & (dot < len2)
+        & (wx * wx + wy * wy > tol * tol)
+        & (ux * ux + uy * uy > tol * tol)
+    )
+    iseg, iv, dot = iseg[on], iv[on], dot[on]
+    if len(iseg) == 0:
+        gdf["added"] = added
+        return _write(gdf, out)
+    # along each segment by the projection, then x, then y; a coordinate repeated (two neighbours) once
+    order = np.lexsort((xy[iv, 1], xy[iv, 0], dot, iseg))
+    iseg, iv = iseg[order], iv[order]
+    keep = np.r_[True, (iseg[1:] != iseg[:-1]) | np.any(xy[iv[1:]] != xy[iv[:-1]], axis=1)]
+    iseg, iv = iseg[keep], iv[keep]
+    # the new coordinates: each coordinate, then what is added after it (on the segment it starts), in that order
+    at = seg[iseg]
+    pos = np.r_[np.arange(len(xy)), at]
+    sub = np.r_[np.zeros(len(xy), dtype=np.int64), np.arange(1, len(at) + 1)]
+    new = np.lexsort((sub, pos))
+    new_xy = np.r_[xy, xy[iv]][new]
+    new_ring = np.r_[coord_ring, coord_ring[at]][new]
+    np.add.at(added, coord_feature[at], 1)
+    changed = np.zeros(len(rings), dtype=bool)
+    changed[coord_ring[at]] = True
+    rebuilt = shapely.linearrings(new_xy, indices=new_ring)
+    new_rings = np.where(changed, rebuilt, rings)
+    polys = np.array(parts, dtype=object)  # a part without a ring (an empty polygon) stays as it is
+    made = shapely.polygons(new_rings, indices=ring_part)
+    polys[: len(made)] = made
+    geoms = np.array(g, dtype=object)
+    for i in np.flatnonzero(added):
+        mine = polys[part_feature == i]
+        geoms[i] = mine[0] if g[i].geom_type == "Polygon" else shapely.multipolygons(mine)
+    gdf["added"] = added
+    return _replace(gdf, geoms, out)

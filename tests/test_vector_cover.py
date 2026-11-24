@@ -156,3 +156,83 @@ def test_coverage_needs_shapely_21(monkeypatch):
     monkeypatch.delattr(shapely, "coverage_simplify", raising=False)
     with pytest.raises(RuntimeError, match="shapely 2.1"):
         vc.coverage_simplify(grid(False), 1)
+
+
+def t_junction():
+    """A tall cell on the left, two short ones on the right: the left's straight edge x=1 has no vertex at (1, 1)."""
+    return gdf([box(0, 0, 1, 2), box(1, 0, 2, 1), box(1, 1, 2, 2)], n=[10, 20, 30])
+
+
+def test_coverage_node_adds_the_junction_vertex():
+    g = t_junction()
+    r = vc.coverage_node(g)
+    assert list(r.columns) == ["n", "geometry", "added"] and list(r.n) == [10, 20, 30] and r.crs == g.crs
+    assert list(r.added) == [1, 0, 0]
+    # box(0, 0, 1, 2) starts at (1, 0) and runs counter-clockwise: (1, 1) lands between (1, 0) and (1, 2)
+    assert coords(r.geometry[0]) == [(1, 0), (1, 1), (1, 2), (0, 2), (0, 0), (1, 0)]
+    assert r.geometry[1].equals_exact(g.geometry[1], 0) and r.geometry[2].equals_exact(g.geometry[2], 0)
+    assert r.geometry.geom_equals(g.geometry).all()
+    assert list(g.geometry[0].exterior.coords) == [(1, 0), (1, 2), (0, 2), (0, 0), (1, 0)]  # the input untouched
+    assert vc.coverage_node(r).added.sum() == 0  # again: nothing to add
+
+
+@needs_cov
+def test_coverage_node_makes_a_valid_coverage():
+    g = t_junction()
+    assert not vc.coverage_validate(g).valid.all()
+    r = vc.coverage_node(g)
+    assert vc.coverage_validate(r).valid.all()
+    s = vc.coverage_simplify(r, 0.5)
+    assert shapely.coverage_is_valid(_arr(s))
+
+
+def test_coverage_node_order_holes_and_multipolygons():
+    # a frame with a hole holding four quarters: the hole's edges get the quarters' midpoints, once each
+    frame = Polygon(box(0, 0, 6, 6).exterior.coords, [box(2, 2, 4, 4).exterior.coords])
+    quarters = [box(2, 2, 3, 3), box(3, 2, 4, 3), box(2, 3, 3, 4), box(3, 3, 4, 4)]
+    multi = shapely.MultiPolygon([box(10, 0, 11, 3), box(20, 0, 21, 1)])
+    g = gdf([frame, *quarters, multi, box(11, 0, 12, 1), box(11, 1, 12, 2), Polygon()])
+    r = vc.coverage_node(g)
+    assert list(r.added) == [4, 0, 0, 0, 0, 2, 0, 0, 0]
+    hole = coords(r.geometry[0].interiors[0])
+    assert len(hole) == 9 and set(hole) >= {(3, 2), (4, 3), (3, 4), (2, 3)}
+    assert r.geometry[0].exterior.equals_exact(frame.exterior, 0)
+    assert r.geometry[5].geom_type == "MultiPolygon" and len(r.geometry[5].geoms) == 2
+    assert coords(r.geometry[5].geoms[0]) == [(11, 0), (11, 1), (11, 2), (11, 3), (10, 3), (10, 0), (11, 0)]
+    assert r.geometry[5].geoms[1].equals_exact(multi.geoms[1], 0)
+    assert r.geometry[8].is_empty
+
+
+def test_coverage_node_two_vertices_on_one_segment_in_order():
+    # one long edge from (0, 0) to (0, 4), clockwise, with three neighbours on its left: added from (0, 0) upwards
+    long = Polygon([(0, 0), (0, 4), (1, 4), (1, 0)])
+    g = gdf([long, box(-1, 0, 0, 1), box(-1, 1, 0, 3), box(-1, 3, 0, 4), box(-1, 3, 0, 4)])
+    r = vc.coverage_node(g)
+    assert coords(r.geometry[0]) == [(0, 0), (0, 1), (0, 3), (0, 4), (1, 4), (1, 0), (0, 0)]
+    assert r.added[0] == 2  # (0, 3) twice (two equal neighbours) is added once
+
+
+def test_coverage_node_tolerance():
+    # the neighbour's corner 1e-9 off the edge: not added exactly, added with a tolerance (its own coordinates)
+    g = gdf([box(0, 0, 1, 2), box(1 + 1e-9, 0, 2, 1), box(1 + 1e-9, 1, 2, 2)])
+    assert vc.coverage_node(g).added[0] == 0
+    r = vc.coverage_node(g, tolerance=1e-6)
+    assert r.added[0] == 1 and (1 + 1e-9, 1.0) in coords(r.geometry[0])
+    # a vertex within the tolerance of an end is that end: not added
+    near_end = gdf([box(0, 0, 1, 2), box(1, 1e-7, 2, 1)])
+    assert vc.coverage_node(near_end, tolerance=1e-6).added[0] == 1  # (1, 1) only; (1, 1e-7) is the end (1, 0)
+
+
+def test_coverage_node_errors_and_path(tmp_path):
+    with pytest.raises(ValueError, match="polygons"):
+        vc.coverage_node(gdf([LineString([(0, 0), (1, 1)])]))
+    for bad in (-1, float("nan"), float("inf"), True):
+        with pytest.raises(ValueError, match="tolerance"):
+            vc.coverage_node(t_junction(), tolerance=bad)
+    empty = vc.coverage_node(gdf([Polygon()], n=[1]))
+    assert list(empty.added) == [0]
+    src = tmp_path / "c.gpkg"
+    t_junction().to_file(src)
+    dst = tmp_path / "n.gpkg"
+    r = vc.coverage_node(str(src), out=str(dst))
+    assert list(gpd.read_file(dst).added) == list(r.added) == [1, 0, 0]

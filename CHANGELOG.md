@@ -6,6 +6,14 @@ in a new major version.
 
 ## [Unreleased]
 
+### Added
+- `tf.vector.coverage_node`: the vertices polygons share with their neighbours added to their edges (every vertex of
+  another feature lying on a segment, strictly between its ends; exactly on it by default, within `tolerance`
+  otherwise), so that the polygons of a polygonized raster (GDAL's polygonize, `rasterio.features.shapes`), whose
+  straight edges have no vertex where two neighbours meet them, become a valid coverage for `coverage_validate` and
+  `coverage_simplify`. The features, their order, attributes, rings and existing vertices are kept; a column `added`
+  counts the new vertices. Like PostGIS's `ST_Snap` that only adds vertices; QGIS's *Snap geometries to layer*.
+
 ## [1.63.0] - 2026-11-23
 
 ### Added
