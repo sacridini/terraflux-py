@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/terraflux-py/"><img alt="PyPI" src="https://img.shields.io/pypi/v/terraflux-py"></a>
-  <a href="https://doi.org/10.5281/zenodo.24515396"><img alt="DOI 10.5281/zenodo.24515396" src="https://zenodo.org/badge/DOI/10.5281/zenodo.24515396.svg"></a>
+  <a href="https://doi.org/10.5281/zenodo.24515396"><img alt="DOI 10.5281/zenodo.24515396" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.24515396-1682D4"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
   <img alt="C++17 / OpenMP" src="https://img.shields.io/badge/core-C%2B%2B17%20%C2%B7%20OpenMP-00599c">
   <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-2e7d32">
