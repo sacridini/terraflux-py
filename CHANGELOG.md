@@ -14,6 +14,12 @@ in a new major version.
   `coverage_simplify`. The features, their order, attributes, rings and existing vertices are kept; a column `added`
   counts the new vertices. Like PostGIS's `ST_Snap` that only adds vertices; QGIS's *Snap geometries to layer*.
 
+### Changed
+- The predicates `within`, `contains`, `intersects`, `touches`, `crosses`, `overlaps`, `covers`, `covered_by`,
+  `contains_properly` and `equals` of `tf.vector` are plain functions with their own docstrings (what the
+  predicate means, its edge cases, the PostGIS and QGIS names, an example), so that the API reference shows them;
+  they were made by a factory before. Same signature and behaviour.
+
 ## [1.63.0] - 2026-11-23
 
 ### Added

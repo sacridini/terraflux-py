@@ -300,42 +300,176 @@ def select(a, b, predicate="intersects", distance=None, invert=False, out=None):
     return _write(result, out)
 
 
-def _predicate_function(name, summary, postgis, qgis):
-    def fn(a, b, *, out=None):
-        return select(a, b, name, out=out)
+def within(a, b, *, out=None):
+    """The features of ``a`` that lie inside at least one feature of ``b``.
 
-    fn.__name__ = fn.__qualname__ = name
-    fn.__doc__ = (
-        f"The features of ``a`` {summary} at least one feature of ``b``.\n\n"
-        f"PostGIS: ``{postgis}``; QGIS: Select by location, '{qgis}'.\n\n"
-        "An empty or missing geometry never qualifies. The result is a GeoDataFrame with the attributes of ``a`` in\n"
-        "its order, the index reset (see :func:`select` for ``invert`` and :func:`relate` for a bool array).\n\n"
-        f">>> tf.vector.{name}(points, polygons)          # doctest: +SKIP\n"
-    )
-    return fn
+    No point of the feature is outside the feature of ``b`` and their interiors meet, so a point on the edge of a
+    polygon is **not** within it (use :func:`covered_by` to count the edge). A polygon within itself is.
+
+    Short for ``select(a, b, "within")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Within(a.geom, b.geom)``; QGIS: *Select by location*, 'are within'.
+
+    >>> inside = tf.vector.within(trees, parks)          # the trees in a park  # doctest: +SKIP
+    """
+    return select(a, b, "within", out=out)
 
 
-within = _predicate_function("within", "lying completely inside (interiors meet, no point outside)",
-                             "ST_Within(a.geom, b.geom)", "are within")
-contains = _predicate_function("contains", "that completely contain", "ST_Contains(a.geom, b.geom)", "contain")
-intersects = _predicate_function("intersects", "that share at least one point with", "ST_Intersects(a.geom, b.geom)",
-                                 "intersect")
-touches = _predicate_function("touches", "that touch (share boundary points, no interior points) with",
-                              "ST_Touches(a.geom, b.geom)", "touch")
-crosses = _predicate_function("crosses", "that cross (share interior points, in a lower dimension) with",
-                              "ST_Crosses(a.geom, b.geom)", "cross")
-overlaps = _predicate_function("overlaps",
-                               "that overlap (same dimension, partly shared, neither inside the other) with",
-                               "ST_Overlaps(a.geom, b.geom)", "overlap")
-covers = _predicate_function("covers", "that cover (no point of b outside a; a point on a's edge counts) with",
-                             "ST_Covers(a.geom, b.geom)", "cover")
-covered_by = _predicate_function("covered_by", "covered by (no point outside; the edge counts) with",
-                                 "ST_CoveredBy(a.geom, b.geom)", "are covered by")
-contains_properly = _predicate_function("contains_properly",
-                                        "that contain properly (b touches only the interior of a) with",
-                                        "ST_ContainsProperly(a.geom, b.geom)", "contain properly")
-equals = _predicate_function("equals", "topologically equal to (same point set, any vertex order or start) with",
-                             "ST_Equals(a.geom, b.geom)", "are equal")
+def contains(a, b, *, out=None):
+    """The features of ``a`` that contain at least one feature of ``b``.
+
+    The converse of :func:`within`: no point of the feature of ``b`` is outside the feature of ``a`` and their
+    interiors meet, so a polygon does **not** contain a point on its edge (use :func:`covers` for that).
+
+    Short for ``select(a, b, "contains")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Contains(a.geom, b.geom)``; QGIS: *Select by location*, 'contain'.
+
+    >>> with_trees = tf.vector.contains(parks, trees)    # the parks that hold a tree  # doctest: +SKIP
+    """
+    return select(a, b, "contains", out=out)
+
+
+def intersects(a, b, *, out=None):
+    """The features of ``a`` that share at least one point with a feature of ``b``.
+
+    The broadest predicate: touching counts, as does lying inside. Its negation is :func:`disjoint`.
+
+    Short for ``select(a, b, "intersects")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Intersects(a.geom, b.geom)``; QGIS: *Select by location*, 'intersect'.
+
+    >>> crossed = tf.vector.intersects(parcels, roads)   # the parcels a road reaches  # doctest: +SKIP
+    """
+    return select(a, b, "intersects", out=out)
+
+
+def touches(a, b, *, out=None):
+    """The features of ``a`` that touch at least one feature of ``b``.
+
+    They share boundary points but no interior point: two parcels with a common edge or corner, a line ending on
+    a polygon's edge. Two points never touch (a point has no boundary).
+
+    Short for ``select(a, b, "touches")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Touches(a.geom, b.geom)``; QGIS: *Select by location*, 'touch'.
+
+    >>> neighbours = tf.vector.touches(parcels, parcel)  # the parcels next to one  # doctest: +SKIP
+    """
+    return select(a, b, "touches", out=out)
+
+
+def crosses(a, b, *, out=None):
+    """The features of ``a`` that cross at least one feature of ``b``.
+
+    They share interior points, and what they share has fewer dimensions than the larger of the two: a road
+    crossing a river (a point), a line passing through a polygon (part of the line, part of it outside).
+    Two polygons never cross (see :func:`overlaps`).
+
+    Short for ``select(a, b, "crosses")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Crosses(a.geom, b.geom)``; QGIS: *Select by location*, 'cross'.
+
+    >>> bridges = tf.vector.crosses(roads, rivers)       # the roads over a river  # doctest: +SKIP
+    """
+    return select(a, b, "crosses", out=out)
+
+
+def overlaps(a, b, *, out=None):
+    """The features of ``a`` that overlap at least one feature of ``b``.
+
+    Both have the same dimension, they share part of their interiors, and neither is inside the other: two
+    polygons partly on top of each other, two lines along a common stretch. A polygon inside another does not
+    overlap it (that is :func:`within`).
+
+    Short for ``select(a, b, "overlaps")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Overlaps(a.geom, b.geom)``; QGIS: *Select by location*, 'overlap'.
+
+    >>> clashes = tf.vector.overlaps(claims, reserves)   # claims partly in a reserve  # doctest: +SKIP
+    """
+    return select(a, b, "overlaps", out=out)
+
+
+def covers(a, b, *, out=None):
+    """The features of ``a`` that cover at least one feature of ``b``.
+
+    No point of the feature of ``b`` is outside the feature of ``a``; unlike :func:`contains`, a feature lying on
+    the edge counts (a polygon covers a point on its edge, or its own boundary).
+
+    Short for ``select(a, b, "covers")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Covers(a.geom, b.geom)``; QGIS: *Select by location*, 'cover'.
+
+    >>> with_trees = tf.vector.covers(parks, trees)      # the edge counts  # doctest: +SKIP
+    """
+    return select(a, b, "covers", out=out)
+
+
+def covered_by(a, b, *, out=None):
+    """The features of ``a`` covered by at least one feature of ``b``.
+
+    No point of the feature of ``a`` is outside the feature of ``b``; unlike :func:`within`, the edge counts (a
+    point on the edge of a polygon is covered by it).
+
+    Short for ``select(a, b, "covered_by")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_CoveredBy(a.geom, b.geom)``; QGIS: *Select by location*, 'are covered by'.
+
+    >>> in_or_on = tf.vector.covered_by(trees, parks)    # the trees in a park or on its edge  # doctest: +SKIP
+    """
+    return select(a, b, "covered_by", out=out)
+
+
+def contains_properly(a, b, *, out=None):
+    """The features of ``a`` that contain at least one feature of ``b`` properly.
+
+    The feature of ``b`` lies in the interior of the feature of ``a`` and does not touch its boundary: a
+    polygon does not contain itself properly, nor a line that runs to its edge. Faster than :func:`contains`
+    with many points against few polygons.
+
+    Short for ``select(a, b, "contains_properly")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_ContainsProperly(a.geom, b.geom)``; QGIS: *Select by location*, 'contain properly'.
+
+    >>> core = tf.vector.contains_properly(reserves, nests)  # off the edges  # doctest: +SKIP
+    """
+    return select(a, b, "contains_properly", out=out)
+
+
+def equals(a, b, *, out=None):
+    """The features of ``a`` that are topologically equal to at least one feature of ``b``.
+
+    The same set of points, whatever the vertices: a ring may start elsewhere, run the other way or have an extra
+    vertex along an edge. Exact coordinates count: a vertex moved by a rounding is another geometry.
+
+    Short for ``select(a, b, "equals")``. :func:`select` also takes ``invert``, :func:`relate` gives
+    one bool per feature and :func:`count` how many features of ``b``. An empty or missing geometry never
+    qualifies. The result is a GeoDataFrame with the attributes of ``a`` in its order, the index reset.
+
+    PostGIS: ``ST_Equals(a.geom, b.geom)``; QGIS: *Select by location*, 'are equal'.
+
+    >>> unchanged = tf.vector.equals(parcels_2024, parcels_2020)  # shapes kept  # doctest: +SKIP
+    """
+    return select(a, b, "equals", out=out)
 
 
 def disjoint(a, b, *, out=None):
