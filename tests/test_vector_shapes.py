@@ -179,3 +179,78 @@ def test_input_not_changed_and_index_reset():
     assert list(r.index) == [0, 1]
     assert list(r["v"]) == [2, 1]
     assert g.geometry.geom_equals(before).all() and list(g.index) == [1, 0]
+
+
+# ------------------------------------------------------------------------------------------------------- shape
+
+
+def test_shape_circle_like_buffer():
+    r = vs.shape(_gdf([Point(0, 0).buffer(10, quad_segs=64)]))
+    assert r["inscribed_radius"][0] == pytest.approx(10, rel=2e-3)
+    assert r["bounding_radius"][0] == pytest.approx(10, rel=1e-3)
+    assert abs(r["circle"][0]) < 2e-3 and abs(r["elongation"][0]) < 1e-3
+
+
+def test_shape_rectangle_east_west():
+    r = vs.shape(_gdf([box(0, 0, 100, 10)], name=["r"]))
+    assert r.crs == "EPSG:32633" and r["name"][0] == "r"
+    assert r["inscribed_radius"][0] == 5.0
+    assert (r["rect_length"][0], r["rect_width"][0]) == (100.0, 10.0)
+    assert r["elongation"][0] == pytest.approx(0.9)
+    assert r["orientation"][0] == 90.0
+    br = np.hypot(100, 10) / 2
+    assert r["bounding_radius"][0] == pytest.approx(br)
+    assert r["circle"][0] == pytest.approx(1 - 1000 / (np.pi * br ** 2))
+    assert r.geometry[0].equals(box(0, 0, 100, 10))
+    assert list(r.columns) == ["name", "geometry", "inscribed_radius", "bounding_radius", "circle", "rect_length",
+                               "rect_width", "elongation", "orientation"]
+
+
+@pytest.mark.parametrize("deg", [0, 15, 45, 90, 135, 170])
+def test_shape_orientation_of_rotated_rectangle(deg):
+    # a 40 x 4 rectangle whose long side points deg degrees clockwise from north
+    from shapely import affinity
+
+    base = affinity.rotate(box(-20, -2, 20, 2), 90 - deg, origin=(0, 0))  # box's long side points at 90 degrees
+    r = vs.shape(_gdf([base]))
+    assert r["orientation"][0] == pytest.approx(deg, abs=1e-9)
+    assert r["rect_length"][0] == pytest.approx(40) and r["rect_width"][0] == pytest.approx(4)
+
+
+def test_shape_square_and_multipolygon_and_empty():
+    g = _gdf([box(0, 0, 5, 5), MultiPolygon([box(0, 0, 10, 2), box(0, 5, 10, 7)]), Polygon(), None])
+    r = vs.shape(g)
+    assert r["elongation"][0] == 0.0 and r["rect_length"][0] == 5.0
+    assert r["rect_length"][1] == 10.0 and r["rect_width"][1] == 7.0
+    assert r[r.columns[2:]].iloc[2:].isna().all().all()
+    assert r.geometry[2].is_empty and r.geometry[3] is None
+
+
+def test_shape_tolerance_and_geometry_options():
+    p = Polygon([(0, 0), (30, 0), (30, 10), (0, 10)])
+    g = _gdf([p])
+    tight = vs.shape(g, tolerance=0.001)["inscribed_radius"][0]
+    assert tight == pytest.approx(5.0, abs=1e-3)
+    ins = vs.shape(g, geometry="inscribed")
+    c = shapely.get_point(shapely.maximum_inscribed_circle(p), 0)
+    assert ins.geometry[0].equals(shapely.buffer(c, ins["inscribed_radius"][0]))  # quad_segs 8
+    assert ins.geometry[0].area == pytest.approx(np.pi * 25, rel=0.02)
+    bnd = vs.shape(g, geometry="bounding").geometry[0]
+    assert bnd.equals(shapely.minimum_bounding_circle(p))
+    rect = vs.shape(g, geometry="rectangle").geometry[0]
+    assert rect.equals(shapely.oriented_envelope(p))
+    assert vs.shape(g, geometry="feature").geometry[0].equals_exact(p, 0)
+    with pytest.raises(ValueError):
+        vs.shape(g, geometry="hull")
+
+
+def test_shape_rejects_other_kinds_and_renames_columns(tmp_path):
+    with pytest.raises(ValueError):
+        vs.shape(_gdf([Point(0, 0)]))
+    with pytest.raises(ValueError):
+        vs.shape(_gdf([LineString([(0, 0), (1, 1)])]))
+    g = _gdf([box(0, 0, 4, 2)], circle=[9.0])
+    out = tmp_path / "shape.gpkg"
+    r = vs.shape(g, out=out)
+    assert r["circle"][0] == 9.0 and "circle_2" in r.columns
+    assert len(gpd.read_file(out)) == 1

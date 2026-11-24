@@ -12,6 +12,7 @@ from __future__ import annotations
 import numpy as np
 
 from ._vector import _as_geodataframe, _gpd, to_crs, write_vector
+from ._vector_lines import _expand, _load, _objects, _rename
 
 __all__ = [
     "boundary",
@@ -21,7 +22,9 @@ __all__ = [
     "hull",
     "make_valid",
     "measures",
+    "shape",
     "simplify",
+    "split",
 ]
 
 
@@ -246,3 +249,197 @@ def measures(a, geodesic=False, out=None):
     x[full], y[full] = shapely.get_x(c[full]), shapely.get_y(c[full])
     gdf["x"], gdf["y"] = x, y
     return _write(gdf, out)
+
+
+# ------------------------------------------------------------------------------------------------------- split
+
+_CUTTABLE = (1, 2, 3, 5, 6)  # LineString, LinearRing, Polygon, MultiLineString, MultiPolygon
+
+
+def _blade_of(g):
+    """The blade a geometry gives: a line as it is, a polygon its boundary (None for none)."""
+    import shapely
+
+    if g is None or shapely.is_empty(g):
+        return None
+    return shapely.boundary(g) if shapely.get_type_id(g) in (3, 6) else g
+
+
+def _rank_order(pieces, size):
+    """The order of pieces: the larger ``size`` first; on a tie, the larger y of the point on surface first, then the
+    smaller x; then the position (stable)."""
+    import shapely
+
+    pos = shapely.point_on_surface(pieces)
+    return np.lexsort((np.arange(len(pieces)), shapely.get_x(pos), -shapely.get_y(pos), -size))
+
+
+def _cut_polygon(poly, blade):
+    """The pieces of a Polygon cut by ``blade`` (as shapely.ops.split): the faces polygonized from the union of its
+    boundary and the blade whose point on surface lies within the polygon."""
+    import shapely
+
+    faces = shapely.get_parts(shapely.polygonize([shapely.union(shapely.boundary(poly), blade)]))
+    if len(faces) == 0:
+        return [poly]
+    pts = shapely.point_on_surface(faces)
+    return [f for f, ok in zip(faces, shapely.contains(poly, pts)) if ok]
+
+
+def split(a, lines, out=None):
+    """Each polygon or line of ``a`` cut by the lines of ``lines``, one row per piece.
+
+    ``lines`` holds lines or polygons (a polygon gives its boundary as blades); points in ``lines`` or in ``a`` raise
+    ``ValueError``, as does a collection. For each feature of ``a`` the blade is the union of the features of
+    ``lines`` that intersect it (an STRtree finds them; empty or missing ones are ignored).
+
+    - A feature with no blade, or one that gives no more pieces than it has parts (a blade that only dangles inside a
+      polygon, touches it from outside, or covers a line entirely; a multi-part feature none of whose parts is cut),
+      is kept unchanged: one piece, its geometry as it was. When one part of a multi-part feature is cut, every part
+      and piece is a row of its own.
+    - A polygon is cut as ``shapely.ops.split`` does: the faces polygonized from the union of its boundary and the
+      blade, keeping those whose point on surface lies within the polygon. A MultiPolygon is cut part by part (the
+      same blade for every part). Holes are kept (a blade across a hole cuts through it).
+    - A line is cut at its crossings with the blade: ``difference(line, blade)``, whose parts are the pieces (a
+      stretch lying along a blade is removed, not cut). A MultiLineString is cut as a whole.
+    - An empty or missing geometry of ``a`` is kept as one row: ``part`` 1, ``parts`` 1.
+
+    Rows follow the order of ``a`` and, within a feature, ``part``. Each row has the attributes of the feature of
+    ``a`` and the columns ``part`` (int, 1..n: 1 the largest piece by area for polygons, by length for lines; on a
+    tie the one whose point on surface has the larger y first, then the smaller x, then the order GEOS gave them) and
+    ``parts`` (int, n of that feature). A column ``a`` has with those names gets the suffix ``_2``.
+
+    PostGIS ``ST_Split``; QGIS *Split with lines*; shapely ``shapely.ops.split``.
+
+    >>> tf.vector.split("parcels.gpkg", "roads.gpkg", out="lots.gpkg")  # doctest: +SKIP
+    """
+    import shapely
+
+    ga, gl = _load(a, lines)
+    g = np.asarray(ga.geometry.values, dtype=object)
+    bl = np.asarray(gl.geometry.values, dtype=object)
+    for arr, what in ((g, "a"), (bl, "lines")):
+        live = arr[~(shapely.is_missing(arr) | shapely.is_empty(arr))]
+        kinds = shapely.get_type_id(live)
+        if len(kinds) and not np.isin(kinds, _CUTTABLE).all():
+            raise ValueError(f"{what} must hold lines or polygons (no points or collections)")
+    blades = _objects([_blade_of(x) for x in bl])
+    keep = np.flatnonzero([x is not None for x in blades])
+    tree = shapely.STRtree(blades[keep]) if len(keep) else None
+    rows, part, parts, geoms = [], [], [], []
+    for i, geom in enumerate(g):
+        pieces = None
+        if geom is not None and not shapely.is_empty(geom) and tree is not None:
+            hit = np.sort(keep[tree.query(geom, predicate="intersects")])
+            if len(hit):
+                blade = shapely.union_all(blades[hit])
+                if shapely.get_type_id(geom) in (3, 6):
+                    pieces = [p for part_ in shapely.get_parts(geom) for p in _cut_polygon(part_, blade)]
+                    size = shapely.area(pieces)
+                else:
+                    pieces = list(shapely.get_parts(shapely.difference(geom, blade)))
+                    size = shapely.length(pieces)
+                if len(pieces) <= shapely.get_num_geometries(geom):  # no part was cut: the feature as it was
+                    pieces = None
+                else:
+                    order = _rank_order(np.asarray(pieces, dtype=object), np.asarray(size))
+                    pieces = [pieces[k] for k in order]
+        if pieces is None:
+            pieces = [geom]
+        for k, p in enumerate(pieces):
+            rows.append(i)
+            part.append(k + 1)
+            parts.append(len(pieces))
+            geoms.append(p)
+    cols = {"part": np.asarray(part, dtype=np.int64), "parts": np.asarray(parts, dtype=np.int64)}
+    return _write(_expand(ga, rows, cols, geoms), out)
+
+
+# ------------------------------------------------------------------------------------------------------- shape
+
+_SHAPE_GEOMETRY = ("feature", "inscribed", "bounding", "rectangle")
+
+
+def shape(a, tolerance=None, geometry="feature", out=None):
+    """Shape descriptors of polygons, one row per feature of ``a`` (polygons and multipolygons only: other kinds
+    raise ``ValueError``; empty or missing geometries give NaN in every column).
+
+    New columns (float, in the units of the CRS; a name ``a`` already has gets the suffix ``_2``):
+
+    - ``inscribed_radius``: the radius of the maximum inscribed circle (the length of the line
+      ``shapely.maximum_inscribed_circle`` returns), the "depth" of the patch: the farthest any point is from its
+      edge. ``tolerance`` stops the search when the area searched is smaller than it; ``None`` is shapely's default,
+      ``max(width, height) / 1000`` of each feature's envelope. PostGIS ``ST_MaximumInscribedCircle``.
+    - ``bounding_radius``: the radius of the minimum bounding circle (``shapely.minimum_bounding_radius``). PostGIS
+      ``ST_MinimumBoundingCircle``.
+    - ``circle``: FRAGSTATS's related circumscribing circle (McGarigal), ``1 - area / (pi * bounding_radius ** 2)``:
+      0 for a circle, near 1 for a long thin patch (NaN when the radius is 0).
+    - ``rect_length`` and ``rect_width``: the long and short sides of the minimum rotated rectangle
+      (``shapely.oriented_envelope``; PostGIS ``ST_OrientedEnvelope``).
+    - ``elongation``: ``1 - rect_width / rect_length``, 0 for a square, near 1 for an elongated patch (NaN when the
+      length is 0).
+    - ``orientation``: the direction of the long side in degrees clockwise from north (the +y axis), in [0, 180).
+      With c0, c1, c2 the first coordinates of the rectangle's exterior as GEOS returns them, side A = c1 - c0 and
+      side B = c2 - c1, the long side is A if |A| >= |B| else B, and ``orientation = degrees(atan2(dx, dy)) mod
+      180`` of it (180 becomes 0). A degenerate rectangle GEOS gives as a line has A = the line and B = 0; as a point,
+      length and width 0 and orientation NaN.
+
+    ``geometry`` is what the result's geometry is: ``"feature"`` (default) the feature's own, ``"inscribed"`` the
+    maximum inscribed circle as a polygon (the buffer of its centre by the radius, shapely's default ``quad_segs=8``),
+    ``"bounding"`` the minimum bounding circle (``shapely.minimum_bounding_circle``), ``"rectangle"`` the oriented
+    envelope. Anything else raises ``ValueError``.
+
+    FRAGSTATS: the CIRCLE metric (McGarigal & Marks 1995); PostGIS: ``ST_MaximumInscribedCircle``,
+    ``ST_MinimumBoundingCircle``, ``ST_OrientedEnvelope``.
+
+    >>> tf.vector.shape("patches.gpkg", geometry="inscribed", out="cores.gpkg")  # doctest: +SKIP
+    """
+    import shapely
+
+    if geometry not in _SHAPE_GEOMETRY:
+        raise ValueError(f"unknown geometry {geometry!r} (one of {', '.join(_SHAPE_GEOMETRY)})")
+    gdf = _one(a)
+    g = _array(gdf)
+    live = ~(shapely.is_missing(g) | shapely.is_empty(g))
+    if live.any() and not np.isin(shapely.get_type_id(g[live]), (3, 6)).all():
+        raise ValueError("shape needs polygons or multipolygons")
+    n = len(g)
+    names = ("inscribed_radius", "bounding_radius", "circle", "rect_length", "rect_width", "elongation", "orientation")
+    cols = {k: np.full(n, np.nan) for k in names}
+    geoms = g.copy()
+    idx = np.flatnonzero(live)
+    if len(idx):
+        p = g[idx]
+        mic = shapely.maximum_inscribed_circle(p, tolerance)
+        radius = shapely.length(mic)
+        brad = shapely.minimum_bounding_radius(p)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            cols["circle"][idx] = np.where(brad > 0, 1.0 - shapely.area(p) / (np.pi * brad ** 2), np.nan)
+        cols["inscribed_radius"][idx], cols["bounding_radius"][idx] = radius, brad
+        rect = shapely.oriented_envelope(p)
+        length, width, orient = np.full(len(p), np.nan), np.full(len(p), np.nan), np.full(len(p), np.nan)
+        for k, r in enumerate(rect):
+            xy = shapely.get_coordinates(r)
+            if len(xy) < 2:
+                length[k] = width[k] = 0.0
+                continue
+            ab = xy[1] - xy[0]
+            bb = xy[2] - xy[1] if len(xy) > 2 else np.zeros(2)
+            la, lb = np.hypot(*ab), np.hypot(*bb)
+            long_, (dx, dy) = (la, ab) if la >= lb else (lb, bb)
+            length[k], width[k] = long_, min(la, lb)
+            o = np.degrees(np.arctan2(dx, dy)) % 180.0
+            orient[k] = 0.0 if o >= 180.0 else o
+        cols["rect_length"][idx], cols["rect_width"][idx], cols["orientation"][idx] = length, width, orient
+        with np.errstate(divide="ignore", invalid="ignore"):
+            cols["elongation"][idx] = np.where(length > 0, 1.0 - width / length, np.nan)
+        if geometry == "inscribed":
+            geoms[idx] = shapely.buffer(shapely.get_point(mic, 0), radius)
+        elif geometry == "bounding":
+            geoms[idx] = shapely.minimum_bounding_circle(p)
+        elif geometry == "rectangle":
+            geoms[idx] = rect
+    ren = _rename(list(cols), gdf.columns, "_2")
+    for k, v in cols.items():
+        gdf[ren[k]] = v
+    return _replace(gdf, geoms, out)

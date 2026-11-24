@@ -223,3 +223,88 @@ def test_errors():
         tf.vector.join(PTS, POLY, how="many")
     with pytest.raises(ValueError, match="not a column"):
         tf.vector.join(POLY, PTS, "contains", how="summary", fields="nope")
+
+
+def _brute(ga, gb, k, own=False, max_distance=None):
+    A = np.asarray(ga.geometry.values, dtype=object)
+    B = np.asarray(gb.geometry.values, dtype=object)
+    D = shapely.distance(A[:, None], B[None, :])
+    if own:
+        np.fill_diagonal(D, np.inf)
+    out = []
+    for i in range(len(A)):
+        o = np.lexsort((np.arange(len(B)), D[i]))[:k]
+        o = [j for j in o if np.isfinite(D[i, j]) and (max_distance is None or D[i, j] <= max_distance)]
+        out.append((o, D[i, o]))
+    return out
+
+
+def test_nearest_k_matches_brute_force():
+    for ga, gb, key in ((PTS, POLY, "gid"), (PTS, PTS.iloc[::3].reset_index(drop=True), "pid_2"),
+                        (POLY, PTS, "pid"), (LINES, POLY, "gid")):
+        ref = _brute(ga, gb, 3)
+        r = tf.vector.nearest(ga, gb, k=3)
+        n = np.array([len(o) for o, _ in ref])
+        assert r["rank"].dtype.name == "Int64" and len(r) == n.sum()
+        assert list(r["rank"]) == [k for m in n for k in range(1, m + 1)]
+        assert np.array_equal(r["distance"].to_numpy(), np.concatenate([d for _, d in ref]))
+        ids = gb["gid" if "gid" in gb.columns else "pid"].to_numpy()
+        got = r[key if key in r.columns else "pid"]
+        assert list(got.astype(int)) == [int(ids[j]) for o, _ in ref for j in o]
+
+
+def test_nearest_k_order_ties_and_columns():
+    a = gpd.GeoDataFrame({"k": [1, 2]}, geometry=[Point(0, 0), Point(100, 100)], crs=CRS)
+    b = gpd.GeoDataFrame({"v": [10, 20, 30, 40, 50]},
+                         geometry=[Point(5, 0), Point(-1, 0), Point(1, 0), Point(0, 1), Point(0, 7)], crs=CRS)
+    r = tf.vector.nearest(a, b, k=3)
+    assert list(r.columns) == ["k", "geometry", "v", "distance", "rank"]
+    assert list(r["k"]) == [1, 1, 1, 2, 2, 2] and list(r["rank"]) == [1, 2, 3] * 2
+    assert list(r["v"])[:3] == [20, 30, 40]  # distances 1, 1, 1: the lower index of b first
+    assert r["distance"].tolist()[:3] == [1.0, 1.0, 1.0]
+    assert r.crs == a.crs
+    # k = 1 has no rank column; k larger than b gives all of b
+    assert "rank" not in tf.vector.nearest(a, b, k=1).columns
+    assert len(tf.vector.nearest(a, b.iloc[:2], k=5)) == 4
+    for bad in (0, -1, 1.5, "2", True):
+        with pytest.raises(ValueError):
+            tf.vector.nearest(a, b, k=bad)
+
+
+def test_nearest_k_max_distance_and_missing_rows():
+    a = gpd.GeoDataFrame({"k": [1, 2, 3]}, geometry=[Point(0, 0), Point(100, 100), None], crs=CRS)
+    b = gpd.GeoDataFrame({"v": [10, 20, 30]}, geometry=[Point(2, 0), Point(-1, 0), Point(0, 3)], crs=CRS)
+    r = tf.vector.nearest(a, b, k=3, max_distance=2.0)
+    assert list(r["k"]) == [1, 1, 2, 3]  # the 3 at distance 3 cut; 2 and 3 keep one empty row
+    assert r["rank"][:2].tolist() == [1, 2]
+    assert r["rank"].isna().tolist() == [False, False, True, True]
+    assert r["distance"].tolist()[:2] == [1.0, 2.0] and r["distance"].isna().tolist()[2:] == [True, True]
+    assert r["v"].isna().tolist() == [False, False, True, True]
+    e = tf.vector.nearest(a, b.iloc[:0], k=2)
+    assert len(e) == 3 and e["rank"].isna().all() and e["distance"].isna().all()
+
+
+def test_nearest_own_layer_excludes_self_by_index():
+    g = gpd.GeoDataFrame({"id": [0, 1, 2, 3]},
+                         geometry=[Point(0, 0), Point(0, 0), Point(10, 0), Point(10, 3)], crs=CRS)
+    r = tf.vector.nearest(g)  # ENN: the duplicate at 0 counts
+    assert list(r.columns) == ["id", "geometry", "id_2", "distance"]
+    assert list(r["id_2"]) == [1, 0, 3, 2] and r["distance"].tolist() == [0.0, 0.0, 3.0, 3.0]
+    r3 = tf.vector.nearest(g, k=2)
+    assert list(r3["rank"]) == [1, 2] * 4 and list(r3["id_2"])[:2] == [1, 2]
+    assert (r3["id"] != r3["id_2"]).all()
+    lone = tf.vector.nearest(g.iloc[:1])
+    assert len(lone) == 1 and np.isnan(lone["distance"][0])
+    ref = _brute(g, g, 1, own=True)
+    assert [d[0] for _, d in ref] == r["distance"].tolist()
+
+
+def test_nearest_k1_unchanged():
+    pts, polys = _layers()[:2]
+    new = tf.vector.nearest(pts, polys)
+    ref = gpd.sjoin_nearest(pts, polys, distance_col="d", how="left").reset_index()
+    ref = ref.sort_values(["index", "index_right"], kind="stable").drop_duplicates("index")
+    assert len(new) == len(pts) and "rank" not in new.columns
+    assert np.array_equal(new["distance"].to_numpy(), ref["d"].to_numpy())
+    same = tf.vector.nearest(pts, polys, 5.0, 1)  # positional: max_distance, k
+    assert same["distance"].isna().sum() == (new["distance"] > 5.0).sum()

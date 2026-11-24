@@ -7,6 +7,18 @@ in a new major version.
 ## [Unreleased]
 
 ### Added
+- `tf.vector.split(a, lines)` (PostGIS `ST_Split`, QGIS *Split with lines*): polygons and lines of `a` cut by the lines
+  (or the boundaries of the polygons) of `lines` that intersect them, one row per piece with the columns `part` (1 the
+  largest by area or length; ties by the point on surface, larger y then smaller x) and `parts`; a feature a blade does
+  not cut stays as it was; multipolygons are cut part by part.
+- `tf.vector.shape(a, tolerance, geometry)`: shape descriptors of polygons: `inscribed_radius` (maximum inscribed
+  circle, `ST_MaximumInscribedCircle`), `bounding_radius`, `circle` (FRAGSTATS's related circumscribing circle),
+  `rect_length`, `rect_width`, `elongation` and `orientation` (degrees clockwise from north of the long side of the
+  oriented envelope, in [0, 180)); `geometry` gives the feature, the inscribed circle, the bounding circle or the
+  rectangle.
+- `tf.vector.nearest(a, b=None, max_distance, k=1)`: `k` nearest features of `b` (one row per pair, a `rank` column
+  when `k > 1`, ties by the lower index of `b`) and `b=None` for the layer itself, a feature never its own neighbour
+  (FRAGSTATS's ENN, the nearest-neighbour distance between patches). `k=1` with `b` is unchanged.
 - `tf.vector.coverage_node`: the vertices polygons share with their neighbours added to their edges (every vertex of
   another feature lying on a segment, strictly between its ends; exactly on it by default, within `tolerance`
   otherwise), so that the polygons of a polygonized raster (GDAL's polygonize, `rasterio.features.shapes`), whose

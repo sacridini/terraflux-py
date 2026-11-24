@@ -48,7 +48,9 @@ from ._vector_shapes import (
     hull,
     make_valid,
     measures,
+    shape,
     simplify,
+    split,
 )
 
 __all__ = [
@@ -91,9 +93,11 @@ __all__ = [
     "points_along",
     "relate",
     "select",
+    "shape",
     "shortest_line",
     "simplify",
     "smooth",
+    "split",
     "split_lines",
     "substring",
     "symmetric_difference",
@@ -608,7 +612,65 @@ def _rename_dict(cols, taken, suffix):
     return {ren[k]: v for k, v in cols.items()}
 
 
-def nearest(a, b, max_distance=None, distance_col="distance", suffix="_2", out=None):
+def _knearest(ga, gb, k, max_distance, own):
+    """The k nearest features of gb for each of ga: (i, j, distance, rank), one row per pair, sorted by i then rank.
+
+    Exact: the k smallest by (``shapely.distance``, index of gb), found with an STRtree by querying ``dwithin`` with a
+    distance that doubles until the k-th distance lies within it (or it reaches ``max_distance`` or covers all of gb).
+    ``own`` leaves a feature out of its own neighbours (the same layer, by index). A feature of ga without neighbour
+    is absent from the result.
+    """
+    import shapely
+
+    live_a, live_b = np.flatnonzero(_present(ga)), np.flatnonzero(_present(gb))
+    if not len(live_a) or not len(live_b):
+        return (np.zeros(0, np.int64),) * 2 + (np.zeros(0), np.zeros(0, np.int64))
+    tree = shapely.STRtree(gb)
+    ba, bb = shapely.bounds(ga[live_a]), shapely.bounds(gb[live_b])
+    lo = np.minimum(ba[:, :2].min(axis=0), bb[:, :2].min(axis=0))
+    hi = np.maximum(ba[:, 2:].max(axis=0), bb[:, 2:].max(axis=0))
+    span = float(np.hypot(*(hi - lo)))
+    top = span + 1.0  # every feature of gb is within this of any of ga
+    if max_distance is not None and max_distance < top:
+        top = float(max_distance)
+    d = np.full(len(live_a), min(top, max(span / np.sqrt(len(live_b)), 1e-9) if span > 0 else 1.0))
+    ii, jj, dd, rr = [], [], [], []
+    active = np.arange(len(live_a))
+    while len(active):
+        pairs = tree.query(ga[live_a[active]], predicate="dwithin", distance=d[active])
+        pi, pj = active[pairs[0]], pairs[1].astype(np.int64)
+        if own:
+            ok = live_a[pi] != pj
+            pi, pj = pi[ok], pj[ok]
+        pd_ = shapely.distance(ga[live_a[pi]], gb[pj])
+        order = np.lexsort((pj, pd_, pi))
+        pi, pj, pd_ = pi[order], pj[order], pd_[order]
+        start = np.searchsorted(pi, active)
+        count = np.searchsorted(pi, active, side="right") - start
+        kth = np.full(len(active), np.inf)
+        full = count >= k
+        kth[full] = pd_[start[full] + k - 1]
+        done = (full & (kth <= d[active])) | (d[active] >= top)
+        for n, a_ in enumerate(active):
+            if done[n]:
+                sl = slice(start[n], start[n] + min(count[n], k))
+                m = len(pj[sl])
+                ii.append(np.full(m, live_a[a_], dtype=np.int64))
+                jj.append(pj[sl])
+                dd.append(pd_[sl])
+                rr.append(np.arange(1, m + 1, dtype=np.int64))
+        active = active[~done]
+        d[active] = np.minimum(d[active] * 2.0, top)
+    i, j = np.concatenate(ii), np.concatenate(jj)
+    dist, rank = np.concatenate(dd), np.concatenate(rr)
+    if max_distance is not None:
+        ok = dist <= max_distance
+        i, j, dist, rank = i[ok], j[ok], dist[ok], rank[ok]
+    order = np.lexsort((rank, i))
+    return i[order], j[order], dist[order], rank[order]
+
+
+def nearest(a, b=None, max_distance=None, k=1, distance_col="distance", suffix="_2", out=None):
     """Each feature of ``a`` with the attributes of the nearest feature of ``b`` and the distance to it.
 
     One row per feature of ``a``, in its order. The distance is planar, in the CRS units of ``a``, written in the
@@ -617,20 +679,57 @@ def nearest(a, b, max_distance=None, distance_col="distance", suffix="_2", out=N
     numbers, None texts) and a NaN distance; so does an empty or missing geometry of ``a`` or an empty ``b``. The
     geometry column of ``b`` is dropped; a column of ``b`` that ``a`` already has gets ``suffix``.
 
-    PostGIS: ``ORDER BY a.geom <-> b.geom LIMIT 1`` (a lateral join); GeoPandas: ``sjoin_nearest``;
+    ``k`` (an int >= 1, else ``ValueError``) asks for the ``k`` nearest features of ``b``: one row per pair, in the
+    order of ``a`` and then by ``rank``, a new column (nullable ``Int64``, 1..k, ``<NA>`` for a feature without
+    neighbour) that only exists when ``k > 1``. The neighbours of a feature are the ``k`` smallest by (``distance``,
+    index of ``b``): at equal distance the lower index of ``b`` comes first. Fewer than ``k`` rows when ``b`` has
+    fewer features or ``max_distance`` cuts them; a feature of ``a`` with no neighbour at all (empty ``b``, empty or
+    missing geometry, nothing within ``max_distance``) keeps one row with missing values, a NaN distance and a
+    missing rank. The distances are exactly ``shapely.distance``'s.
+
+    ``b=None`` takes the layer itself: a feature is never its own neighbour (excluded by its index, not by geometry:
+    a duplicate at distance 0 counts). The columns of the neighbour get ``suffix`` as all of them are in ``a``. With
+    ``k=1`` this is FRAGSTATS's ENN, the Euclidean nearest-neighbour distance between patches (column ``distance``).
+
+    PostGIS: ``ORDER BY a.geom <-> b.geom LIMIT k`` (a lateral join); GeoPandas: ``sjoin_nearest``;
     QGIS: "Join attributes by nearest".
 
     >>> tf.vector.nearest(houses, hospitals, max_distance=5000)      # doctest: +SKIP
+    >>> tf.vector.nearest(patches, k=3)                              # doctest: +SKIP
     """
     import pandas as pd
 
+    if isinstance(k, bool) or not isinstance(k, (int, np.integer)) or k < 1:
+        raise ValueError(f"k must be an integer >= 1, not {k!r}")
     gpd = _gpd()
-    ga, gb = _load(a, b)
-    idx, dist = _nearest(_geoms(ga), _geoms(gb))
-    if max_distance is not None:
-        far = ~(dist <= max_distance)
-        idx = np.where(far, -1, idx)
-        dist = np.where(far, np.nan, dist)
+    own = b is None
+    if own:
+        ga = _as_geodataframe(a).reset_index(drop=True)
+        gb = ga
+    else:
+        ga, gb = _load(a, b)
+    rank = None
+    if k == 1 and not own:
+        idx, dist = _nearest(_geoms(ga), _geoms(gb))
+        if max_distance is not None:
+            far = ~(dist <= max_distance)
+            idx = np.where(far, -1, idx)
+            dist = np.where(far, np.nan, dist)
+        left = ga
+    else:
+        i, j, d, r = _knearest(_geoms(ga), _geoms(gb), int(k), max_distance, own)
+        n = len(ga)
+        has = np.zeros(n, dtype=bool)
+        has[i] = True
+        miss = np.flatnonzero(~has)  # a feature without neighbour: one row, missing values
+        rows = np.concatenate([i, miss])
+        order = np.lexsort((np.concatenate([r, np.zeros(len(miss), np.int64)]), rows))
+        rows = rows[order]
+        idx = np.concatenate([j, np.full(len(miss), -1, np.int64)])[order]
+        dist = np.concatenate([d, np.full(len(miss), np.nan)])[order]
+        rank = pd.array(np.concatenate([r, np.zeros(len(miss), np.int64)])[order], dtype="Int64")
+        rank[idx < 0] = pd.NA
+        left = ga.iloc[rows].reset_index(drop=True)
     bdf = pd.DataFrame(gb.drop(columns=gb.geometry.name))
     taken = set(ga.columns)
     bdf = bdf.rename(columns=_rename(list(bdf.columns), taken, suffix))
@@ -639,7 +738,12 @@ def nearest(a, b, max_distance=None, distance_col="distance", suffix="_2", out=N
     while dcol in taken or dcol in part.columns:
         dcol = f"{dcol}{suffix}"
     part[dcol] = dist
-    full = pd.concat([pd.DataFrame(ga), part], axis=1)
+    if k > 1:
+        rcol = "rank"
+        while rcol in taken or rcol in part.columns:
+            rcol = f"{rcol}{suffix}"
+        part[rcol] = rank
+    full = pd.concat([pd.DataFrame(left), part], axis=1)
     result = gpd.GeoDataFrame(full, geometry=ga.geometry.name, crs=ga.crs)
     return _write(result, out)
 
