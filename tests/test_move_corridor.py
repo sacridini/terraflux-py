@@ -142,7 +142,9 @@ def test_corridor_is_move2utils(case, ref, tracks):
         elif key in ("azimuth", "circvar") and lonlat:
             # the working projection of longitude / latitude is PROJ's aeqd: R's has PROJ 9.4.1's geodesics, pyproj's
             # PROJ 9.5.1's, which put the coordinates about 1e-8 m apart: the directions agree to 1e-7 of themselves
-            np.testing.assert_allclose(value, want, rtol=1e-6, atol=1e-8, equal_nan=True, err_msg=f"{case} {key}")
+            # (to 1.02e-6 on ARM64, whose sines and cosines are the system's libm's)
+            np.testing.assert_allclose(value, want, rtol=1e-6 if BITWISE else 1e-5, atol=1e-8, equal_nan=True,
+                                       err_msg=f"{case} {key}")
         elif strict:
             same(value, want, f"{case} {key}")
         elif key in ("azimuth", "circvar"):
