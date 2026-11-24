@@ -6,7 +6,19 @@ in a new major version.
 
 ## [Unreleased]
 
+## [1.63.0] - 2026-11-24
+
 ### Added
+- `tf.vector`, vector analysis as in PostGIS with its names: the predicates `within`, `contains`, `intersects`,
+  `touches`, `crosses`, `overlaps`, `covers`, `covered_by`, `contains_properly`, `equals`, `disjoint` and
+  `dwithin(a, b, distance)` (the features of `a` for which the predicate holds with at least one feature of `b`;
+  `disjoint` keeps those that meet none), `select(a, b, predicate, distance, invert)` (the general form), `relate`
+  (a bool array), `count` (how many features of `b` per feature of `a`) and `distance` (to the nearest), `join(a, b,
+  predicate, how="first"|"all"|"summary", fields, suffix, distance)` (as `geopandas.sjoin` / "Join attributes by
+  location": the first match by index, every pair, or count/sum/mean of fields) and `nearest(a, b, max_distance)` (as
+  `sjoin_nearest`; ties go to the lowest index). `a` and `b` are paths, GeoDataFrames or GeoSeries (`b` also a shapely
+  geometry or a list); `b` is reprojected to the CRS of `a`; empty geometries never satisfy a predicate; `out=` writes
+  the result. Tested against geopandas' `sjoin` and `sjoin_nearest`.
 - `tf.vector.split(a, lines)` (PostGIS `ST_Split`, QGIS *Split with lines*): polygons and lines of `a` cut by the lines
   (or the boundaries of the polygons) of `lines` that intersect them, one row per piece with the columns `part` (1 the
   largest by area or length; ties by the point on surface, larger y then smaller x) and `parts`; a feature a blade does
@@ -25,26 +37,6 @@ in a new major version.
   straight edges have no vertex where two neighbours meet them, become a valid coverage for `coverage_validate` and
   `coverage_simplify`. The features, their order, attributes, rings and existing vertices are kept; a column `added`
   counts the new vertices. Like PostGIS's `ST_Snap` that only adds vertices; QGIS's *Snap geometries to layer*.
-
-### Changed
-- The predicates `within`, `contains`, `intersects`, `touches`, `crosses`, `overlaps`, `covers`, `covered_by`,
-  `contains_properly` and `equals` of `tf.vector` are plain functions with their own docstrings (what the
-  predicate means, its edge cases, the PostGIS and QGIS names, an example), so that the API reference shows them;
-  they were made by a factory before. Same signature and behaviour.
-
-## [1.63.0] - 2026-11-23
-
-### Added
-- `tf.vector`, vector analysis as in PostGIS with its names: the predicates `within`, `contains`, `intersects`,
-  `touches`, `crosses`, `overlaps`, `covers`, `covered_by`, `contains_properly`, `equals`, `disjoint` and
-  `dwithin(a, b, distance)` (the features of `a` for which the predicate holds with at least one feature of `b`;
-  `disjoint` keeps those that meet none), `select(a, b, predicate, distance, invert)` (the general form), `relate`
-  (a bool array), `count` (how many features of `b` per feature of `a`) and `distance` (to the nearest), `join(a, b,
-  predicate, how="first"|"all"|"summary", fields, suffix, distance)` (as `geopandas.sjoin` / "Join attributes by
-  location": the first match by index, every pair, or count/sum/mean of fields) and `nearest(a, b, max_distance)` (as
-  `sjoin_nearest`; ties go to the lowest index). `a` and `b` are paths, GeoDataFrames or GeoSeries (`b` also a shapely
-  geometry or a list); `b` is reprojected to the CRS of `a`; empty geometries never satisfy a predicate; `out=` writes
-  the result. Tested against geopandas' `sjoin` and `sjoin_nearest`.
 - `tf.vector` overlay family, with the app's semantics: `overlay(a, b, how="intersection"|"union"|"difference"|
   "symmetric_difference"|"identity", suffix="_2")` and the shortcuts `intersection`, `difference`,
   `symmetric_difference`, `identity` and `union(a, b=None)` (with one layer, everything merged as PostGIS's
