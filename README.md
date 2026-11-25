@@ -14,7 +14,6 @@
 <p align="center">
   <a href="https://pypi.org/project/terraflux-py/"><img alt="PyPI" src="https://img.shields.io/pypi/v/terraflux-py"></a>
   <a href="https://pypi.org/project/terraflux-py/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/terraflux-py"></a>
-  <a href="https://pypistats.org/packages/terraflux-py"><img alt="Downloads" src="https://img.shields.io/pypi/dm/terraflux-py"></a>
   <a href="https://github.com/sacridini/terraflux-py/actions/workflows/release.yml"><img alt="Build" src="https://github.com/sacridini/terraflux-py/actions/workflows/release.yml/badge.svg"></a>
   <a href="https://doi.org/10.5281/zenodo.24515396"><img alt="DOI 10.5281/zenodo.24515396" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.24515396-1682D4"></a>
   <a href="https://github.com/sacridini/terraflux-py/blob/main/LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-2e7d32"></a>
