@@ -7,6 +7,7 @@ import pytest
 import terraflux as tf
 
 gpd = pytest.importorskip("geopandas")
+pd = pytest.importorskip("pandas")
 shapely = pytest.importorskip("shapely")
 from shapely.geometry import LineString, Point, Polygon, box
 
@@ -79,7 +80,7 @@ def test_first_summary_and_dwithin_against_sjoin():
     ref = ref.reset_index().sort_values(["index", "index_right"]).drop_duplicates("index")
     assert len(got) == len(PTS)
     assert np.allclose(got["gid"].to_numpy(dtype=float), ref["gid"].to_numpy(dtype=float), equal_nan=True)
-    assert any(v is None for v in got["name"]) == bool(np.isnan(got["gid"].to_numpy(dtype=float)).any())
+    assert bool(got["name"].isna().any()) == bool(np.isnan(got["gid"].to_numpy(dtype=float)).any())
     summ = tf.vector.join(POLY, PTS, "contains", how="summary", fields="val, pid")
     assert (summ["count"].to_numpy() == tf.vector.count(POLY, PTS, "contains")).all()
     for i in (0, 5, 11):
@@ -131,7 +132,7 @@ def test_nearest_tie_lowest_index_and_max_distance():
     b2.loc[1, "v"] = 99
     assert tf.vector.nearest(a, b2)["v"].iloc[0] == 99  # the lowest index among the tied
     far = tf.vector.nearest(a, b, max_distance=0.5)
-    assert np.isnan(far["v"].iloc[0]) and far["t"].iloc[0] is None and np.isnan(far["distance"].iloc[0])
+    assert np.isnan(far["v"].iloc[0]) and pd.isna(far["t"].iloc[0]) and np.isnan(far["distance"].iloc[0])
     assert tf.vector.nearest(a, b, max_distance=1.0)["v"].iloc[0] == 20
     e = tf.vector.nearest(a, b.iloc[:0])
     assert np.isnan(e["distance"].iloc[0]) and np.isnan(tf.vector.distance(a, b.iloc[:0])[0])
@@ -143,7 +144,7 @@ def test_column_suffix_and_missing_values():
     r = tf.vector.join(a, b, "within")
     assert list(r.columns) == ["id", "name", "geometry", "id_2", "name_2", "n"]
     assert r["id_2"].iloc[0] == 7 and np.isnan(r["id_2"].iloc[1])
-    assert r["name_2"].iloc[1] is None and r["n"].iloc[0] == 3
+    assert pd.isna(r["name_2"].iloc[1]) and r["n"].iloc[0] == 3
     assert r.crs == a.crs and isinstance(r, gpd.GeoDataFrame)
     # how="all": a left join, a without match appears once
     p = gpd.GeoDataFrame({"q": [1, 2]}, geometry=[box(0, 0, 3, 3), box(0, 0, 4, 4)], crs=CRS)

@@ -7,6 +7,7 @@ import pytest
 import terraflux as tf
 
 gpd = pytest.importorskip("geopandas")
+pd = pytest.importorskip("pandas")
 shapely = pytest.importorskip("shapely")
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 
@@ -120,12 +121,12 @@ def test_hand_case_union():
     u = tf.vector.overlay(a, b, "union")
     assert [round(g.area, 9) for g in u.geometry] == [1.0, 3.0, 3.0]
     assert u.x.tolist()[:2] == [1.0, 1.0] and np.isnan(u.x.iloc[2])
-    assert u.y.tolist()[0] == "t" and u.y.iloc[1] is None and u.y.iloc[2] == "t"
+    assert u.y.tolist()[0] == "t" and pd.isna(u.y.iloc[1]) and u.y.iloc[2] == "t"
     s = tf.vector.symmetric_difference(a, b)
     assert [round(g.area, 9) for g in s.geometry] == [3.0, 3.0]
     i = tf.vector.identity(a, b)
     assert [round(g.area, 9) for g in i.geometry] == [1.0, 3.0]
-    assert i.y.tolist() == ["t", None]
+    assert i.y.iloc[0] == "t" and pd.isna(i.y.iloc[1])
 
 
 def test_edge_sharing_pieces_are_dropped():

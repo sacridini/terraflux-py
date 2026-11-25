@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 gpd = pytest.importorskip("geopandas")
+pd = pytest.importorskip("pandas")
 shapely = pytest.importorskip("shapely")
 from shapely.geometry import LineString, MultiLineString, Point
 
@@ -147,7 +148,7 @@ def test_shortest_line():
     r = vl.shortest_line(houses, _gdf([]))
     assert all(g.is_empty for g in r.geometry) and r["distance"].isna().all()
     r = vl.shortest_line(_gdf([Point(1, 1), None]), roads)
-    assert r.geometry[1].is_empty and np.isnan(r["distance"][1]) and r["kind"][1] is None
+    assert r.geometry[1].is_empty and np.isnan(r["distance"][1]) and pd.isna(r["kind"][1])
 
 
 def test_closest_point():
