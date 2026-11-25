@@ -6,6 +6,29 @@ in a new major version.
 
 ## [Unreleased]
 
+### Added
+- `terraflux-py slurm --container {auto,none,PATH}`: the job array's tasks run inside an Apptainer image.
+  `auto` (the default) uses the image `terraflux-py slurm` itself runs in, so that
+  `apptainer exec terraflux.sif terraflux-py slurm ...` writes a script that works on the compute nodes
+  (`exec "$RUNTIME" exec --bind <inputs>,<output> <image> python -m terraflux batch ...`, `$RUNTIME` being
+  apptainer or singularity, whichever the node has); a .sif file or an image such as `docker://...` names it by hand;
+  `none` writes the plain script.
+- `terraflux-py doctor` / `tf.doctor()` tell the container they run in (Apptainer or Singularity with its image,
+  Docker, Podman) and warn when, in Docker or Podman, the cache is in the container's own layer and lost with it.
+- The container image: any user id can run it (`docker run --user "$(id -u):$(id -g)"`, Podman's
+  `--userns=keep-id`), with a home, cache and configuration it can write; tini as its init (`docker stop` and Ctrl+C
+  reach Python); the version, title and documentation in its labels; `--build-arg BUILD_JOBS=N` caps the compiler's
+  parallel jobs.
+
+### Fixed
+- `terraflux-py slurm` run inside the Apptainer image wrote a script whose tasks called the container's own Python
+  (`/usr/local/bin/python`) on the compute node, outside the container: every task failed at once. `--submit` inside
+  a container now says to run `sbatch` outside it.
+
+### Documentation
+- README: features table with animal movement and vector analysis, the published container image, Podman, Apptainer
+  and Enroot/Pyxis, How to cite, a figure, the quick start's output, support.
+
 ## [1.63.0] - 2026-11-24
 
 ### Added

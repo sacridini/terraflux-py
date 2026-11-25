@@ -102,13 +102,25 @@ docker run --rm -v "$PWD:/data" ghcr.io/sacridini/terraflux-py python analysis.p
 
 The current directory is mounted at `/data`, the container's working directory. For
 reproducible work, pin a release (`ghcr.io/sacridini/terraflux-py:<version>`, e.g. `:1.62.0`).
-On HPC clusters, Apptainer runs the same image:
+On Linux, add `--user "$(id -u):$(id -g)"` so that the files written to `/data` belong to
+you, and a named volume keeps downloaded data between runs:
 
 ```bash
-apptainer pull terraflux.sif docker://ghcr.io/sacridini/terraflux-py:<version>
-apptainer exec terraflux.sif python analysis.py
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/data" \
+  -v terraflux-cache:/home/terraflux/.cache ghcr.io/sacridini/terraflux-py python analysis.py
 ```
 
+The image is a standard OCI image, so other runtimes use it as is:
+
+| Runtime | Command |
+|---|---|
+| Podman (rootless) | `podman run --rm --userns=keep-id -v "$PWD:/data" ghcr.io/sacridini/terraflux-py python analysis.py` |
+| Apptainer / Singularity (HPC) | `apptainer pull terraflux.sif docker://ghcr.io/sacridini/terraflux-py:<version>`<br>`apptainer exec terraflux.sif python analysis.py` |
+| Enroot + Pyxis (Slurm) | `srun --container-image=ghcr.io#sacridini/terraflux-py:<version> --container-mounts="$PWD:/data" python analysis.py` |
+
+On a cluster, `terraflux-py slurm` run inside the Apptainer image writes job scripts whose
+tasks run in the same image; see
+[HPC and Slurm](https://sacridini.github.io/terraflux/parallel/hpc-slurm-in-python/).
 To build the image yourself, see the comments at the top of the `Dockerfile`.
 
 ## Quick start

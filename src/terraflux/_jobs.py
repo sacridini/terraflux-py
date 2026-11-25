@@ -34,7 +34,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NamedTuple, Sequence
+from typing import Mapping, NamedTuple, Sequence
 
 from ._threads import JOB_VARIABLES
 
@@ -555,18 +555,74 @@ def batch_memory(mem: str) -> str:
     return f"{max(2**30, slurm_bytes(mem) - 2**30) // 2**20}MiB"
 
 
+@dataclass(frozen=True)
+class Container:
+    """The container terraflux runs in: its runtime and, for Apptainer and Singularity, the image's path."""
+    runtime: str
+    image: str | None = None
+
+
+def container(env: Mapping[str, str] | None = None, root: Path = Path("/")) -> Container | None:
+    """The container this process runs in (None outside one), from the variables Apptainer sets and the
+    marker files of Docker and Podman under ``root``."""
+    env = os.environ if env is None else env
+    if env.get("APPTAINER_CONTAINER"):
+        return Container("Apptainer", env["APPTAINER_CONTAINER"])
+    if env.get("SINGULARITY_CONTAINER"):
+        return Container("Singularity", env["SINGULARITY_CONTAINER"])
+    if (root / ".dockerenv").exists():
+        return Container("Docker")
+    if (root / "run" / ".containerenv").exists():
+        return Container("Podman")
+    if env.get("container"):
+        return Container(env["container"])
+    return None
+
+
+_detect_container = container
+
+
+def _input_folder(inputs: str) -> str:
+    """The folder of ``inputs``: itself, the folder of a file, or what lies before a glob's first wildcard."""
+    if os.path.isdir(inputs):
+        return os.path.abspath(inputs)
+    if os.path.exists(inputs):
+        return os.path.dirname(os.path.abspath(inputs))
+    cut = min((i for i in (inputs.find(c) for c in "*?[") if i >= 0), default=len(inputs))
+    return os.path.dirname(os.path.abspath(inputs[:cut] + "x"))
+
+
+def _image(spec: str) -> str | None:
+    """The image to run the tasks in: ``spec`` ("auto": the Apptainer one this runs in; "none": no image)."""
+    if spec == "none":
+        return None
+    if spec == "auto":
+        found = _detect_container()
+        return found.image if found is not None and found.runtime in ("Apptainer", "Singularity") else None
+    if "://" in spec:
+        return spec
+    if not os.path.exists(spec):
+        raise ValueError(f"--container: {spec} does not exist (a .sif file, an image such as docker://..., "
+                         "'auto' or 'none')")
+    return os.path.abspath(spec)
+
+
 def write_script(tool: str, inputs: str, output_dir, params: dict, *, cpus: int, threads_per_worker: int = 1,
                  mem: str | None = None, time_limit: str | None = None, partition: str | None = None,
                  account: str | None = None, tasks: int | None = None, max_running: int | None = None,
                  sbatch: Sequence[str] = (), setup: Sequence[str] = (), script: str | None = None,
-                 table_format: str = "csv") -> JobScript:
-    """Keep the split in the output folder and write the job script of a batch over a job array."""
+                 table_format: str = "csv", container: str | None = "auto") -> JobScript:
+    """Keep the split in the output folder and write the job script of a batch over a job array.
+
+    ``container``: "auto" runs the tasks in the Apptainer image this runs in (the compute nodes have no
+    ``sys.executable`` of a container), "none" runs ``sys.executable``, or an image (.sif, docker://...)."""
     from .batch import BYTES_PER_PIXEL, _TOOL_BYTES_PER_PIXEL, _header_pixels, _resolve_tool
     from .collection import expand_sources
 
     name, _ = _resolve_tool(tool)
     if cpus < 1:
         raise ValueError("--cpus must be at least 1")
+    image = _image(container or "none")
     paths = expand_sources(inputs)
     n = len(paths)
     if n == 0:
@@ -597,8 +653,10 @@ def write_script(tool: str, inputs: str, output_dir, params: dict, *, cpus: int,
     max_memory = batch_memory(mem)
     note.append(f"# The batch starts a raster only while its estimate fits in {max_memory} (--max-memory).")
     source = os.path.abspath(inputs) if os.path.exists(inputs) else inputs
-    line = [sys.executable, "-m", "terraflux", "batch", name, source, str(output_dir), "--shard", "array",
-            "--requeue", "--threads-per-worker", str(threads_per_worker), "--max-memory", max_memory]
+    # inside the image its own python: the compute node has no sys.executable of a container
+    python = "python" if image else sys.executable
+    line = [python, "-m", "terraflux", "batch", name, source, str(output_dir), "--shard", "array", "--requeue",
+            "--threads-per-worker", str(threads_per_worker), "--max-memory", max_memory]
     if table_format != "csv":
         line += ["--table-format", table_format]
     line += [f"{k}={json.dumps(v)}" for k, v in params.items()]
@@ -629,7 +687,17 @@ def write_script(tool: str, inputs: str, output_dir, params: dict, *, cpus: int,
         "#SBATCH --requeue",
     ]
     head += [f"#SBATCH {extra}" for extra in sbatch]
-    body = [""] + list(setup) + ([""] if setup else []) + ["exec " + " ".join(shlex.quote(str(a)) for a in line)]
+    quoted = " ".join(shlex.quote(str(a)) for a in line)
+    if image:
+        why = ("found automatically: this was written inside it" if container == "auto" else "given with --container")
+        head.insert(2, f"# The tasks run inside the image {image} ({why}); the node needs apptainer or singularity.")
+        binds = list(dict.fromkeys(b for b in (_input_folder(inputs), str(output_dir)) if os.path.isdir(b)))
+        runner = (f'exec "$RUNTIME" exec --bind {shlex.quote(",".join(binds))} {shlex.quote(image)} ' + quoted)
+        find = ('RUNTIME=$(command -v apptainer || command -v singularity) || { echo "apptainer (or singularity) is '
+                'not on this node: module load apptainer, or --setup" >&2; exit 1; }')
+        body = [""] + list(setup) + ([""] if setup else []) + [find, runner]
+    else:
+        body = [""] + list(setup) + ([""] if setup else []) + ["exec " + quoted]
     text = "\n".join(head + body) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, newline="\n")
@@ -639,6 +707,10 @@ def write_script(tool: str, inputs: str, output_dir, params: dict, *, cpus: int,
 def submit(path: Path) -> str:
     """``sbatch <path>``: what it answered (``Submitted batch job 123456``)."""
     if shutil.which("sbatch") is None:
+        inside = container()
+        if inside is not None:
+            raise RuntimeError(f"terraflux runs inside a container ({inside.runtime}), which has no sbatch: run "
+                               f"`sbatch {path}` on the login node, outside the container")
         raise RuntimeError("sbatch is not here: run `terraflux-py slurm --submit` on the cluster's login node, or "
                            f"submit the script there with: sbatch {path}")
     done = subprocess.run(["sbatch", str(path)], capture_output=True, text=True)

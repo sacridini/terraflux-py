@@ -123,6 +123,44 @@ def _job() -> list[str]:
     return ["Job: " + "; ".join(found)]
 
 
+def _own_mount(path: Path, root: Path = Path("/")) -> str:
+    """The mount point holding ``path``, from ``root``/proc/self/mountinfo (the longest one that is a prefix of
+    it; "/" when it lives in the container's own layer, or the file cannot be read)."""
+    try:
+        text = (root / "proc" / "self" / "mountinfo").read_text()
+    except OSError:
+        return "/"
+    where = path.as_posix()
+    best = "/"
+    for row in text.splitlines():
+        fields = row.split()
+        if len(fields) > 4:
+            mount = fields[4].replace("\\040", " ")
+            if len(mount) > len(best) and (where == mount or where.startswith(mount.rstrip("/") + "/")):
+                best = mount
+    return best
+
+
+def _container(root: Path = Path("/"), env=None) -> list[str]:
+    from ._jobs import container
+
+    found = container(env, root)
+    if found is None:
+        return ["Container: none"]
+    lines = [f"Container: {found.runtime}" + (f" ({found.image})" if found.image else "")]
+    if found.runtime in ("Docker", "Podman"):
+        from ._download import cache_dir
+
+        try:
+            cache = cache_dir()
+        except OSError:
+            return lines
+        if _own_mount(cache, root) == "/":
+            lines.append(f"  ! the cache is inside the container and is lost with it: mount a volume at {cache} "
+                         f"(docker run -v terraflux-cache:{cache} ...)")
+    return lines
+
+
 def _caches() -> list[str]:
     from ._dist._group import config_dir, load_secret
     from ._dist._worker import default_cache_dir
@@ -173,7 +211,7 @@ def _display() -> list[str]:
 
 def report(network: bool = True, timeout: float = 5.0) -> str:
     """What ``terraflux-py doctor`` prints."""
-    lines = _versions() + _threads() + _job() + _caches()
+    lines = _versions() + _threads() + _job() + _container() + _caches()
     if network:
         lines += _network(timeout)
     lines += _display()
@@ -184,7 +222,8 @@ def doctor(network: bool = True) -> None:
     """Print what terraflux finds on this computer.
 
     The threads it uses by default and where that number comes from, the
-    batch job (Slurm, PBS, LSF) and job array task it runs in, its cache and
+    batch job (Slurm, PBS, LSF) and job array task it runs in, the container
+    (Apptainer, Docker, Podman) it runs in, its cache and
     whether it can be written, whether the servers it downloads from answer,
     whether plots can open a window, and the versions. Also ``terraflux
     doctor`` on the command line: the first thing to run on a cluster, and to

@@ -85,6 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
                     "--sbatch=--qos=long (repeatable)")
     sl.add_argument("--setup", action="append", default=[], metavar="LINE", help="A line run before terraflux, "
                     "e.g. --setup 'module load gdal' (repeatable)")
+    sl.add_argument("--container", default="auto", metavar="{auto,none,PATH}", help="Run the tasks in an Apptainer "
+                    "image: auto (default) uses the one terraflux-py runs in, none uses this Python, or a .sif "
+                    "file or image (docker://...)")
     sl.add_argument("--script", default=None, help="Where to write the script (default: "
                     "<output_dir>/.terraflux-batch/<tool>.sbatch)")
     sl.add_argument("--submit", action="store_true", help="Submit it with sbatch")
@@ -213,7 +216,8 @@ def _slurm(args) -> None:
                                  threads_per_worker=args.threads_per_worker, mem=args.mem, time_limit=args.time,
                                  partition=args.partition, account=args.account, tasks=args.tasks,
                                  max_running=args.max_running, sbatch=args.sbatch, setup=args.setup,
-                                 script=args.script, table_format=args.table_format)
+                                 script=args.script, table_format=args.table_format,
+                                 container=args.container)
     except (ValueError, OSError) as e:
         print(f"Error: {e}")
         sys.exit(1)

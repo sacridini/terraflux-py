@@ -64,7 +64,9 @@ jobs:
       - name: Build, check and push
         run: |
           tag="$IMAGE:${{ steps.version.outputs.version }}-${{ matrix.arch }}"
-          docker buildx build -t "$tag" --load .
+          docker buildx build -t "$tag" --build-arg VERSION="${{ steps.version.outputs.version }}" --load .
+          # any user id writes its home and cache (docker run --user, Podman)
+          docker run --rm --user 4321:4321 "$tag" python -c "from pathlib import Path; from terraflux._download import cache_dir; c = cache_dir(); c.mkdir(parents=True, exist_ok=True); (c / 'probe').write_text('ok'); (Path.home() / '.config' / 'probe').write_text('ok'); print('cache', c)"
           docker run --rm "$tag" terraflux-py doctor --no-network
           docker run --rm "$tag" python -c "import terraflux as tf; print(tf.mspa(tf.load_raster(tf.example_data('input'))).shape)"
           if [ "$PUSH" = true ]; then docker push "$tag"; fi

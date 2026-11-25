@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -20,7 +21,9 @@ from terraflux import _cli, _jobs
 
 _JOB_VARIABLES = ["SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID", "SLURM_ARRAY_TASK_ID", "SLURM_ARRAY_TASK_MIN",
                   "SLURM_ARRAY_TASK_MAX", "SLURM_ARRAY_TASK_STEP", "SLURM_ARRAY_TASK_COUNT", "PBS_JOBID",
-                  "PBS_ARRAY_INDEX", "PBS_ARRAYID", "LSB_JOBID", "LSB_JOBINDEX"]
+                  "PBS_ARRAY_INDEX", "PBS_ARRAYID", "LSB_JOBID", "LSB_JOBINDEX",
+                  # the tests run the same inside a container (the Docker image's test target, Apptainer)
+                  "APPTAINER_CONTAINER", "SINGULARITY_CONTAINER", "container"]
 
 
 @pytest.fixture(autouse=True)
@@ -425,6 +428,86 @@ def test_doctor(monkeypatch, capsys):
     assert "Threads" in capsys.readouterr().out
     _cli.main(["doctor", "--no-network"])
     assert "Job: Slurm job" in capsys.readouterr().out
+
+
+def test_container_detection(tmp_path):
+    assert _jobs.container({}, tmp_path) is None
+    both = {"APPTAINER_CONTAINER": "/s/a.sif", "SINGULARITY_CONTAINER": "/s/b.sif"}
+    assert _jobs.container(both, tmp_path) == _jobs.Container("Apptainer", "/s/a.sif")
+    singularity = _jobs.Container("Singularity", "/s/b.sif")
+    assert _jobs.container({"SINGULARITY_CONTAINER": "/s/b.sif"}, tmp_path) == singularity
+    assert _jobs.container({"container": "oci"}, tmp_path) == _jobs.Container("oci")
+    assert _jobs.container({"container": ""}, tmp_path) is None
+    (tmp_path / "run").mkdir()
+    (tmp_path / "run" / ".containerenv").write_text("")
+    assert _jobs.container({"container": "oci"}, tmp_path) == _jobs.Container("Podman")
+    (tmp_path / ".dockerenv").write_text("")
+    assert _jobs.container({}, tmp_path) == _jobs.Container("Docker")
+
+
+def test_slurm_script_in_a_container(tiles, tmp_path, monkeypatch):
+    image = tmp_path / "terraflux.sif"
+    image.write_text("")
+    monkeypatch.setenv("APPTAINER_CONTAINER", str(image))
+    out = tmp_path / "out"
+    job = _jobs.write_script("accounting", str(tiles / "t*.tif"), out, {}, cpus=2, setup=["module load apptainer"])
+    lines = job.text.splitlines()
+    assert "RUNTIME=$(command -v apptainer || command -v singularity) || {" in job.text
+    assert lines.index("module load apptainer") < next(i for i, x in enumerate(lines) if x.startswith("RUNTIME="))
+    assert any("inside the image" in x and "found automatically" in x for x in lines[:4])
+    run = lines[-1]
+    assert run.startswith('exec "$RUNTIME" exec --bind ')
+    binds = shlex.quote(f"{tiles},{out.resolve()}")
+    assert f"--bind {binds} {shlex.quote(str(image))} python -m terraflux batch " in run
+    assert str(sys.executable) not in job.text
+    # the same folder twice is bound once, a missing image is refused, "none" is as before
+    again = _jobs.write_script("accounting", str(tiles), tiles, {}, cpus=2, script=str(tmp_path / "x.sbatch"))
+    assert f"--bind {shlex.quote(str(tiles))} " in again.text.splitlines()[-1]
+    with pytest.raises(ValueError, match="does not exist"):
+        _jobs.write_script("accounting", str(tiles), out, {}, cpus=2, container=str(tmp_path / "missing.sif"))
+    plain = _jobs.write_script("accounting", str(tiles), out, {}, cpus=2, container="none")
+    assert "RUNTIME" not in plain.text and plain.text.splitlines()[-1].startswith("exec ")
+    assert "-m terraflux batch accounting" in plain.text and "--bind" not in plain.text
+    other = tmp_path / "other.sif"
+    other.write_text("")
+    given = _jobs.write_script("accounting", str(tiles), out, {}, cpus=2, container=str(other))
+    assert f" {shlex.quote(str(other))} python " in given.text and "given with --container" in given.text
+    remote = _jobs.write_script("accounting", str(tiles), out, {}, cpus=2, container="docker://x/y:1")
+    assert " docker://x/y:1 python " in remote.text
+
+
+def test_submit_inside_a_container(tmp_path, monkeypatch):
+    monkeypatch.setattr(_jobs.shutil, "which", lambda name: None)
+    monkeypatch.setenv("APPTAINER_CONTAINER", "/s/a.sif")
+    with pytest.raises(RuntimeError, match=r"inside a container \(Apptainer\), which has no sbatch.*login node"):
+        _jobs.submit(tmp_path / "a.sbatch")
+
+
+def test_doctor_container(tmp_path, monkeypatch):
+    from terraflux import _doctor
+
+    monkeypatch.delenv("APPTAINER_CONTAINER", raising=False)
+    monkeypatch.delenv("SINGULARITY_CONTAINER", raising=False)
+    assert _doctor._container(tmp_path, {}) == ["Container: none"]
+    assert _doctor._container(tmp_path, {"APPTAINER_CONTAINER": "/s/a.sif"}) == ["Container: Apptainer (/s/a.sif)"]
+    (tmp_path / ".dockerenv").write_text("")
+    from terraflux._download import cache_dir
+
+    cache = cache_dir()
+    # no mountinfo, or the cache on the root: the cache is lost with the container
+    lines = _doctor._container(tmp_path, {})
+    assert lines[0] == "Container: Docker" and f"mount a volume at {cache}" in lines[1]
+    info = tmp_path / "proc" / "self"
+    info.mkdir(parents=True)
+    rows = ["1 0 8:1 / / rw - overlay overlay rw", "2 1 0:5 / /proc rw - proc proc rw"]
+    (info / "mountinfo").write_text("\n".join(rows) + "\n")
+    assert _doctor._own_mount(cache, tmp_path) == "/"
+    assert len(_doctor._container(tmp_path, {})) == 2
+    rows.append(f"3 1 8:2 / {cache.as_posix()} rw - ext4 /dev/sdb rw")
+    (info / "mountinfo").write_text("\n".join(rows) + "\n")
+    assert _doctor._own_mount(cache, tmp_path) == cache.as_posix()
+    assert _doctor._container(tmp_path, {}) == ["Container: Docker"]
+    assert "Container: " in _doctor.report(network=False)
 
 
 def test_sigterm_after_the_last_raster_is_no_stop(tiles, tmp_path, monkeypatch):
